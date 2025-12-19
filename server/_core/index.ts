@@ -61,8 +61,8 @@ async function startServer() {
   // Initialize Socket.io
   initializeSocket(server);
 
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${port}/`);
   });
 }
 
