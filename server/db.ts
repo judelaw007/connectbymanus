@@ -22,7 +22,13 @@ export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
       console.log("[Database] Connecting to database...");
-      _client = postgres(process.env.DATABASE_URL);
+      // Supabase requires SSL for external connections
+      _client = postgres(process.env.DATABASE_URL, {
+        ssl: 'require',
+        max: 10,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
       _db = drizzle(_client);
       console.log("[Database] Connection established");
     } catch (error) {
@@ -38,29 +44,47 @@ export async function getDb() {
 
 // Debug function to test database connection
 export async function testDatabaseConnection() {
-  const db = await getDb();
-  if (!db) {
-    return { success: false, error: "Database not available - check DATABASE_URL" };
+  // First check if we have a DATABASE_URL
+  if (!process.env.DATABASE_URL) {
+    return { success: false, error: "DATABASE_URL environment variable not set" };
   }
 
   try {
-    // Try a simple query
-    const result = await db.select({ count: sql`count(*)` }).from(channels);
-    const channelCount = result[0]?.count ?? 0;
+    // Create a fresh connection for testing
+    const testClient = postgres(process.env.DATABASE_URL, {
+      ssl: 'require',
+      max: 1,
+      connect_timeout: 10,
+    });
 
-    const userResult = await db.select({ count: sql`count(*)` }).from(users);
-    const userCount = userResult[0]?.count ?? 0;
+    // Try the simplest possible query first
+    const versionResult = await testClient`SELECT version()`;
+    const version = versionResult[0]?.version || 'unknown';
+
+    // Try counting channels
+    const channelResult = await testClient`SELECT count(*) as count FROM channels`;
+    const channelCount = Number(channelResult[0]?.count ?? 0);
+
+    // Try counting users
+    const userResult = await testClient`SELECT count(*) as count FROM users`;
+    const userCount = Number(userResult[0]?.count ?? 0);
+
+    // Close test connection
+    await testClient.end();
 
     return {
       success: true,
-      channelCount: Number(channelCount),
-      userCount: Number(userCount),
-      message: `Found ${channelCount} channels and ${userCount} users`
+      channelCount,
+      userCount,
+      postgresVersion: version.substring(0, 50),
+      message: `Connected! Found ${channelCount} channels and ${userCount} users`
     };
   } catch (error: any) {
+    console.error("[Database Debug] Error:", error);
     return {
       success: false,
       error: error.message || "Query failed",
+      code: error.code,
       details: error.toString()
     };
   }
