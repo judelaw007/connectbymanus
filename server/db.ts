@@ -1,6 +1,7 @@
-import { eq, and, or, desc, sql, like } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-import { 
+import { eq, and, or, desc, sql, ilike } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import {
   InsertUser, users,
   channels, InsertChannel, Channel,
   channelMembers, InsertChannelMember,
@@ -15,11 +16,13 @@ import {
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _client: ReturnType<typeof postgres> | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _client = postgres(process.env.DATABASE_URL);
+      _db = drizzle(_client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -80,7 +83,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.openId,
       set: updateSet,
     });
   } catch (error) {
@@ -103,7 +107,7 @@ export async function getUserByOpenId(openId: string) {
 export async function getUserById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  
+
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
@@ -113,15 +117,15 @@ export async function getUserById(id: number) {
 export async function createChannel(channel: InsertChannel) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(channels).values(channel);
-  return Number(result[0].insertId);
+
+  const result = await db.insert(channels).values(channel).returning({ id: channels.id });
+  return result[0].id;
 }
 
 export async function getChannelById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  
+
   const result = await db.select().from(channels).where(eq(channels.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
@@ -129,14 +133,14 @@ export async function getChannelById(id: number) {
 export async function getAllChannels() {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select().from(channels).where(eq(channels.isClosed, false)).orderBy(channels.createdAt);
 }
 
 export async function getPublicChannels() {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select().from(channels)
     .where(and(eq(channels.isPrivate, false), eq(channels.isClosed, false)))
     .orderBy(channels.createdAt);
@@ -145,7 +149,7 @@ export async function getPublicChannels() {
 export async function getUserChannels(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select({
     id: channels.id,
     name: channels.name,
@@ -168,7 +172,7 @@ export async function getUserChannels(userId: number) {
 export async function updateChannel(id: number, updates: Partial<Channel>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(channels).set(updates).where(eq(channels.id, id));
 }
 
@@ -177,14 +181,14 @@ export async function updateChannel(id: number, updates: Partial<Channel>) {
 export async function addChannelMember(member: InsertChannelMember) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  await db.insert(channelMembers).values(member);
+
+  await db.insert(channelMembers).values(member).onConflictDoNothing();
 }
 
 export async function removeChannelMember(channelId: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.delete(channelMembers)
     .where(and(
       eq(channelMembers.channelId, channelId),
@@ -195,7 +199,7 @@ export async function removeChannelMember(channelId: number, userId: number) {
 export async function getChannelMembers(channelId: number) {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select({
     id: users.id,
     name: users.name,
@@ -212,7 +216,7 @@ export async function getChannelMembers(channelId: number) {
 export async function isUserInChannel(channelId: number, userId: number) {
   const db = await getDb();
   if (!db) return false;
-  
+
   const result = await db.select()
     .from(channelMembers)
     .where(and(
@@ -220,7 +224,7 @@ export async function isUserInChannel(channelId: number, userId: number) {
       eq(channelMembers.userId, userId)
     ))
     .limit(1);
-    
+
   return result.length > 0;
 }
 
@@ -229,15 +233,15 @@ export async function isUserInChannel(channelId: number, userId: number) {
 export async function createMessage(message: InsertMessage) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(messages).values(message);
-  return Number(result[0].insertId);
+
+  const result = await db.insert(messages).values(message).returning({ id: messages.id });
+  return result[0].id;
 }
 
 export async function getChannelMessages(channelId: number, limit: number = 50, offset: number = 0) {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select({
     id: messages.id,
     channelId: messages.channelId,
@@ -261,7 +265,7 @@ export async function getChannelMessages(channelId: number, limit: number = 50, 
 export async function getPinnedMessages(channelId: number) {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select({
     id: messages.id,
     channelId: messages.channelId,
@@ -286,7 +290,7 @@ export async function getPinnedMessages(channelId: number) {
 export async function togglePinMessage(messageId: number, isPinned: boolean) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(messages).set({ isPinned }).where(eq(messages.id, messageId));
 }
 
@@ -295,15 +299,15 @@ export async function togglePinMessage(messageId: number, isPinned: boolean) {
 export async function createPost(post: InsertPost) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(posts).values(post);
-  return Number(result[0].insertId);
+
+  const result = await db.insert(posts).values(post).returning({ id: posts.id });
+  return result[0].id;
 }
 
 export async function getPostsByType(postType: "event" | "announcement" | "article" | "newsletter", limit: number = 20) {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select({
     id: posts.id,
     postType: posts.postType,
@@ -330,7 +334,7 @@ export async function getPostsByType(postType: "event" | "announcement" | "artic
 export async function getPostById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  
+
   const result = await db.select({
     id: posts.id,
     postType: posts.postType,
@@ -350,14 +354,14 @@ export async function getPostById(id: number) {
   .leftJoin(users, eq(posts.authorId, users.id))
   .where(eq(posts.id, id))
   .limit(1);
-  
+
   return result.length > 0 ? result[0] : undefined;
 }
 
 export async function togglePinPost(postId: number, isPinned: boolean) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(posts).set({ isPinned }).where(eq(posts.id, postId));
 }
 
@@ -366,15 +370,15 @@ export async function togglePinPost(postId: number, isPinned: boolean) {
 export async function createSupportTicket(ticket: InsertSupportTicket) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(supportTickets).values(ticket);
-  return Number(result[0].insertId);
+
+  const result = await db.insert(supportTickets).values(ticket).returning({ id: supportTickets.id });
+  return result[0].id;
 }
 
 export async function getAllSupportTickets() {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select({
     id: supportTickets.id,
     userId: supportTickets.userId,
@@ -396,7 +400,7 @@ export async function getAllSupportTickets() {
 export async function getOpenSupportTickets() {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select({
     id: supportTickets.id,
     userId: supportTickets.userId,
@@ -418,7 +422,7 @@ export async function getOpenSupportTickets() {
 export async function getSupportTicketById(id: number) {
   const db = await getDb();
   if (!db) return null;
-  
+
   const result = await db.select({
     id: supportTickets.id,
     userId: supportTickets.userId,
@@ -442,14 +446,14 @@ export async function getSupportTicketById(id: number) {
   .leftJoin(users, eq(supportTickets.userId, users.id))
   .where(eq(supportTickets.id, id))
   .limit(1);
-  
+
   return result[0] || null;
 }
 
 export async function updateSupportTicket(id: number, updates: Partial<InsertSupportTicket>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(supportTickets).set(updates).where(eq(supportTickets.id, id));
 }
 
@@ -458,14 +462,14 @@ export async function updateSupportTicket(id: number, updates: Partial<InsertSup
 export async function createNotification(notification: InsertNotification) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.insert(notifications).values(notification);
 }
 
 export async function getUserNotifications(userId: number, limit: number = 50) {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select()
     .from(notifications)
     .where(eq(notifications.userId, userId))
@@ -476,14 +480,14 @@ export async function getUserNotifications(userId: number, limit: number = 50) {
 export async function markNotificationAsRead(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
 }
 
 export async function updatePost(postId: number, updates: Partial<InsertPost>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(posts)
     .set(updates)
     .where(eq(posts.id, postId));
@@ -508,9 +512,9 @@ export async function searchKnowledgeBase(searchTerm: string) {
       and(
         eq(mojiKnowledgeBase.isActive, true),
         or(
-          like(mojiKnowledgeBase.question, `%${searchTerm}%`),
-          like(mojiKnowledgeBase.answer, `%${searchTerm}%`),
-          like(mojiKnowledgeBase.tags, `%${searchTerm}%`)
+          ilike(mojiKnowledgeBase.question, `%${searchTerm}%`),
+          ilike(mojiKnowledgeBase.answer, `%${searchTerm}%`),
+          ilike(mojiKnowledgeBase.tags, `%${searchTerm}%`)
         )
       )
     );
@@ -519,8 +523,8 @@ export async function searchKnowledgeBase(searchTerm: string) {
 export async function createKnowledgeBaseEntry(entry: InsertMojiKnowledgeBase) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(mojiKnowledgeBase).values(entry);
-  return Number(result[0].insertId);
+  const result = await db.insert(mojiKnowledgeBase).values(entry).returning({ id: mojiKnowledgeBase.id });
+  return result[0].id;
 }
 
 export async function updateKnowledgeBaseEntry(id: number, entry: Partial<InsertMojiKnowledgeBase>) {
@@ -549,8 +553,8 @@ export async function getAllEmailLogs(limit: number = 100) {
 export async function createEmailLog(log: InsertEmailLog) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(emailLogs).values(log);
-  return Number(result[0].insertId);
+  const result = await db.insert(emailLogs).values(log).returning({ id: emailLogs.id });
+  return result[0].id;
 }
 
 export async function updateEmailLogStatus(id: number, status: "sent" | "failed", errorMessage?: string) {
@@ -568,15 +572,15 @@ export async function updateEmailLogStatus(id: number, status: "sent" | "failed"
 export async function createSupportMessage(message: InsertSupportMessage) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(supportMessages).values(message);
-  return Number(result[0].insertId);
+
+  const result = await db.insert(supportMessages).values(message).returning({ id: supportMessages.id });
+  return result[0].id;
 }
 
 export async function getSupportMessagesByTicket(ticketId: number) {
   const db = await getDb();
   if (!db) return [];
-  
+
   return await db.select({
     id: supportMessages.id,
     ticketId: supportMessages.ticketId,
@@ -653,9 +657,9 @@ export async function getSupportAnalytics(filters: AnalyticsFilters) {
   if (filters.searchQuery) {
     conditions.push(
       or(
-        like(supportTickets.subject, `%${filters.searchQuery}%`),
-        like(supportTickets.tags, `%${filters.searchQuery}%`),
-        like(users.name, `%${filters.searchQuery}%`)
+        ilike(supportTickets.subject, `%${filters.searchQuery}%`),
+        ilike(supportTickets.tags, `%${filters.searchQuery}%`),
+        ilike(users.name, `%${filters.searchQuery}%`)
       )!
     );
   }

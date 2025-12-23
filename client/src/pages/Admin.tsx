@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import MojiSettings from "@/components/MojiSettings";
 import EmailLogs from "@/components/EmailLogs";
@@ -7,11 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { 
-  MessageSquare, 
-  Users, 
-  Hash, 
+import {
+  MessageSquare,
+  Users,
+  Hash,
   Shield,
   LogOut,
   Bot,
@@ -21,42 +20,29 @@ import {
   Settings,
   LayoutDashboard,
   MessagesSquare,
-  Save,
-  RefreshCw
+  Save
 } from "lucide-react";
 import { useLocation } from "wouter";
 import ChatLayout from "@/components/ChatLayout";
 import ChatAnalytics from "@/components/ChatAnalytics";
 import { trpc } from "@/lib/trpc";
+import { signOutAdmin } from "@/lib/supabase";
 
 type DashboardSection = "overview" | "email-logs" | "moji-settings" | "user-moderation" | "platform-settings" | "chat-analytics";
 
 export default function Admin() {
   const [, setLocation] = useLocation();
-  const [isAdminSession, setIsAdminSession] = useState(false);
   const [viewMode, setViewMode] = useState<"dashboard" | "chat">("dashboard" as "dashboard" | "chat");
   const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
 
-  // Check for admin session
-  useEffect(() => {
-    const adminSession = localStorage.getItem("admin_session");
-    if (adminSession === "true") {
-      setIsAdminSession(true);
-    } else {
-      setLocation("/auth/admin");
-    }
-  }, [setLocation]);
+  // Auth is now handled by AdminAuthGuard wrapper in App.tsx
 
-  const handleLogout = () => {
-    localStorage.removeItem("admin_session");
+  const handleLogout = async () => {
+    await signOutAdmin();
     setLocation("/auth/admin");
   };
 
   const { data: channels } = trpc.channels.getPublic.useQuery();
-  
-  if (!isAdminSession) {
-    return null;
-  }
 
   // If in chat mode, show the regular chat interface with admin privileges
   if (viewMode === "chat") {
