@@ -36,15 +36,7 @@ export async function signInAdmin(email: string, password: string) {
   if (error) {
     throw error;
   }
-
-  // Verify user has admin metadata
-  const isAdmin = data.user?.user_metadata?.is_admin === true;
-  if (!isAdmin) {
-    await supabase.auth.signOut();
-    throw new Error("Access denied. Admin privileges required.");
-  }
-
-  return data;
+   return data;
 }
 
 export async function signOutAdmin() {
