@@ -1,5 +1,33 @@
 # Supabase Setup for MojiTax Connect
 
+## Platform Access Model
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  PUBLIC (No login required)                                 │
+│  • Can READ all chats                                       │
+│  • Member names displayed as encrypted/anonymous            │
+│  • Cannot post or reply                                     │
+│  • CTA: "Join mojitax.co.uk to participate"                 │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  MEMBERS (Auth via mojitax.co.uk / Learnworlds)             │
+│  • Full read/write access                                   │
+│  • Real names visible to other members                      │
+│  • Can create study groups, post messages                   │
+│  • Can use @moji and create support tickets                 │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  ADMIN (Auth via Supabase at /auth/admin)                   │
+│  • Full platform control                                    │
+│  • Create channels, posts, manage KB                        │
+│  • Handle support tickets                                   │
+│  • Name always visible (not encrypted)                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ## Prerequisites
 
 1. A Supabase account (https://supabase.com)
@@ -206,5 +234,81 @@ Supabase has built-in file storage for user uploads.
 ### Edge Functions
 Serverless functions that run close to your users.
 
-### Auth (optional)
-Supabase has built-in auth, though MojiTax Connect uses custom OAuth.
+### Auth
+Supabase Auth is used for **admin login only**. Regular users authenticate via mojitax.co.uk (Learnworlds).
+
+---
+
+## Admin Authentication Setup
+
+Admin access is managed through Supabase Auth, completely separate from regular user authentication.
+
+### Step 1: Enable Email Auth
+
+1. Go to **Authentication** → **Providers**
+2. Ensure **Email** provider is enabled
+3. Optionally disable "Confirm email" for admin accounts
+
+### Step 2: Create Admin User
+
+1. Go to **Authentication** → **Users**
+2. Click **"Add user"** → **"Create new user"**
+3. Enter:
+   - **Email**: `admin@mojitax.co.uk`
+   - **Password**: Strong password (save securely!)
+   - **Auto Confirm User**: ✓ Check this
+4. Click **"Create user"**
+
+### Step 3: Set Admin Metadata
+
+1. Click on the newly created user
+2. Under **"user_metadata"**, click Edit and add:
+   ```json
+   {
+     "is_admin": true,
+     "name": "MojiTax Admin"
+   }
+   ```
+3. Save changes
+
+### Step 4: Link to Users Table
+
+Run this SQL (replace `[USER_ID]` with the ID from the dashboard):
+
+```sql
+INSERT INTO users (open_id, name, email, role, login_method)
+VALUES (
+    '[USER_ID_FROM_AUTH_DASHBOARD]',
+    'MojiTax Admin',
+    'admin@mojitax.co.uk',
+    'admin',
+    'supabase'
+)
+ON CONFLICT (open_id) DO UPDATE SET role = 'admin';
+```
+
+### Step 5: Update Environment Variables
+
+Add to your `.env`:
+
+```env
+# Admin auth via Supabase
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### Admin Login Flow
+
+```
+/auth/admin → Supabase Auth (email/password)
+           → Verify is_admin in metadata
+           → Set session cookie
+           → Redirect to /admin dashboard
+```
+
+### Adding More Admins
+
+Repeat Steps 2-4 for each additional admin. You can also:
+- Use Supabase Auth with invite links
+- Enable MFA for extra security
+- Set up password policies
