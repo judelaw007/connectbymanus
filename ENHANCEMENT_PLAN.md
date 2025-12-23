@@ -52,52 +52,10 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 2: Populate Knowledge Base
+## Phase 2: Email Notifications
 
 **Priority**: HIGH
 **Dependency**: None (can run parallel with Phase 1)
-
-### Problem
-@moji chatbot always falls back to LLM because the knowledge base is empty.
-
-### Current Implementation
-- Table: `mojiKnowledgeBase` (schema exists in `drizzle/schema.ts:186-198`)
-- Admin UI: `MojiSettings.tsx` component with CSV upload
-- Search: `searchKnowledgeBase()` function in `server/db.ts`
-- Chatbot: `chatbot.ts` searches KB before LLM
-
-### Tasks
-
-1. **Create sample knowledge base CSV**
-   - Columns: `question`, `answer`, `category`, `tags`
-   - Categories: VAT, Transfer Pricing, ADIT Exam, General Tax, Platform Help
-   - Minimum 50 entries for meaningful coverage
-
-2. **Test CSV upload workflow**
-   - Login as admin → Moji Settings → Upload CSV
-   - Verify entries appear in database
-   - Verify search returns results
-
-3. **Validate @moji uses KB answers**
-   - Test asking questions that match KB entries
-   - Verify @moji returns KB answer (not LLM)
-   - Test fallback to LLM for unmatched questions
-
-4. **Create KB maintenance documentation**
-   - How to add/update entries
-   - CSV format requirements
-   - Category naming conventions
-
-### Deliverable
-- Knowledge base populated with 50+ Q&A entries
-- @moji providing accurate tax answers from KB
-
----
-
-## Phase 3: Implement Email Notifications
-
-**Priority**: HIGH
-**Dependency**: None
 
 ### Current State
 - Email logs table exists: `emailLogs` (schema in `drizzle/schema.ts:220-232`)
@@ -157,7 +115,7 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 4: Integrate mojitax.co.uk Authentication
+## Phase 3: Integrate mojitax.co.uk Authentication
 
 **Priority**: CRITICAL
 **Dependency**: Requires API credentials from mojitax.co.uk
@@ -220,10 +178,10 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 5: User Ticket Management UI
+## Phase 4: User Ticket Management UI
 
 **Priority**: MEDIUM
-**Dependency**: Phase 3 (for reply notifications)
+**Dependency**: Phase 2 (for reply notifications)
 
 ### Current State
 - Backend: `support.getMyTickets()` exists (implied from router structure)
@@ -271,10 +229,10 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 6: Posts Integration Enhancement
+## Phase 5: Posts Integration Enhancement
 
 **Priority**: MEDIUM
-**Dependency**: Phase 3 (for email distribution)
+**Dependency**: Phase 2 (for email distribution)
 
 ### Current State
 - Backend: Posts API complete (`posts.create`, `posts.getByType`, etc.)
@@ -322,7 +280,7 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 7: Rate Limiting & Security
+## Phase 6: Rate Limiting & Security
 
 **Priority**: MEDIUM
 **Dependency**: None
@@ -380,7 +338,7 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 8: Final Testing & Polish
+## Phase 7: Final Testing & Polish
 
 **Priority**: HIGH
 **Dependency**: All previous phases
@@ -435,39 +393,47 @@ Based on codebase exploration, the test files expect:
 | Phase | Priority | Effort | Dependencies | Can Parallelize |
 |-------|----------|--------|--------------|-----------------|
 | 1. Fix Tests | CRITICAL | Low | None | Yes |
-| 2. Knowledge Base | HIGH | Low | None | Yes |
-| 3. Email Notifications | HIGH | Medium | None | Yes |
-| 4. mojitax.co.uk Auth | CRITICAL | High | API Credentials | No |
-| 5. User Ticket UI | MEDIUM | Medium | Phase 3 | After Phase 3 |
-| 6. Posts Enhancement | MEDIUM | Medium | Phase 3 | After Phase 3 |
-| 7. Security | MEDIUM | Medium | None | Yes |
-| 8. Final Testing | HIGH | Medium | All phases | No |
+| 2. Email Notifications | HIGH | Medium | None | Yes |
+| 3. mojitax.co.uk Auth | CRITICAL | High | API Credentials | No |
+| 4. User Ticket UI | MEDIUM | Medium | Phase 2 | After Phase 2 |
+| 5. Posts Enhancement | MEDIUM | Medium | Phase 2 | After Phase 2 |
+| 6. Security | MEDIUM | Medium | None | Yes |
+| 7. Final Testing | HIGH | Medium | All phases | No |
+
+**Post-Production (Ongoing):**
+| Task | Priority | Effort | Notes |
+|------|----------|--------|-------|
+| Knowledge Base | ONGOING | Content work | Curated by tax experts, grows over time |
 
 ---
 
 ## Parallel Execution Strategy
 
-**Week 1: Foundation** (Phases 1, 2, 3, 7 in parallel)
-- Developer A: Fix test suite (Phase 1)
-- Developer B: Knowledge base content (Phase 2)
-- Developer A+B: Email notifications (Phase 3)
-- Background: Security hardening (Phase 7)
+**Sprint 1: Foundation** (Phases 1, 2, 6 in parallel)
+- Fix test suite (Phase 1) - CRITICAL
+- Email notifications (Phase 2) - HIGH
+- Security hardening (Phase 6) - Can run in background
 
-**Week 2: Authentication** (Phase 4)
+**Sprint 2: Authentication** (Phase 3)
 - Requires mojitax.co.uk API credentials
 - Full focus on authentication integration
 - Test thoroughly before proceeding
 
-**Week 3: User Features** (Phases 5, 6 in parallel)
-- User ticket management UI
-- Posts integration enhancement
-- Both depend on email notifications (Phase 3)
+**Sprint 3: User Features** (Phases 4, 5 in parallel)
+- User ticket management UI (Phase 4)
+- Posts integration enhancement (Phase 5)
+- Both depend on email notifications (Phase 2)
 
-**Week 4: Polish** (Phase 8)
+**Sprint 4: Polish & Launch** (Phase 7)
 - Final testing
 - Bug fixes
 - Documentation
 - Deployment
+
+**Post-Launch: Ongoing**
+- Knowledge base population (content work by tax experts)
+- @moji improves as KB grows from real user questions
+- Analytics inform which topics need more KB coverage
 
 ---
 
@@ -485,22 +451,26 @@ Based on codebase exploration, the test files expect:
 
 ## Success Metrics
 
-### MVP (Minimum Viable Product)
+### MVP (Minimum Viable Product) - Launch Blockers
 - [x] Real-time messaging works
-- [x] @moji chatbot responds
+- [x] @moji chatbot responds (LLM fallback works without KB)
 - [x] Support tickets work
 - [ ] 100% test pass rate
 - [ ] mojitax.co.uk auth working
 - [ ] Email notifications working
-- [ ] Knowledge base populated
 
-### Production Ready
+### Production Ready - Full Feature Set
 - [ ] All MVP criteria met
 - [ ] User ticket management UI
 - [ ] Full posts integration
 - [ ] Rate limiting & security
 - [ ] Load tested (100+ users)
 - [ ] Documentation complete
+
+### Post-Launch - Ongoing Improvements
+- [ ] Knowledge base populated with common Q&A (curated by tax experts)
+- [ ] @moji accuracy improves based on real user questions
+- [ ] Analytics-driven KB expansion
 
 ---
 
@@ -523,4 +493,4 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-**Next Steps**: Begin Phase 1 (Fix Test Suite) and Phase 2 (Knowledge Base) in parallel.
+**Next Steps**: Begin Phase 1 (Fix Test Suite), Phase 2 (Email Notifications), and Phase 6 (Security) in parallel.
