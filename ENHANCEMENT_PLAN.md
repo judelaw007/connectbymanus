@@ -8,7 +8,28 @@
 
 ## Overview
 
-This plan outlines the specific enhancements needed to take MojiTax Connect from its current 85% completion state to a fully production-ready platform. Each phase addresses specific gaps identified in the status report.
+Based on the **Production Audit** (mojitax-connect-production-audit.xlsx):
+- **Production Ready**: 15.4% (12/78 features passing)
+- **Not Implemented**: 47.4% (37 features)
+- **Partially Working**: 28.2% (22 features)
+- **Not Tested**: 9.0% (7 features)
+
+This plan prioritizes the **8 CRITICAL** blockers first, then HIGH priority items.
+
+---
+
+## Critical Blockers (8 items - Must fix before launch)
+
+| # | Issue | Current State |
+|---|-------|---------------|
+| 1 | mojitax.co.uk OAuth Integration | No login button or OAuth flow |
+| 2 | Admin Login Security | No password protection on /auth/admin |
+| 3 | Email Notifications (Support) | No email integration |
+| 4 | Terms of Service | No ToS page or acceptance flow |
+| 5 | Privacy Policy | No privacy policy page |
+| 6 | XSS Protection | Unknown - not tested |
+| 7 | Login Button/Flow | Not implemented |
+| 8 | New Support Ticket Email | Not implemented |
 
 ---
 
@@ -115,7 +136,91 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 3: Integrate mojitax.co.uk Authentication
+## Phase 3: Legal & Compliance (CRITICAL)
+
+**Priority**: CRITICAL
+**Dependency**: None
+
+### Problem
+Cannot launch without legal requirements - Terms of Service and Privacy Policy are mandatory.
+
+### Tasks
+
+1. **Create Terms of Service page**
+   ```
+   client/src/pages/TermsOfService.tsx
+   - Full legal terms (requires legal review)
+   - Last updated date
+   - Contact information
+   ```
+
+2. **Create Privacy Policy page**
+   ```
+   client/src/pages/PrivacyPolicy.tsx
+   - Data collection explanation
+   - Cookie usage
+   - User rights (GDPR compliance)
+   - Data retention policy
+   ```
+
+3. **Add ToS acceptance flow**
+   - Checkbox on signup: "I accept the Terms of Service"
+   - Store acceptance timestamp in database
+   - Block access until accepted
+
+4. **Add cookie consent banner**
+   - GDPR-compliant cookie notice
+   - Allow/reject non-essential cookies
+   - Store preference
+
+5. **Add footer links**
+   - Terms of Service
+   - Privacy Policy
+   - Contact Us
+
+### Deliverable
+- Legal pages accessible
+- ToS acceptance required for new users
+- GDPR-compliant cookie consent
+
+---
+
+## Phase 4: Admin Login Security (CRITICAL)
+
+**Priority**: CRITICAL
+**Dependency**: None
+
+### Problem
+Currently anyone can access /auth/admin - no password protection.
+
+### Tasks
+
+1. **Add password protection**
+   - Environment variable: `ADMIN_PASSWORD`
+   - Hash comparison (never store plain text)
+   - Session-based authentication
+
+2. **Implement admin session**
+   - Set secure HTTP-only cookie on login
+   - Check session on all admin routes
+   - Add session timeout (e.g., 24 hours)
+
+3. **Add logout functionality**
+   - Clear admin session
+   - Redirect to login page
+
+4. **Rate limiting on login**
+   - Max 5 attempts per IP per hour
+   - Show lockout message
+
+### Deliverable
+- Admin area password protected
+- Secure session management
+- Rate-limited login
+
+---
+
+## Phase 5: Integrate mojitax.co.uk Authentication
 
 **Priority**: CRITICAL
 **Dependency**: Requires API credentials from mojitax.co.uk
@@ -178,7 +283,7 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 4: User Ticket Management UI
+## Phase 6: User Ticket Management UI
 
 **Priority**: MEDIUM
 **Dependency**: Phase 2 (for reply notifications)
@@ -229,7 +334,7 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 5: Posts Integration Enhancement
+## Phase 7: Posts Integration Enhancement
 
 **Priority**: MEDIUM
 **Dependency**: Phase 2 (for email distribution)
@@ -280,9 +385,9 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 6: Rate Limiting & Security
+## Phase 8: Rate Limiting & Security
 
-**Priority**: MEDIUM
+**Priority**: HIGH (XSS is CRITICAL)
 **Dependency**: None
 
 ### Current State
@@ -338,7 +443,7 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-## Phase 7: Final Testing & Polish
+## Phase 9: Final Testing & Polish
 
 **Priority**: HIGH
 **Dependency**: All previous phases
@@ -394,11 +499,13 @@ Based on codebase exploration, the test files expect:
 |-------|----------|--------|--------------|-----------------|
 | 1. Fix Tests | CRITICAL | Low | None | Yes |
 | 2. Email Notifications | HIGH | Medium | None | Yes |
-| 3. mojitax.co.uk Auth | CRITICAL | High | API Credentials | No |
-| 4. User Ticket UI | MEDIUM | Medium | Phase 2 | After Phase 2 |
-| 5. Posts Enhancement | MEDIUM | Medium | Phase 2 | After Phase 2 |
-| 6. Security | MEDIUM | Medium | None | Yes |
-| 7. Final Testing | HIGH | Medium | All phases | No |
+| 3. Legal & Compliance | CRITICAL | Medium | None | Yes |
+| 4. Admin Login Security | CRITICAL | Low | None | Yes |
+| 5. mojitax.co.uk Auth | CRITICAL | High | API Credentials | No |
+| 6. User Ticket UI | MEDIUM | Medium | Phase 2 | After Phase 2 |
+| 7. Posts Enhancement | MEDIUM | Medium | Phase 2 | After Phase 2 |
+| 8. Security (XSS/Rate Limit) | HIGH | Medium | None | Yes |
+| 9. Final Testing | HIGH | Medium | All phases | No |
 
 **Post-Production (Ongoing):**
 | Task | Priority | Effort | Notes |
@@ -409,22 +516,22 @@ Based on codebase exploration, the test files expect:
 
 ## Parallel Execution Strategy
 
-**Sprint 1: Foundation** (Phases 1, 2, 6 in parallel)
+**Sprint 1: Critical Fixes** (Phases 1, 3, 4, 8 in parallel)
 - Fix test suite (Phase 1) - CRITICAL
+- Legal pages: ToS, Privacy Policy (Phase 3) - CRITICAL
+- Admin login security (Phase 4) - CRITICAL
+- XSS protection & security (Phase 8) - HIGH
+
+**Sprint 2: Email & Auth Foundation** (Phase 2, then Phase 5)
 - Email notifications (Phase 2) - HIGH
-- Security hardening (Phase 6) - Can run in background
+- mojitax.co.uk authentication (Phase 5) - CRITICAL (requires API credentials)
 
-**Sprint 2: Authentication** (Phase 3)
-- Requires mojitax.co.uk API credentials
-- Full focus on authentication integration
-- Test thoroughly before proceeding
-
-**Sprint 3: User Features** (Phases 4, 5 in parallel)
-- User ticket management UI (Phase 4)
-- Posts integration enhancement (Phase 5)
+**Sprint 3: User Features** (Phases 6, 7 in parallel)
+- User ticket management UI (Phase 6)
+- Posts integration enhancement (Phase 7)
 - Both depend on email notifications (Phase 2)
 
-**Sprint 4: Polish & Launch** (Phase 7)
+**Sprint 4: Polish & Launch** (Phase 9)
 - Final testing
 - Bug fixes
 - Documentation
@@ -454,8 +561,12 @@ Based on codebase exploration, the test files expect:
 ### MVP (Minimum Viable Product) - Launch Blockers
 - [x] Real-time messaging works
 - [x] @moji chatbot responds (LLM fallback works without KB)
-- [x] Support tickets work
+- [x] Support tickets work (backend)
 - [ ] 100% test pass rate
+- [ ] Terms of Service page + acceptance flow
+- [ ] Privacy Policy page
+- [ ] Admin login password protected
+- [ ] XSS protection verified
 - [ ] mojitax.co.uk auth working
 - [ ] Email notifications working
 
@@ -464,6 +575,7 @@ Based on codebase exploration, the test files expect:
 - [ ] User ticket management UI
 - [ ] Full posts integration
 - [ ] Rate limiting & security
+- [ ] GDPR compliance (data export, account deletion)
 - [ ] Load tested (100+ users)
 - [ ] Documentation complete
 
@@ -493,4 +605,4 @@ Based on codebase exploration, the test files expect:
 
 ---
 
-**Next Steps**: Begin Phase 1 (Fix Test Suite), Phase 2 (Email Notifications), and Phase 6 (Security) in parallel.
+**Next Steps**: Begin Sprint 1 - Fix test suite, create legal pages, secure admin login, and implement XSS protection in parallel.
