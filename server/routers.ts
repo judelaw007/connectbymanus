@@ -422,6 +422,11 @@ export const appRouter = router({
       return await db.getAllSupportTickets();
     }),
 
+    // Get user's own support tickets
+    getMy: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserSupportTickets(ctx.user.id);
+    }),
+
     // Get ticket by ID with messages
     getById: protectedProcedure
       .input(z.object({ ticketId: z.number() }))

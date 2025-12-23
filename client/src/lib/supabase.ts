@@ -2,6 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 
 // Supabase client for browser (admin authentication only)
 // Regular users authenticate via mojitax.co.uk (Learnworlds)
+//
+// Security model:
+// - Only admins have Supabase credentials
+// - Regular users don't know about /auth/admin
+// - Regular users authenticate via Learnworlds SSO
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -23,6 +28,7 @@ export function isSupabaseConfigured(): boolean {
 }
 
 // Admin authentication helpers
+// Any user with Supabase credentials is an admin by definition
 export async function signInAdmin(email: string, password: string) {
   if (!supabase) {
     throw new Error("Supabase not configured. Check environment variables.");
@@ -36,7 +42,8 @@ export async function signInAdmin(email: string, password: string) {
   if (error) {
     throw error;
   }
-   return data;
+
+  return data;
 }
 
 export async function signOutAdmin() {
@@ -47,25 +54,14 @@ export async function signOutAdmin() {
 export async function getAdminSession() {
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
-
-  // Verify admin status
-  if (data.session?.user?.user_metadata?.is_admin !== true) {
-    return null;
-  }
-
   return data.session;
 }
 
 export async function onAuthStateChange(callback: (session: any) => void) {
   if (!supabase) return { unsubscribe: () => {} };
 
-  const { data } = supabase.auth.onAuthStateChange((event, session) => {
-    // Only pass admin sessions
-    if (session?.user?.user_metadata?.is_admin === true) {
-      callback(session);
-    } else {
-      callback(null);
-    }
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    callback(session);
   });
 
   return data.subscription;

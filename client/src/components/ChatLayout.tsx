@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { 
-  MessageSquare, 
-  Users, 
-  Hash, 
-  Lock, 
-  Plus, 
+import {
+  MessageSquare,
+  Users,
+  Hash,
+  Lock,
+  Plus,
   Send,
   Pin,
   Smile,
@@ -29,10 +29,12 @@ import { useState, useRef, useEffect } from "react";
 import CreatePostModal from "@/components/CreatePostModal";
 import CreateGroupModal from "@/components/CreateGroupModal";
 import SupportInbox from "@/components/SupportInbox";
+import UserSupportChat from "@/components/UserSupportChat";
 import { MessageList } from "@/components/MessageList";
 import { MessageInput } from "@/components/MessageInput";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useSocket } from "@/contexts/SocketContext";
 
 interface ChatLayoutProps {
   children?: React.ReactNode;
@@ -41,8 +43,10 @@ interface ChatLayoutProps {
 
 export default function ChatLayout({ children, isAdminMode = false }: ChatLayoutProps) {
   const { user, logout } = useAuth();
+  const { onlineUsers } = useSocket();
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const [showSupportInbox, setShowSupportInbox] = useState(false);
+  const [showUserSupportChat, setShowUserSupportChat] = useState(false);
   const [messageInput, setMessageInput] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -204,16 +208,19 @@ export default function ChatLayout({ children, isAdminMode = false }: ChatLayout
             <div className="space-y-4">
               {/* Support Chat - Always at top with special styling */}
               <div className="bg-accent/10 border border-accent/30 rounded-lg p-2">
-                <button 
+                <button
                   className="channel-item w-full hover:bg-accent/20"
                   onClick={() => {
                     if (isAdminMode) {
                       // For admin: show support inbox
                       setShowSupportInbox(true);
+                      setShowUserSupportChat(false);
                       setSelectedChannelId(null);
                     } else {
-                      // For users: TODO - show support chat channel
-                      // For now, do nothing
+                      // For users: show support chat
+                      setShowUserSupportChat(true);
+                      setShowSupportInbox(false);
+                      setSelectedChannelId(null);
                     }
                     setIsSidebarOpen(false);
                   }}
@@ -348,6 +355,8 @@ export default function ChatLayout({ children, isAdminMode = false }: ChatLayout
         <main className="flex-1 flex flex-col bg-background">
           {showSupportInbox ? (
             <SupportInbox onClose={() => setShowSupportInbox(false)} />
+          ) : showUserSupportChat ? (
+            <UserSupportChat onClose={() => setShowUserSupportChat(false)} />
           ) : selectedChannelId ? (
             <>
               <MessageList channelId={selectedChannelId} />
@@ -372,14 +381,31 @@ export default function ChatLayout({ children, isAdminMode = false }: ChatLayout
             <div className="space-y-6">
               {/* Online Users */}
               <div>
-                <h3 className="font-semibold mb-3">Online Users</h3>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  Online Users
+                  <Badge variant="secondary" className="text-xs">
+                    {onlineUsers.length}
+                  </Badge>
+                </h3>
                 <div className="space-y-2">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="status-online"></div>
-                      <span className="text-sm">User {i}</span>
-                    </div>
-                  ))}
+                  {onlineUsers.length > 0 ? (
+                    onlineUsers.slice(0, 10).map((userId) => (
+                      <div key={userId} className="flex items-center gap-2">
+                        <div className="status-online"></div>
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs">U{userId}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm text-muted-foreground">User #{userId}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No users online</p>
+                  )}
+                  {onlineUsers.length > 10 && (
+                    <p className="text-xs text-muted-foreground">
+                      +{onlineUsers.length - 10} more online
+                    </p>
+                  )}
                 </div>
               </div>
 
