@@ -397,6 +397,24 @@ export async function getAllSupportTickets() {
   .orderBy(desc(supportTickets.lastMessageAt));
 }
 
+export async function getUserSupportTickets(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select({
+    id: supportTickets.id,
+    subject: supportTickets.subject,
+    status: supportTickets.status,
+    priority: supportTickets.priority,
+    lastMessageAt: supportTickets.lastMessageAt,
+    closedAt: supportTickets.closedAt,
+    createdAt: supportTickets.createdAt,
+  })
+  .from(supportTickets)
+  .where(eq(supportTickets.userId, userId))
+  .orderBy(desc(supportTickets.lastMessageAt));
+}
+
 export async function getOpenSupportTickets() {
   const db = await getDb();
   if (!db) return [];
