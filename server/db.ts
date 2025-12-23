@@ -21,14 +21,49 @@ let _client: ReturnType<typeof postgres> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
+      console.log("[Database] Connecting to database...");
       _client = postgres(process.env.DATABASE_URL);
       _db = drizzle(_client);
+      console.log("[Database] Connection established");
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.error("[Database] Failed to connect:", error);
       _db = null;
     }
   }
+  if (!process.env.DATABASE_URL) {
+    console.warn("[Database] DATABASE_URL not set!");
+  }
   return _db;
+}
+
+// Debug function to test database connection
+export async function testDatabaseConnection() {
+  const db = await getDb();
+  if (!db) {
+    return { success: false, error: "Database not available - check DATABASE_URL" };
+  }
+
+  try {
+    // Try a simple query
+    const result = await db.select({ count: sql`count(*)` }).from(channels);
+    const channelCount = result[0]?.count ?? 0;
+
+    const userResult = await db.select({ count: sql`count(*)` }).from(users);
+    const userCount = userResult[0]?.count ?? 0;
+
+    return {
+      success: true,
+      channelCount: Number(channelCount),
+      userCount: Number(userCount),
+      message: `Found ${channelCount} channels and ${userCount} users`
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || "Query failed",
+      details: error.toString()
+    };
+  }
 }
 
 // ============= User Functions =============

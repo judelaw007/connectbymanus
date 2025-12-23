@@ -19,7 +19,14 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 
 export const appRouter = router({
   system: systemRouter,
-  
+
+  // Debug endpoint to test database connection
+  debug: router({
+    testDb: publicProcedure.query(async () => {
+      return await db.testDatabaseConnection();
+    }),
+  }),
+
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
