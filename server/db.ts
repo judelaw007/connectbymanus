@@ -1,82 +1,210 @@
-import { eq, and, or, desc, sql, ilike } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import {
-  InsertUser, users,
-  channels, InsertChannel, Channel,
-  channelMembers, InsertChannelMember,
-  messages, InsertMessage,
-  posts, InsertPost,
-  supportTickets, InsertSupportTicket,
-  supportMessages, InsertSupportMessage,
-  notifications, InsertNotification,
-  mojiKnowledgeBase, InsertMojiKnowledgeBase,
-  emailLogs, InsertEmailLog
-} from "../drizzle/schema";
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ENV } from './_core/env';
 
-let _db: ReturnType<typeof drizzle> | null = null;
-let _client: ReturnType<typeof postgres> | null = null;
+// Types for database operations (matching the existing schema)
+export interface User {
+  id: number;
+  openId: string;
+  name: string | null;
+  email: string | null;
+  role: 'user' | 'admin' | 'moderator';
+  loginMethod: string | null;
+  lastSignedIn: Date | null;
+  createdAt: Date;
+}
 
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      console.log("[Database] Connecting to database...");
-      // Supabase requires SSL for external connections
-      _client = postgres(process.env.DATABASE_URL, {
-        ssl: 'require',
-        max: 10,
-        idle_timeout: 20,
-        connect_timeout: 10,
-      });
-      _db = drizzle(_client);
-      console.log("[Database] Connection established");
-    } catch (error) {
-      console.error("[Database] Failed to connect:", error);
-      _db = null;
-    }
+export interface Channel {
+  id: number;
+  name: string;
+  description: string | null;
+  type: 'general' | 'topic' | 'study_group' | 'direct_message';
+  isPrivate: boolean;
+  isClosed: boolean;
+  createdBy: number | null;
+  createdAt: Date;
+}
+
+export interface Message {
+  id: number;
+  channelId: number;
+  userId: number | null;
+  content: string;
+  messageType: 'text' | 'system' | 'announcement' | 'event';
+  isPinned: boolean;
+  replyToId: number | null;
+  createdAt: Date;
+}
+
+export interface Post {
+  id: number;
+  postType: 'event' | 'announcement' | 'article' | 'newsletter';
+  title: string;
+  content: string;
+  authorId: number | null;
+  isPinned: boolean;
+  eventDate: Date | null;
+  eventLocation: string | null;
+  tags: string | null;
+  featuredImage: string | null;
+  priorityLevel: number;
+  messageId: number | null;
+  createdAt: Date;
+}
+
+export interface SupportTicket {
+  id: number;
+  userId: number;
+  subject: string;
+  status: 'open' | 'in-progress' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  assignedToAdminId: number | null;
+  resolutionType: 'bot-answered' | 'human-answered' | 'no-answer' | 'escalated' | null;
+  enquiryType: string | null;
+  tags: string | null;
+  botInteractionCount: number;
+  humanInteractionCount: number;
+  satisfactionRating: number | null;
+  lastMessageAt: Date;
+  closedAt: Date | null;
+  createdAt: Date;
+}
+
+export interface SupportMessage {
+  id: number;
+  ticketId: number;
+  senderId: number | null;
+  senderType: 'user' | 'admin' | 'bot';
+  content: string;
+  isRead: boolean;
+  emailSent: boolean;
+  createdAt: Date;
+}
+
+export interface Notification {
+  id: number;
+  userId: number;
+  type: string;
+  title: string;
+  content: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: Date;
+}
+
+export interface MojiKnowledgeBase {
+  id: number;
+  question: string;
+  answer: string;
+  category: string | null;
+  tags: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailLog {
+  id: number;
+  recipientEmail: string;
+  recipientName: string | null;
+  subject: string;
+  templateType: string;
+  status: 'pending' | 'sent' | 'failed';
+  errorMessage: string | null;
+  sentAt: Date | null;
+  createdAt: Date;
+}
+
+// Insert types
+export type InsertUser = Partial<User> & { openId: string };
+export type InsertChannel = Partial<Channel> & { name: string };
+export type InsertChannelMember = { channelId: number; userId: number; role?: string };
+export type InsertMessage = Partial<Message> & { channelId: number; content: string };
+export type InsertPost = Partial<Post> & { postType: Post['postType']; title: string; content: string };
+export type InsertSupportTicket = Partial<SupportTicket> & { userId: number; subject: string };
+export type InsertSupportMessage = Partial<SupportMessage> & { ticketId: number; content: string; senderType: SupportMessage['senderType'] };
+export type InsertNotification = Partial<Notification> & { userId: number; type: string; title: string; content: string };
+export type InsertMojiKnowledgeBase = Partial<MojiKnowledgeBase> & { question: string; answer: string };
+export type InsertEmailLog = Partial<EmailLog> & { recipientEmail: string; subject: string; templateType: string };
+
+// Supabase client singleton
+let _supabase: SupabaseClient | null = null;
+
+function getSupabase(): SupabaseClient | null {
+  if (_supabase) return _supabase;
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn("[Database] Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    return null;
   }
-  if (!process.env.DATABASE_URL) {
-    console.warn("[Database] DATABASE_URL not set!");
+
+  _supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  console.log("[Database] Supabase client initialized");
+  return _supabase;
+}
+
+// Helper to convert snake_case to camelCase
+function snakeToCamel(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(snakeToCamel);
+  if (typeof obj !== 'object') return obj;
+
+  const converted: any = {};
+  for (const key in obj) {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    converted[camelKey] = snakeToCamel(obj[key]);
   }
-  return _db;
+  return converted;
+}
+
+// Helper to convert camelCase to snake_case for inserts
+function camelToSnake(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(camelToSnake);
+  if (typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj;
+
+  const converted: any = {};
+  for (const key in obj) {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    converted[snakeKey] = camelToSnake(obj[key]);
+  }
+  return converted;
 }
 
 // Debug function to test database connection
 export async function testDatabaseConnection() {
-  // First check if we have a DATABASE_URL
-  if (!process.env.DATABASE_URL) {
-    return { success: false, error: "DATABASE_URL environment variable not set" };
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { success: false, error: "Supabase client not initialized - check VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY" };
   }
 
   try {
-    // Create a fresh connection for testing
-    const testClient = postgres(process.env.DATABASE_URL, {
-      ssl: 'require',
-      max: 1,
-      connect_timeout: 10,
-    });
+    // Test with a simple count query
+    const { count: channelCount, error: channelError } = await supabase
+      .from('channels')
+      .select('*', { count: 'exact', head: true });
 
-    // Try the simplest possible query first
-    const versionResult = await testClient`SELECT version()`;
-    const version = versionResult[0]?.version || 'unknown';
+    if (channelError) throw channelError;
 
-    // Try counting channels
-    const channelResult = await testClient`SELECT count(*) as count FROM channels`;
-    const channelCount = Number(channelResult[0]?.count ?? 0);
+    const { count: userCount, error: userError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
 
-    // Try counting users
-    const userResult = await testClient`SELECT count(*) as count FROM users`;
-    const userCount = Number(userResult[0]?.count ?? 0);
-
-    // Close test connection
-    await testClient.end();
+    if (userError) throw userError;
 
     return {
       success: true,
-      channelCount,
-      userCount,
-      postgresVersion: version.substring(0, 50),
+      channelCount: channelCount ?? 0,
+      userCount: userCount ?? 0,
       message: `Connected! Found ${channelCount} channels and ${userCount} users`
     };
   } catch (error: any) {
@@ -90,6 +218,11 @@ export async function testDatabaseConnection() {
   }
 }
 
+// Keep getDb for backwards compatibility (returns null, use Supabase client directly)
+export async function getDb() {
+  return getSupabase() ? {} : null;
+}
+
 // ============= User Functions =============
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -97,55 +230,32 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     throw new Error("User openId is required for upsert");
   }
 
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
+  const supabase = getSupabase();
+  if (!supabase) {
+    console.warn("[Database] Cannot upsert user: Supabase not available");
     return;
   }
 
   try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
+    const data: any = {
+      open_id: user.openId,
+      last_signed_in: user.lastSignedIn || new Date(),
     };
 
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
+    if (user.name !== undefined) data.name = user.name;
+    if (user.email !== undefined) data.email = user.email;
+    if (user.loginMethod !== undefined) data.login_method = user.loginMethod;
     if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
+      data.role = user.role;
     } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+      data.role = 'admin';
     }
 
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
+    const { error } = await supabase
+      .from('users')
+      .upsert(data, { onConflict: 'open_id' });
 
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onConflictDoUpdate({
-      target: users.openId,
-      set: updateSet,
-    });
+    if (error) throw error;
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
@@ -153,526 +263,768 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 }
 
 export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
+  const supabase = getSupabase();
+  if (!supabase) return undefined;
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('open_id', openId)
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error("[Database] Error getting user:", error);
   }
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  return data ? snakeToCamel(data) : undefined;
 }
 
 export async function getUserById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
+  const supabase = getSupabase();
+  if (!supabase) return undefined;
 
-  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id)
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error("[Database] Error getting user:", error);
+  }
+
+  return data ? snakeToCamel(data) : undefined;
 }
 
 // ============= Channel Functions =============
 
 export async function createChannel(channel: InsertChannel) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  const result = await db.insert(channels).values(channel).returning({ id: channels.id });
-  return result[0].id;
+  const { data, error } = await supabase
+    .from('channels')
+    .insert(camelToSnake(channel))
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
 }
 
 export async function getChannelById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
+  const supabase = getSupabase();
+  if (!supabase) return undefined;
 
-  const result = await db.select().from(channels).where(eq(channels.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  const { data, error } = await supabase
+    .from('channels')
+    .select('*')
+    .eq('id', id)
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error("[Database] Error getting channel:", error);
+  }
+
+  return data ? snakeToCamel(data) : undefined;
 }
 
 export async function getAllChannels() {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select().from(channels).where(eq(channels.isClosed, false)).orderBy(channels.createdAt);
+  const { data, error } = await supabase
+    .from('channels')
+    .select('*')
+    .eq('is_closed', false)
+    .order('created_at');
+
+  if (error) {
+    console.error("[Database] Error getting channels:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
 }
 
 export async function getPublicChannels() {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select().from(channels)
-    .where(and(eq(channels.isPrivate, false), eq(channels.isClosed, false)))
-    .orderBy(channels.createdAt);
+  const { data, error } = await supabase
+    .from('channels')
+    .select('*')
+    .eq('is_private', false)
+    .eq('is_closed', false)
+    .order('created_at');
+
+  if (error) {
+    console.error("[Database] Error getting public channels:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
 }
 
 export async function getUserChannels(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: channels.id,
-    name: channels.name,
-    description: channels.description,
-    type: channels.type,
-    isPrivate: channels.isPrivate,
-    createdBy: channels.createdBy,
-    createdAt: channels.createdAt,
-    memberRole: channelMembers.role,
-  })
-  .from(channels)
-  .innerJoin(channelMembers, eq(channels.id, channelMembers.channelId))
-  .where(and(
-    eq(channelMembers.userId, userId),
-    eq(channels.isClosed, false)
-  ))
-  .orderBy(channels.createdAt);
+  const { data, error } = await supabase
+    .from('channel_members')
+    .select(`
+      role,
+      channels (
+        id,
+        name,
+        description,
+        type,
+        is_private,
+        created_by,
+        created_at,
+        is_closed
+      )
+    `)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error("[Database] Error getting user channels:", error);
+    return [];
+  }
+
+  // Transform the joined data
+  return (data || [])
+    .filter((row: any) => row.channels && !row.channels.is_closed)
+    .map((row: any) => ({
+      ...snakeToCamel(row.channels),
+      memberRole: row.role,
+    }));
 }
 
 export async function updateChannel(id: number, updates: Partial<Channel>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  await db.update(channels).set(updates).where(eq(channels.id, id));
+  const { error } = await supabase
+    .from('channels')
+    .update(camelToSnake(updates))
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
 // ============= Channel Member Functions =============
 
 export async function addChannelMember(member: InsertChannelMember) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  await db.insert(channelMembers).values(member).onConflictDoNothing();
+  const { error } = await supabase
+    .from('channel_members')
+    .upsert({
+      channel_id: member.channelId,
+      user_id: member.userId,
+      role: member.role || 'member',
+    }, { onConflict: 'channel_id,user_id' });
+
+  if (error) throw error;
 }
 
 export async function removeChannelMember(channelId: number, userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  await db.delete(channelMembers)
-    .where(and(
-      eq(channelMembers.channelId, channelId),
-      eq(channelMembers.userId, userId)
-    ));
+  const { error } = await supabase
+    .from('channel_members')
+    .delete()
+    .eq('channel_id', channelId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
 }
 
 export async function getChannelMembers(channelId: number) {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: users.id,
-    name: users.name,
-    email: users.email,
-    role: users.role,
-    memberRole: channelMembers.role,
-    joinedAt: channelMembers.joinedAt,
-  })
-  .from(channelMembers)
-  .innerJoin(users, eq(channelMembers.userId, users.id))
-  .where(eq(channelMembers.channelId, channelId));
+  const { data, error } = await supabase
+    .from('channel_members')
+    .select(`
+      role,
+      joined_at,
+      users (
+        id,
+        name,
+        email,
+        role
+      )
+    `)
+    .eq('channel_id', channelId);
+
+  if (error) {
+    console.error("[Database] Error getting channel members:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row.users),
+    memberRole: row.role,
+    joinedAt: row.joined_at,
+  }));
 }
 
 export async function isUserInChannel(channelId: number, userId: number) {
-  const db = await getDb();
-  if (!db) return false;
+  const supabase = getSupabase();
+  if (!supabase) return false;
 
-  const result = await db.select()
-    .from(channelMembers)
-    .where(and(
-      eq(channelMembers.channelId, channelId),
-      eq(channelMembers.userId, userId)
-    ))
+  const { data, error } = await supabase
+    .from('channel_members')
+    .select('id')
+    .eq('channel_id', channelId)
+    .eq('user_id', userId)
     .limit(1);
 
-  return result.length > 0;
+  if (error) {
+    console.error("[Database] Error checking channel membership:", error);
+    return false;
+  }
+
+  return (data?.length ?? 0) > 0;
 }
 
 // ============= Message Functions =============
 
 export async function createMessage(message: InsertMessage) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  const result = await db.insert(messages).values(message).returning({ id: messages.id });
-  return result[0].id;
+  const { data, error } = await supabase
+    .from('messages')
+    .insert(camelToSnake(message))
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
 }
 
 export async function getChannelMessages(channelId: number, limit: number = 50, offset: number = 0) {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: messages.id,
-    channelId: messages.channelId,
-    userId: messages.userId,
-    content: messages.content,
-    messageType: messages.messageType,
-    isPinned: messages.isPinned,
-    replyToId: messages.replyToId,
-    createdAt: messages.createdAt,
-    userName: users.name,
-    userRole: users.role,
-  })
-  .from(messages)
-  .leftJoin(users, eq(messages.userId, users.id))
-  .where(eq(messages.channelId, channelId))
-  .orderBy(desc(messages.createdAt))
-  .limit(limit)
-  .offset(offset);
+  const { data, error } = await supabase
+    .from('messages')
+    .select(`
+      *,
+      users (
+        name,
+        role
+      )
+    `)
+    .eq('channel_id', channelId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error("[Database] Error getting messages:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    userName: row.users?.name,
+    userRole: row.users?.role,
+    users: undefined,
+  }));
 }
 
 export async function getPinnedMessages(channelId: number) {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: messages.id,
-    channelId: messages.channelId,
-    userId: messages.userId,
-    content: messages.content,
-    messageType: messages.messageType,
-    isPinned: messages.isPinned,
-    replyToId: messages.replyToId,
-    createdAt: messages.createdAt,
-    userName: users.name,
-    userRole: users.role,
-  })
-  .from(messages)
-  .leftJoin(users, eq(messages.userId, users.id))
-  .where(and(
-    eq(messages.channelId, channelId),
-    eq(messages.isPinned, true)
-  ))
-  .orderBy(desc(messages.createdAt));
+  const { data, error } = await supabase
+    .from('messages')
+    .select(`
+      *,
+      users (
+        name,
+        role
+      )
+    `)
+    .eq('channel_id', channelId)
+    .eq('is_pinned', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("[Database] Error getting pinned messages:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    userName: row.users?.name,
+    userRole: row.users?.role,
+    users: undefined,
+  }));
 }
 
 export async function togglePinMessage(messageId: number, isPinned: boolean) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  await db.update(messages).set({ isPinned }).where(eq(messages.id, messageId));
+  const { error } = await supabase
+    .from('messages')
+    .update({ is_pinned: isPinned })
+    .eq('id', messageId);
+
+  if (error) throw error;
 }
 
 // ============= Post Functions =============
 
 export async function createPost(post: InsertPost) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  const result = await db.insert(posts).values(post).returning({ id: posts.id });
-  return result[0].id;
+  const { data, error } = await supabase
+    .from('posts')
+    .insert(camelToSnake(post))
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
 }
 
 export async function getPostsByType(postType: "event" | "announcement" | "article" | "newsletter", limit: number = 20) {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: posts.id,
-    postType: posts.postType,
-    title: posts.title,
-    content: posts.content,
-    authorId: posts.authorId,
-    isPinned: posts.isPinned,
-    eventDate: posts.eventDate,
-    eventLocation: posts.eventLocation,
-    tags: posts.tags,
-    featuredImage: posts.featuredImage,
-    priorityLevel: posts.priorityLevel,
-    createdAt: posts.createdAt,
-    messageId: posts.messageId,
-    authorName: users.name,
-  })
-  .from(posts)
-  .leftJoin(users, eq(posts.authorId, users.id))
-  .where(eq(posts.postType, postType))
-  .orderBy(desc(posts.isPinned), desc(posts.createdAt))
-  .limit(limit);
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      users (
+        name
+      )
+    `)
+    .eq('post_type', postType)
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[Database] Error getting posts:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    authorName: row.users?.name,
+    users: undefined,
+  }));
 }
 
 export async function getPostById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
+  const supabase = getSupabase();
+  if (!supabase) return undefined;
 
-  const result = await db.select({
-    id: posts.id,
-    postType: posts.postType,
-    title: posts.title,
-    content: posts.content,
-    authorId: posts.authorId,
-    isPinned: posts.isPinned,
-    eventDate: posts.eventDate,
-    eventLocation: posts.eventLocation,
-    tags: posts.tags,
-    featuredImage: posts.featuredImage,
-    priorityLevel: posts.priorityLevel,
-    createdAt: posts.createdAt,
-    authorName: users.name,
-  })
-  .from(posts)
-  .leftJoin(users, eq(posts.authorId, users.id))
-  .where(eq(posts.id, id))
-  .limit(1);
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      users (
+        name
+      )
+    `)
+    .eq('id', id)
+    .limit(1)
+    .single();
 
-  return result.length > 0 ? result[0] : undefined;
+  if (error && error.code !== 'PGRST116') {
+    console.error("[Database] Error getting post:", error);
+  }
+
+  if (!data) return undefined;
+
+  return {
+    ...snakeToCamel(data),
+    authorName: data.users?.name,
+    users: undefined,
+  };
 }
 
 export async function togglePinPost(postId: number, isPinned: boolean) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  await db.update(posts).set({ isPinned }).where(eq(posts.id, postId));
+  const { error } = await supabase
+    .from('posts')
+    .update({ is_pinned: isPinned })
+    .eq('id', postId);
+
+  if (error) throw error;
+}
+
+export async function updatePost(postId: number, updates: Partial<InsertPost>) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('posts')
+    .update(camelToSnake(updates))
+    .eq('id', postId);
+
+  if (error) throw error;
 }
 
 // ============= Support Ticket Functions =============
 
 export async function createSupportTicket(ticket: InsertSupportTicket) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  const result = await db.insert(supportTickets).values(ticket).returning({ id: supportTickets.id });
-  return result[0].id;
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .insert(camelToSnake(ticket))
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
 }
 
 export async function getAllSupportTickets() {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: supportTickets.id,
-    userId: supportTickets.userId,
-    subject: supportTickets.subject,
-    status: supportTickets.status,
-    priority: supportTickets.priority,
-    assignedToAdminId: supportTickets.assignedToAdminId,
-    lastMessageAt: supportTickets.lastMessageAt,
-    closedAt: supportTickets.closedAt,
-    createdAt: supportTickets.createdAt,
-    userName: users.name,
-    userEmail: users.email,
-  })
-  .from(supportTickets)
-  .leftJoin(users, eq(supportTickets.userId, users.id))
-  .orderBy(desc(supportTickets.lastMessageAt));
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .select(`
+      *,
+      users (
+        name,
+        email
+      )
+    `)
+    .order('last_message_at', { ascending: false });
+
+  if (error) {
+    console.error("[Database] Error getting support tickets:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    userName: row.users?.name,
+    userEmail: row.users?.email,
+    users: undefined,
+  }));
 }
 
 export async function getUserSupportTickets(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: supportTickets.id,
-    subject: supportTickets.subject,
-    status: supportTickets.status,
-    priority: supportTickets.priority,
-    lastMessageAt: supportTickets.lastMessageAt,
-    closedAt: supportTickets.closedAt,
-    createdAt: supportTickets.createdAt,
-  })
-  .from(supportTickets)
-  .where(eq(supportTickets.userId, userId))
-  .orderBy(desc(supportTickets.lastMessageAt));
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .select('id, subject, status, priority, last_message_at, closed_at, created_at')
+    .eq('user_id', userId)
+    .order('last_message_at', { ascending: false });
+
+  if (error) {
+    console.error("[Database] Error getting user support tickets:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
 }
 
 export async function getOpenSupportTickets() {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: supportTickets.id,
-    userId: supportTickets.userId,
-    subject: supportTickets.subject,
-    status: supportTickets.status,
-    priority: supportTickets.priority,
-    assignedToAdminId: supportTickets.assignedToAdminId,
-    lastMessageAt: supportTickets.lastMessageAt,
-    createdAt: supportTickets.createdAt,
-    userName: users.name,
-    userEmail: users.email,
-  })
-  .from(supportTickets)
-  .leftJoin(users, eq(supportTickets.userId, users.id))
-  .where(eq(supportTickets.status, "open"))
-  .orderBy(desc(supportTickets.createdAt));
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .select(`
+      *,
+      users (
+        name,
+        email
+      )
+    `)
+    .eq('status', 'open')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("[Database] Error getting open support tickets:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    userName: row.users?.name,
+    userEmail: row.users?.email,
+    users: undefined,
+  }));
 }
 
 export async function getSupportTicketById(id: number) {
-  const db = await getDb();
-  if (!db) return null;
+  const supabase = getSupabase();
+  if (!supabase) return null;
 
-  const result = await db.select({
-    id: supportTickets.id,
-    userId: supportTickets.userId,
-    subject: supportTickets.subject,
-    status: supportTickets.status,
-    priority: supportTickets.priority,
-    assignedToAdminId: supportTickets.assignedToAdminId,
-    resolutionType: supportTickets.resolutionType,
-    enquiryType: supportTickets.enquiryType,
-    tags: supportTickets.tags,
-    botInteractionCount: supportTickets.botInteractionCount,
-    humanInteractionCount: supportTickets.humanInteractionCount,
-    satisfactionRating: supportTickets.satisfactionRating,
-    lastMessageAt: supportTickets.lastMessageAt,
-    closedAt: supportTickets.closedAt,
-    createdAt: supportTickets.createdAt,
-    userName: users.name,
-    userEmail: users.email,
-  })
-  .from(supportTickets)
-  .leftJoin(users, eq(supportTickets.userId, users.id))
-  .where(eq(supportTickets.id, id))
-  .limit(1);
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .select(`
+      *,
+      users (
+        name,
+        email
+      )
+    `)
+    .eq('id', id)
+    .limit(1)
+    .single();
 
-  return result[0] || null;
+  if (error && error.code !== 'PGRST116') {
+    console.error("[Database] Error getting support ticket:", error);
+  }
+
+  if (!data) return null;
+
+  return {
+    ...snakeToCamel(data),
+    userName: data.users?.name,
+    userEmail: data.users?.email,
+    users: undefined,
+  };
 }
 
 export async function updateSupportTicket(id: number, updates: Partial<InsertSupportTicket>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  await db.update(supportTickets).set(updates).where(eq(supportTickets.id, id));
-}
+  const { error } = await supabase
+    .from('support_tickets')
+    .update(camelToSnake(updates))
+    .eq('id', id);
 
-// ============= Notification Functions =============
-
-export async function createNotification(notification: InsertNotification) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.insert(notifications).values(notification);
-}
-
-export async function getUserNotifications(userId: number, limit: number = 50) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db.select()
-    .from(notifications)
-    .where(eq(notifications.userId, userId))
-    .orderBy(desc(notifications.createdAt))
-    .limit(limit);
-}
-
-export async function markNotificationAsRead(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
-}
-
-export async function updatePost(postId: number, updates: Partial<InsertPost>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.update(posts)
-    .set(updates)
-    .where(eq(posts.id, postId));
-}
-
-
-// ============================================
-// Moji Knowledge Base Functions
-// ============================================
-
-export async function getAllKnowledgeBase() {
-  const db = await getDb();
-  if (!db) return [];
-  return await db.select().from(mojiKnowledgeBase).where(eq(mojiKnowledgeBase.isActive, true));
-}
-
-export async function searchKnowledgeBase(searchTerm: string) {
-  const db = await getDb();
-  if (!db) return [];
-  return await db.select().from(mojiKnowledgeBase)
-    .where(
-      and(
-        eq(mojiKnowledgeBase.isActive, true),
-        or(
-          ilike(mojiKnowledgeBase.question, `%${searchTerm}%`),
-          ilike(mojiKnowledgeBase.answer, `%${searchTerm}%`),
-          ilike(mojiKnowledgeBase.tags, `%${searchTerm}%`)
-        )
-      )
-    );
-}
-
-export async function createKnowledgeBaseEntry(entry: InsertMojiKnowledgeBase) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const result = await db.insert(mojiKnowledgeBase).values(entry).returning({ id: mojiKnowledgeBase.id });
-  return result[0].id;
-}
-
-export async function updateKnowledgeBaseEntry(id: number, entry: Partial<InsertMojiKnowledgeBase>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(mojiKnowledgeBase).set(entry).where(eq(mojiKnowledgeBase.id, id));
-}
-
-export async function deleteKnowledgeBaseEntry(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  // Soft delete by setting isActive to false
-  await db.update(mojiKnowledgeBase).set({ isActive: false }).where(eq(mojiKnowledgeBase.id, id));
-}
-
-// ============================================
-// Email Logs Functions
-// ============================================
-
-export async function getAllEmailLogs(limit: number = 100) {
-  const db = await getDb();
-  if (!db) return [];
-  return await db.select().from(emailLogs).orderBy(desc(emailLogs.createdAt)).limit(limit);
-}
-
-export async function createEmailLog(log: InsertEmailLog) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  const result = await db.insert(emailLogs).values(log).returning({ id: emailLogs.id });
-  return result[0].id;
-}
-
-export async function updateEmailLogStatus(id: number, status: "sent" | "failed", errorMessage?: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(emailLogs).set({
-    status,
-    sentAt: status === "sent" ? new Date() : undefined,
-    errorMessage: errorMessage || null,
-  }).where(eq(emailLogs.id, id));
+  if (error) throw error;
 }
 
 // ============= Support Message Functions =============
 
 export async function createSupportMessage(message: InsertSupportMessage) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
 
-  const result = await db.insert(supportMessages).values(message).returning({ id: supportMessages.id });
-  return result[0].id;
+  const { data, error } = await supabase
+    .from('support_messages')
+    .insert(camelToSnake(message))
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
 }
 
 export async function getSupportMessagesByTicket(ticketId: number) {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  return await db.select({
-    id: supportMessages.id,
-    ticketId: supportMessages.ticketId,
-    senderId: supportMessages.senderId,
-    senderType: supportMessages.senderType,
-    content: supportMessages.content,
-    isRead: supportMessages.isRead,
-    emailSent: supportMessages.emailSent,
-    createdAt: supportMessages.createdAt,
-    senderName: users.name,
-  })
-  .from(supportMessages)
-  .leftJoin(users, eq(supportMessages.senderId, users.id))
-  .where(eq(supportMessages.ticketId, ticketId))
-  .orderBy(supportMessages.createdAt);
+  const { data, error } = await supabase
+    .from('support_messages')
+    .select(`
+      *,
+      users (
+        name
+      )
+    `)
+    .eq('ticket_id', ticketId)
+    .order('created_at');
+
+  if (error) {
+    console.error("[Database] Error getting support messages:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    senderName: row.users?.name,
+    users: undefined,
+  }));
+}
+
+// ============= Notification Functions =============
+
+export async function createNotification(notification: InsertNotification) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('notifications')
+    .insert(camelToSnake(notification));
+
+  if (error) throw error;
+}
+
+export async function getUserNotifications(userId: number, limit: number = 50) {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[Database] Error getting notifications:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
+}
+
+export async function markNotificationAsRead(id: number) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============= Knowledge Base Functions =============
+
+export async function getAllKnowledgeBase() {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('moji_knowledge_base')
+    .select('*')
+    .eq('is_active', true);
+
+  if (error) {
+    console.error("[Database] Error getting knowledge base:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
+}
+
+export async function searchKnowledgeBase(searchTerm: string) {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('moji_knowledge_base')
+    .select('*')
+    .eq('is_active', true)
+    .or(`question.ilike.%${searchTerm}%,answer.ilike.%${searchTerm}%,tags.ilike.%${searchTerm}%`);
+
+  if (error) {
+    console.error("[Database] Error searching knowledge base:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
+}
+
+export async function createKnowledgeBaseEntry(entry: InsertMojiKnowledgeBase) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { data, error } = await supabase
+    .from('moji_knowledge_base')
+    .insert(camelToSnake(entry))
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+export async function updateKnowledgeBaseEntry(id: number, entry: Partial<InsertMojiKnowledgeBase>) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('moji_knowledge_base')
+    .update(camelToSnake(entry))
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function deleteKnowledgeBaseEntry(id: number) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('moji_knowledge_base')
+    .update({ is_active: false })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============= Email Log Functions =============
+
+export async function getAllEmailLogs(limit: number = 100) {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('email_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[Database] Error getting email logs:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
+}
+
+export async function createEmailLog(log: InsertEmailLog) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { data, error } = await supabase
+    .from('email_logs')
+    .insert(camelToSnake(log))
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+export async function updateEmailLogStatus(id: number, status: "sent" | "failed", errorMessage?: string) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const updates: any = { status };
+  if (status === "sent") updates.sent_at = new Date();
+  if (errorMessage) updates.error_message = errorMessage;
+
+  const { error } = await supabase
+    .from('email_logs')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
 // ============= Analytics Functions =============
@@ -689,73 +1041,60 @@ interface AnalyticsFilters {
 }
 
 export async function getSupportAnalytics(filters: AnalyticsFilters) {
-  const db = await getDb();
-  if (!db) return [];
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
-  let query = db.select({
-    id: supportTickets.id,
-    userId: supportTickets.userId,
-    subject: supportTickets.subject,
-    status: supportTickets.status,
-    priority: supportTickets.priority,
-    resolutionType: supportTickets.resolutionType,
-    enquiryType: supportTickets.enquiryType,
-    tags: supportTickets.tags,
-    botInteractionCount: supportTickets.botInteractionCount,
-    humanInteractionCount: supportTickets.humanInteractionCount,
-    satisfactionRating: supportTickets.satisfactionRating,
-    assignedToAdminId: supportTickets.assignedToAdminId,
-    lastMessageAt: supportTickets.lastMessageAt,
-    closedAt: supportTickets.closedAt,
-    createdAt: supportTickets.createdAt,
-    userName: users.name,
-    userEmail: users.email,
-  })
-  .from(supportTickets)
-  .leftJoin(users, eq(supportTickets.userId, users.id));
-
-  const conditions = [];
+  let query = supabase
+    .from('support_tickets')
+    .select(`
+      *,
+      users (
+        name,
+        email
+      )
+    `);
 
   if (filters.startDate) {
-    conditions.push(sql`${supportTickets.createdAt} >= ${filters.startDate}`);
+    query = query.gte('created_at', filters.startDate);
   }
   if (filters.endDate) {
-    conditions.push(sql`${supportTickets.createdAt} <= ${filters.endDate}`);
+    query = query.lte('created_at', filters.endDate);
   }
   if (filters.resolutionType) {
-    conditions.push(eq(supportTickets.resolutionType, filters.resolutionType));
+    query = query.eq('resolution_type', filters.resolutionType);
   }
   if (filters.enquiryType) {
-    conditions.push(eq(supportTickets.enquiryType, filters.enquiryType));
+    query = query.eq('enquiry_type', filters.enquiryType);
   }
   if (filters.status) {
-    conditions.push(eq(supportTickets.status, filters.status));
+    query = query.eq('status', filters.status);
   }
   if (filters.searchQuery) {
-    conditions.push(
-      or(
-        ilike(supportTickets.subject, `%${filters.searchQuery}%`),
-        ilike(supportTickets.tags, `%${filters.searchQuery}%`),
-        ilike(users.name, `%${filters.searchQuery}%`)
-      )!
-    );
+    query = query.or(`subject.ilike.%${filters.searchQuery}%,tags.ilike.%${filters.searchQuery}%`);
   }
 
-  if (conditions.length > 0) {
-    query = query.where(and(...conditions)!) as any;
+  query = query
+    .order('created_at', { ascending: false })
+    .range(filters.offset || 0, (filters.offset || 0) + (filters.limit || 100) - 1);
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[Database] Error getting analytics:", error);
+    return [];
   }
 
-  const results = await query
-    .orderBy(desc(supportTickets.createdAt))
-    .limit(filters.limit || 100)
-    .offset(filters.offset || 0);
-
-  return results;
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    userName: row.users?.name,
+    userEmail: row.users?.email,
+    users: undefined,
+  }));
 }
 
 export async function getAnalyticsSummary(filters: { startDate?: string; endDate?: string }) {
-  const db = await getDb();
-  if (!db) return {
+  const supabase = getSupabase();
+  if (!supabase) return {
     totalConversations: 0,
     botAnswered: 0,
     humanAnswered: 0,
@@ -766,38 +1105,48 @@ export async function getAnalyticsSummary(filters: { startDate?: string; endDate
     avgSatisfaction: 0,
   };
 
-  const conditions = [];
+  let query = supabase.from('support_tickets').select('*');
+
   if (filters.startDate) {
-    conditions.push(sql`${supportTickets.createdAt} >= ${filters.startDate}`);
+    query = query.gte('created_at', filters.startDate);
   }
   if (filters.endDate) {
-    conditions.push(sql`${supportTickets.createdAt} <= ${filters.endDate}`);
+    query = query.lte('created_at', filters.endDate);
   }
 
-  let baseQuery = db.select().from(supportTickets);
-  if (conditions.length > 0) {
-    baseQuery = baseQuery.where(and(...conditions)!) as any;
-  }
+  const { data: allTickets, error } = await query;
 
-  const allTickets = await baseQuery;
+  if (error || !allTickets) {
+    console.error("[Database] Error getting analytics summary:", error);
+    return {
+      totalConversations: 0,
+      botAnswered: 0,
+      humanAnswered: 0,
+      noAnswer: 0,
+      escalated: 0,
+      avgBotInteractions: 0,
+      avgHumanInteractions: 0,
+      avgSatisfaction: 0,
+    };
+  }
 
   const totalConversations = allTickets.length;
-  const botAnswered = allTickets.filter(t => t.resolutionType === "bot-answered").length;
-  const humanAnswered = allTickets.filter(t => t.resolutionType === "human-answered").length;
-  const noAnswer = allTickets.filter(t => t.resolutionType === "no-answer").length;
-  const escalated = allTickets.filter(t => t.resolutionType === "escalated").length;
+  const botAnswered = allTickets.filter(t => t.resolution_type === "bot-answered").length;
+  const humanAnswered = allTickets.filter(t => t.resolution_type === "human-answered").length;
+  const noAnswer = allTickets.filter(t => t.resolution_type === "no-answer").length;
+  const escalated = allTickets.filter(t => t.resolution_type === "escalated").length;
 
   const avgBotInteractions = totalConversations > 0
-    ? allTickets.reduce((sum, t) => sum + (t.botInteractionCount || 0), 0) / totalConversations
+    ? allTickets.reduce((sum, t) => sum + (t.bot_interaction_count || 0), 0) / totalConversations
     : 0;
 
   const avgHumanInteractions = totalConversations > 0
-    ? allTickets.reduce((sum, t) => sum + (t.humanInteractionCount || 0), 0) / totalConversations
+    ? allTickets.reduce((sum, t) => sum + (t.human_interaction_count || 0), 0) / totalConversations
     : 0;
 
-  const ratingsCount = allTickets.filter(t => t.satisfactionRating !== null).length;
+  const ratingsCount = allTickets.filter(t => t.satisfaction_rating !== null).length;
   const avgSatisfaction = ratingsCount > 0
-    ? allTickets.reduce((sum, t) => sum + (t.satisfactionRating || 0), 0) / ratingsCount
+    ? allTickets.reduce((sum, t) => sum + (t.satisfaction_rating || 0), 0) / ratingsCount
     : 0;
 
   return {
