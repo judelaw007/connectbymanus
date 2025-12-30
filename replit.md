@@ -6,8 +6,8 @@ A platform for tax professionals to connect, learn, and collaborate. Features li
 
 - **Frontend**: React 19 with Vite, TailwindCSS, Radix UI components
 - **Backend**: Express with tRPC, Socket.io for real-time features
-- **Database**: MySQL with Drizzle ORM
-- **Authentication**: OAuth-based authentication
+- **Database**: Supabase (PostgreSQL) with Supabase JS Client
+- **Authentication**: Supabase Auth (admin) + Learnworlds SSO (members)
 
 ## Project Structure
 
@@ -19,28 +19,31 @@ A platform for tax professionals to connect, learn, and collaborate. Features li
 │       └── lib/        # Utilities and tRPC setup
 ├── server/             # Express backend
 │   ├── _core/          # Core server setup (express, vite, socket, oauth)
+│   ├── db.ts           # Supabase database functions
 │   └── routers.ts      # tRPC routers
-├── drizzle/            # Database schema and migrations
+├── supabase/           # Supabase migrations and setup
+│   └── migrations/     # SQL migration files
 ├── shared/             # Shared types and constants
 └── attached_assets/    # Static assets
 ```
 
 ## Environment Variables
 
-### Required for Authentication
-- `VITE_OAUTH_PORTAL_URL` - OAuth portal URL for authentication
-- `VITE_APP_ID` - Application ID for OAuth
-- `VITE_APP_URL` - Public URL of this application
-- `OAUTH_SERVER_URL` - OAuth server endpoint
+### Required for Supabase
+- `VITE_SUPABASE_URL` - Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key (client-side)
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side, bypasses RLS)
 
-### Required for Database
-- `DATABASE_URL` - MySQL connection string
+### Required for Authentication
+- `LEARNWORLDS_CLIENT_ID` - Learnworlds OAuth client ID
+- `LEARNWORLDS_CLIENT_SECRET` - Learnworlds OAuth client secret
+- `LEARNWORLDS_SCHOOL_ID` - Learnworlds school ID
 
 ### Optional
-- `VITE_ANALYTICS_ENDPOINT` - Analytics endpoint for Umami
-- `VITE_ANALYTICS_WEBSITE_ID` - Analytics website ID
-- `VITE_FRONTEND_FORGE_API_KEY` - Google Maps API key
-- `VITE_FRONTEND_FORGE_API_URL` - Frontend Forge API URL
+- `OPENAI_API_KEY` - OpenAI API key for @moji chatbot
+- `RESEND_API_KEY` - Resend API key for email notifications
+- `EMAIL_FROM` - Email sender address
+- `OWNER_OPEN_ID` - Admin user identifier
 
 ## Development
 
@@ -54,4 +57,10 @@ The application runs on port 5000 in development mode:
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run start` - Start production server
-- `npm run db:push` - Generate and run database migrations
+
+## Supabase Setup
+
+1. Create a Supabase project at https://supabase.com
+2. Run the migrations in `supabase/migrations/` in order (001, 002, etc.)
+3. Copy the project URL and keys to your environment variables
+4. Create an admin user in Supabase Auth dashboard

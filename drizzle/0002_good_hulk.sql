@@ -1,2 +1,0 @@
-ALTER TABLE `messages` MODIFY COLUMN `messageType` enum('user','admin','bot','system','event','announcement','article','newsletter') NOT NULL DEFAULT 'user';--> statement-breakpoint
-ALTER TABLE `messages` ADD `postId` int;
