@@ -1027,6 +1027,219 @@ export async function updateEmailLogStatus(id: number, status: "sent" | "failed"
   if (error) throw error;
 }
 
+// ============= Study Group Functions =============
+
+export async function createStudyGroup(group: {
+  name: string;
+  description?: string;
+  createdBy: number;
+}) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  // Create the channel with type study_group
+  const { data, error } = await supabase
+    .from('channels')
+    .insert({
+      name: group.name,
+      description: group.description || null,
+      type: 'study_group',
+      is_private: true,
+      is_closed: false,
+      created_by: group.createdBy,
+    })
+    .select('id')
+    .single();
+
+  if (error) throw error;
+
+  // Add creator as owner
+  await addChannelMember({
+    channelId: data.id,
+    userId: group.createdBy,
+    role: 'owner',
+  });
+
+  return data.id;
+}
+
+export async function getStudyGroups() {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select(`
+      *,
+      users:created_by (
+        name
+      )
+    `)
+    .eq('type', 'study_group')
+    .eq('is_closed', false)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("[Database] Error getting study groups:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    creatorName: row.users?.name,
+    users: undefined,
+  }));
+}
+
+export async function getUserStudyGroups(userId: number) {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('channel_members')
+    .select(`
+      role,
+      joined_at,
+      channels (
+        id,
+        name,
+        description,
+        type,
+        is_private,
+        created_by,
+        created_at,
+        is_closed
+      )
+    `)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error("[Database] Error getting user study groups:", error);
+    return [];
+  }
+
+  // Filter to only study groups
+  return (data || [])
+    .filter((row: any) => row.channels?.type === 'study_group' && !row.channels.is_closed)
+    .map((row: any) => ({
+      ...snakeToCamel(row.channels),
+      memberRole: row.role,
+      joinedAt: row.joined_at,
+    }));
+}
+
+export async function getStudyGroupById(id: number) {
+  const supabase = getSupabase();
+  if (!supabase) return undefined;
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select(`
+      *,
+      users:created_by (
+        name,
+        email
+      )
+    `)
+    .eq('id', id)
+    .eq('type', 'study_group')
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error("[Database] Error getting study group:", error);
+  }
+
+  if (!data) return undefined;
+
+  return {
+    ...snakeToCamel(data),
+    creatorName: data.users?.name,
+    creatorEmail: data.users?.email,
+    users: undefined,
+  };
+}
+
+export async function updateStudyGroup(id: number, updates: { name?: string; description?: string }) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('channels')
+    .update(camelToSnake(updates))
+    .eq('id', id)
+    .eq('type', 'study_group');
+
+  if (error) throw error;
+}
+
+export async function archiveStudyGroup(id: number) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('channels')
+    .update({ is_closed: true })
+    .eq('id', id)
+    .eq('type', 'study_group');
+
+  if (error) throw error;
+}
+
+export async function getStudyGroupMemberCount(groupId: number) {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+
+  const { count, error } = await supabase
+    .from('channel_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('channel_id', groupId);
+
+  if (error) {
+    console.error("[Database] Error getting member count:", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+export async function getUserByEmail(email: string) {
+  const supabase = getSupabase();
+  if (!supabase) return undefined;
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email)
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error("[Database] Error getting user by email:", error);
+  }
+
+  return data ? snakeToCamel(data) : undefined;
+}
+
+export async function getChannelMemberRole(channelId: number, userId: number) {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('channel_members')
+    .select('role')
+    .eq('channel_id', channelId)
+    .eq('user_id', userId)
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error("[Database] Error getting member role:", error);
+  }
+
+  return data?.role || null;
+}
+
 // ============= Analytics Functions =============
 
 interface AnalyticsFilters {
