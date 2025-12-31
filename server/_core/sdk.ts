@@ -155,7 +155,7 @@ class SDKServer {
   }
 
   private getSessionSecret() {
-    const secret = ENV.cookieSecret;
+    const secret = ENV.cookieSecret || 'dev-secret-change-in-production-' + ENV.appId;
     return new TextEncoder().encode(secret);
   }
 
