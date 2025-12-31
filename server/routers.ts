@@ -147,7 +147,11 @@ export const appRouter = router({
         // Use JWT_SECRET or fallback to a dev secret (not secure for production!)
         const secretKey = ENV.cookieSecret || 'dev-secret-change-in-production-' + ENV.appId;
         const secret = new TextEncoder().encode(secretKey);
-        const token = await new SignJWT({ openId: user.openId, userId: user.id })
+        const token = await new SignJWT({
+          openId: user.openId,
+          appId: ENV.appId,
+          name: userName || user.email || 'Member'
+        })
           .setProtectedHeader({ alg: 'HS256' })
           .setExpirationTime('365d')
           .sign(secret);
