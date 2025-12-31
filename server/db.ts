@@ -114,6 +114,15 @@ export interface EmailLog {
   createdAt: Date;
 }
 
+export interface VerificationCode {
+  id: number;
+  email: string;
+  code: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+  createdAt: Date;
+}
+
 // Insert types
 export type InsertUser = Partial<User> & { openId: string };
 export type InsertChannel = Partial<Channel> & { name: string };
@@ -125,6 +134,7 @@ export type InsertSupportMessage = Partial<SupportMessage> & { ticketId: number;
 export type InsertNotification = Partial<Notification> & { userId: number; type: string; title: string; content: string };
 export type InsertMojiKnowledgeBase = Partial<MojiKnowledgeBase> & { question: string; answer: string };
 export type InsertEmailLog = Partial<EmailLog> & { recipientEmail: string; subject: string; templateType: string };
+export type InsertVerificationCode = { email: string; code: string; expiresAt: Date };
 
 // Supabase client singleton
 let _supabase: SupabaseClient | null = null;
@@ -1372,4 +1382,170 @@ export async function getAnalyticsSummary(filters: { startDate?: string; endDate
     avgHumanInteractions: Math.round(avgHumanInteractions * 10) / 10,
     avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
   };
+}
+
+// ============= Verification Code Functions =============
+
+/**
+ * Generate a 6-digit verification code
+ */
+export function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+/**
+ * Create a new verification code for an email
+ */
+export async function createVerificationCode(email: string): Promise<string> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const code = generateVerificationCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  // Delete any existing codes for this email
+  await supabase
+    .from('verification_codes')
+    .delete()
+    .eq('email', email.toLowerCase());
+
+  // Insert new code
+  const { error } = await supabase
+    .from('verification_codes')
+    .insert({
+      email: email.toLowerCase(),
+      code,
+      expires_at: expiresAt.toISOString(),
+    });
+
+  if (error) throw error;
+
+  console.log(`[Auth] Verification code created for ${email}`);
+  return code;
+}
+
+/**
+ * Verify a code for an email
+ * Returns true if valid, false otherwise
+ */
+export async function verifyCode(email: string, code: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase
+    .from('verification_codes')
+    .select('*')
+    .eq('email', email.toLowerCase())
+    .eq('code', code)
+    .is('used_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    console.log(`[Auth] Verification failed for ${email}: invalid or expired code`);
+    return false;
+  }
+
+  // Mark as used
+  await supabase
+    .from('verification_codes')
+    .update({ used_at: new Date().toISOString() })
+    .eq('id', data.id);
+
+  console.log(`[Auth] Verification successful for ${email}`);
+  return true;
+}
+
+/**
+ * Clean up expired verification codes (can be called periodically)
+ */
+export async function cleanupExpiredCodes(): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+
+  const { data, error } = await supabase
+    .from('verification_codes')
+    .delete()
+    .lt('expires_at', new Date().toISOString())
+    .select('id');
+
+  if (error) {
+    console.error("[Auth] Failed to cleanup expired codes:", error);
+    return 0;
+  }
+
+  const count = data?.length || 0;
+  if (count > 0) {
+    console.log(`[Auth] Cleaned up ${count} expired verification codes`);
+  }
+  return count;
+}
+
+/**
+ * Create or update a member user (for Learnworlds members)
+ */
+export async function upsertMemberUser(member: {
+  email: string;
+  name: string | null;
+  learnworldsId?: string;
+}): Promise<User> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const openId = `member:${member.email.toLowerCase()}`;
+
+  // Try to find existing user
+  const { data: existing } = await supabase
+    .from('users')
+    .select('*')
+    .eq('open_id', openId)
+    .limit(1)
+    .single();
+
+  if (existing) {
+    // Update last signed in
+    await supabase
+      .from('users')
+      .update({
+        last_signed_in: new Date().toISOString(),
+        name: member.name || existing.name,
+      })
+      .eq('id', existing.id);
+
+    return snakeToCamel(existing);
+  }
+
+  // Create new user
+  const { data: newUser, error } = await supabase
+    .from('users')
+    .insert({
+      open_id: openId,
+      email: member.email.toLowerCase(),
+      name: member.name,
+      role: 'user',
+      login_method: 'learnworlds',
+      last_signed_in: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  // Auto-join public channels for new members
+  const publicChannels = await getPublicChannels();
+  for (const channel of publicChannels) {
+    try {
+      await addChannelMember({
+        channelId: channel.id,
+        userId: newUser.id,
+        role: 'member',
+      });
+    } catch (err) {
+      // Ignore if already a member
+    }
+  }
+
+  console.log(`[Auth] Created new member user: ${member.email}`);
+  return snakeToCamel(newUser);
 }
