@@ -144,7 +144,9 @@ export const appRouter = router({
         });
 
         // Create session token using jose (ESM-compatible)
-        const secret = new TextEncoder().encode(ENV.cookieSecret);
+        // Use JWT_SECRET or fallback to a dev secret (not secure for production!)
+        const secretKey = ENV.cookieSecret || 'dev-secret-change-in-production-' + ENV.appId;
+        const secret = new TextEncoder().encode(secretKey);
         const token = await new SignJWT({ openId: user.openId, userId: user.id })
           .setProtectedHeader({ alg: 'HS256' })
           .setExpirationTime('365d')
