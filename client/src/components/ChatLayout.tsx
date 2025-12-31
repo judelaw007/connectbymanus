@@ -18,6 +18,7 @@ import {
   Search,
   Bell,
   LogOut,
+  LogIn,
   Menu,
   X,
   Headset,
@@ -35,13 +36,15 @@ import { MessageInput } from "@/components/MessageInput";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useSocket } from "@/contexts/SocketContext";
+import { getLoginUrl } from "@/const";
 
 interface ChatLayoutProps {
   children?: React.ReactNode;
   isAdminMode?: boolean;
+  isPublicView?: boolean; // When true, user is not logged in - show limited features
 }
 
-export default function ChatLayout({ children, isAdminMode = false }: ChatLayoutProps) {
+export default function ChatLayout({ children, isAdminMode = false, isPublicView = false }: ChatLayoutProps) {
   const { user, logout } = useAuth();
   const { onlineUsers } = useSocket();
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
@@ -170,10 +173,12 @@ export default function ChatLayout({ children, isAdminMode = false }: ChatLayout
           <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
             <Search className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
-            <Bell className="h-5 w-5" />
-          </Button>
           {user && (
+            <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
+              <Bell className="h-5 w-5" />
+            </Button>
+          )}
+          {user ? (
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground">
@@ -189,6 +194,18 @@ export default function ChatLayout({ children, isAdminMode = false }: ChatLayout
                 <LogOut className="h-5 w-5" />
               </Button>
             </div>
+          ) : (
+            <Button
+              onClick={() => {
+                window.location.href = getLoginUrl();
+              }}
+              variant="secondary"
+              size="sm"
+              className="gap-2"
+            >
+              <LogIn className="h-4 w-4" />
+              Sign In
+            </Button>
           )}
         </div>
       </header>
@@ -211,6 +228,11 @@ export default function ChatLayout({ children, isAdminMode = false }: ChatLayout
                 <button
                   className="channel-item w-full hover:bg-accent/20"
                   onClick={() => {
+                    if (isPublicView) {
+                      // For public users: redirect to sign-in
+                      window.location.href = getLoginUrl();
+                      return;
+                    }
                     if (isAdminMode) {
                       // For admin: show support inbox
                       setShowSupportInbox(true);
@@ -359,15 +381,29 @@ export default function ChatLayout({ children, isAdminMode = false }: ChatLayout
             <UserSupportChat onClose={() => setShowUserSupportChat(false)} />
           ) : selectedChannelId ? (
             <>
-              <MessageList channelId={selectedChannelId} />
-              <MessageInput channelId={selectedChannelId} />
+              <MessageList channelId={selectedChannelId} isPublicView={isPublicView} />
+              <MessageInput channelId={selectedChannelId} isPublicView={isPublicView} />
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
-              <div>
+              <div className="max-w-md">
                 <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
                 <h2 className="text-2xl font-semibold mb-2">Welcome to MojiTax Connect</h2>
-                <p>Select a channel to start chatting with tax professionals</p>
+                <p className="mb-4">Select a channel to {isPublicView ? "view discussions by" : "start chatting with"} tax professionals</p>
+                {isPublicView && (
+                  <div className="mt-6 p-4 bg-muted rounded-lg">
+                    <p className="text-sm mb-3">Join the conversation with a MojiTax account</p>
+                    <Button
+                      onClick={() => {
+                        window.location.href = getLoginUrl();
+                      }}
+                      className="gap-2"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Sign In to Participate
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -19,13 +19,14 @@ interface Message {
 
 interface MessageListProps {
   channelId: number;
+  isPublicView?: boolean; // When true, hide real usernames for privacy
 }
 
-export function MessageList({ channelId }: MessageListProps) {
+export function MessageList({ channelId, isPublicView = false }: MessageListProps) {
   const { socket } = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   const { data: initialMessages, isLoading } = trpc.messages.getByChannel.useQuery({
     channelId,
     limit: 50,
@@ -88,7 +89,7 @@ export function MessageList({ channelId }: MessageListProps) {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {messages.map((message) => (
-        <MessageItem key={message.id} message={message} />
+        <MessageItem key={message.id} message={message} isPublicView={isPublicView} />
       ))}
       <div ref={messagesEndRef} />
     </div>
@@ -97,14 +98,30 @@ export function MessageList({ channelId }: MessageListProps) {
 
 interface MessageItemProps {
   message: Message;
+  isPublicView?: boolean;
 }
 
-function MessageItem({ message }: MessageItemProps) {
+function MessageItem({ message, isPublicView = false }: MessageItemProps) {
   const isBot = message.messageType === "bot";
   const isSystem = message.messageType === "system";
   const isAdmin = message.userRole === "admin";
 
+  // For public view, hide real names and show generic "Member" or "Admin"
+  const getDisplayName = () => {
+    if (isBot) return "@moji";
+    if (isPublicView) {
+      // Show role but not actual name for privacy
+      return isAdmin ? "Admin" : "Member";
+    }
+    return message.userName || "Unknown";
+  };
+
   const getInitials = (name: string | null) => {
+    if (isBot) return "🤖";
+    if (isPublicView) {
+      // Generic initials for public view
+      return isAdmin ? "A" : "M";
+    }
     if (!name) return "?";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
@@ -129,14 +146,14 @@ function MessageItem({ message }: MessageItemProps) {
     <div className={`flex gap-3 ${getMessageBgColor()} ${isBot ? "p-3 rounded-lg" : ""}`}>
       <Avatar className="h-10 w-10 flex-shrink-0">
         <AvatarFallback className={isAdmin ? "bg-primary text-primary-foreground" : ""}>
-          {isBot ? "🤖" : getInitials(message.userName)}
+          {getInitials(message.userName)}
         </AvatarFallback>
       </Avatar>
-      
+
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
           <span className="font-semibold text-sm">
-            {isBot ? "@moji" : message.userName || "Unknown"}
+            {getDisplayName()}
           </span>
           {isAdmin && !isBot && (
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
@@ -147,7 +164,7 @@ function MessageItem({ message }: MessageItemProps) {
             {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
           </span>
         </div>
-        
+
         <div className="text-sm mt-1 whitespace-pre-wrap break-words">
           {message.content}
         </div>
