@@ -147,10 +147,13 @@ export const appRouter = router({
         // Use JWT_SECRET or fallback to a dev secret (not secure for production!)
         const secretKey = ENV.cookieSecret || 'dev-secret-change-in-production-' + ENV.appId;
         const secret = new TextEncoder().encode(secretKey);
+        const appId = ENV.appId || 'mojitax-connect';
+        const memberName = userName || user.email || 'Member';
+        console.log('[Auth] Creating token with:', { openId: user.openId, appId, name: memberName });
         const token = await new SignJWT({
           openId: user.openId,
-          appId: ENV.appId,
-          name: userName || user.email || 'Member'
+          appId: appId,
+          name: memberName
         })
           .setProtectedHeader({ alg: 'HS256' })
           .setExpirationTime('365d')
