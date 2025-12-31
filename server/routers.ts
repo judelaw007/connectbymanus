@@ -10,7 +10,7 @@ import * as messageService from "./messages";
 import * as chatbot from "./chatbot";
 import * as emailService from "./services/email";
 import * as learnworldsService from "./services/learnworlds";
-import jwt from "jsonwebtoken";
+import { SignJWT } from "jose";
 import { ENV } from "./_core/env";
 
 // Admin-only procedure
@@ -143,12 +143,12 @@ export const appRouter = router({
           name: userName,
         });
 
-        // Create session token
-        const token = jwt.sign(
-          { openId: user.openId, userId: user.id },
-          ENV.cookieSecret,
-          { expiresIn: '365d' }
-        );
+        // Create session token using jose (ESM-compatible)
+        const secret = new TextEncoder().encode(ENV.cookieSecret);
+        const token = await new SignJWT({ openId: user.openId, userId: user.id })
+          .setProtectedHeader({ alg: 'HS256' })
+          .setExpirationTime('365d')
+          .sign(secret);
 
         // Set session cookie
         const cookieOptions = getSessionCookieOptions(ctx.req);
