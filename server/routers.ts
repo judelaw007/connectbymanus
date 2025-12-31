@@ -1,4 +1,4 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -9,6 +9,9 @@ import { nanoid } from "nanoid";
 import * as messageService from "./messages";
 import * as chatbot from "./chatbot";
 import * as emailService from "./services/email";
+import * as learnworldsService from "./services/learnworlds";
+import jwt from "jsonwebtoken";
+import { ENV } from "./_core/env";
 
 // Admin-only procedure
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -29,6 +32,9 @@ export const appRouter = router({
     emailStatus: publicProcedure.query(() => {
       return emailService.getEmailServiceStatus();
     }),
+    learnworldsStatus: publicProcedure.query(() => {
+      return learnworldsService.getLearnworldsStatus();
+    }),
     // Test email send (admin only, respects TEST_MODE)
     testEmail: adminProcedure
       .input(z.object({
@@ -44,6 +50,145 @@ export const appRouter = router({
           templateType: "verification_code", // Using generic template type for test
         });
         return result;
+      }),
+  }),
+
+  // Member authentication (Learnworlds members via email verification)
+  memberAuth: router({
+    // Request a verification code
+    requestCode: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+      }))
+      .mutation(async ({ input }) => {
+        const email = input.email.toLowerCase().trim();
+
+        // Check if Learnworlds is configured
+        const lwStatus = learnworldsService.getLearnworldsStatus();
+        if (!lwStatus.isConfigured) {
+          // For development/testing without Learnworlds, allow any email
+          console.log("[MemberAuth] Learnworlds not configured, allowing any email for testing");
+        } else {
+          // Verify the user exists in Learnworlds
+          const lwUser = await learnworldsService.getUserByEmail(email);
+          if (!lwUser) {
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'This email is not registered as a MojiTax member. Please use your Learnworlds account email.',
+            });
+          }
+
+          if (!lwUser.is_active) {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: 'Your MojiTax account is inactive. Please contact support.',
+            });
+          }
+        }
+
+        // Generate and store verification code
+        const code = await db.createVerificationCode(email);
+
+        // Get user's name from Learnworlds (if configured)
+        let userName: string | null = null;
+        if (lwStatus.isConfigured) {
+          userName = await learnworldsService.getUserName(email);
+        }
+
+        // Send verification email
+        const emailResult = await emailService.sendVerificationCode(email, userName, code);
+
+        if (!emailResult.success) {
+          console.error("[MemberAuth] Failed to send verification email:", emailResult.error);
+          // Don't expose email errors to users, just log them
+        }
+
+        return {
+          success: true,
+          message: 'Verification code sent to your email',
+          // Only show email in test mode for debugging
+          ...(ENV.isTestMode && emailResult.redirectedTo && {
+            testNote: `Code sent to ${emailResult.redirectedTo} (TEST MODE)`,
+          }),
+        };
+      }),
+
+    // Verify code and log in
+    verifyCode: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        code: z.string().length(6),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const email = input.email.toLowerCase().trim();
+
+        // Verify the code
+        const isValid = await db.verifyCode(email, input.code);
+        if (!isValid) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Invalid or expired verification code. Please request a new code.',
+          });
+        }
+
+        // Get or create the member user
+        let userName: string | null = null;
+        const lwStatus = learnworldsService.getLearnworldsStatus();
+        if (lwStatus.isConfigured) {
+          userName = await learnworldsService.getUserName(email);
+        }
+
+        const user = await db.upsertMemberUser({
+          email,
+          name: userName,
+        });
+
+        // Create session token
+        const token = jwt.sign(
+          { openId: user.openId, userId: user.id },
+          ENV.cookieSecret,
+          { expiresIn: '365d' }
+        );
+
+        // Set session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, {
+          ...cookieOptions,
+          maxAge: ONE_YEAR_MS,
+        });
+
+        return {
+          success: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+        };
+      }),
+
+    // Check member status (for debugging)
+    checkMember: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+      }))
+      .query(async ({ input }) => {
+        const lwStatus = learnworldsService.getLearnworldsStatus();
+        if (!lwStatus.isConfigured) {
+          return {
+            learnworldsConfigured: false,
+            message: 'Learnworlds not configured',
+          };
+        }
+
+        const lwUser = await learnworldsService.getUserByEmail(input.email);
+        return {
+          learnworldsConfigured: true,
+          exists: !!lwUser,
+          isActive: lwUser?.is_active || false,
+          name: lwUser ? `${lwUser.first_name || ''} ${lwUser.last_name || ''}`.trim() : null,
+        };
       }),
   }),
 

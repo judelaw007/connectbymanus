@@ -4,7 +4,7 @@ import { useSocket } from "@/contexts/SocketContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, LogIn } from "lucide-react";
-import { getLoginUrl } from "@/const";
+import { useLocation } from "wouter";
 
 interface MessageInputProps {
   channelId: number;
@@ -17,6 +17,7 @@ export function MessageInput({ channelId, isPublicView = false }: MessageInputPr
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { socket } = useSocket();
+  const [, setLocation] = useLocation();
 
   const sendMessageMutation = trpc.messages.send.useMutation({
     onSuccess: () => {
@@ -92,9 +93,7 @@ export function MessageInput({ channelId, isPublicView = false }: MessageInputPr
             Sign in with your MojiTax account to join the conversation
           </p>
           <Button
-            onClick={() => {
-              window.location.href = getLoginUrl();
-            }}
+            onClick={() => setLocation("/login")}
             size="sm"
             className="gap-2"
           >

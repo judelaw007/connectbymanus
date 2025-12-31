@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import AdminLogin from "./pages/AdminLogin";
+import MemberLogin from "./pages/MemberLogin";
 import Admin from "./pages/Admin";
 import AdminAuthGuard from "./components/AdminAuthGuard";
 
@@ -13,6 +14,7 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path="/login" component={MemberLogin} />
       <Route path="/auth/admin" component={AdminLogin} />
       <Route path="/admin">
         <AdminAuthGuard>

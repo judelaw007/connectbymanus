@@ -36,7 +36,7 @@ import { MessageInput } from "@/components/MessageInput";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useSocket } from "@/contexts/SocketContext";
-import { getLoginUrl } from "@/const";
+import { useLocation } from "wouter";
 
 interface ChatLayoutProps {
   children?: React.ReactNode;
@@ -47,6 +47,7 @@ interface ChatLayoutProps {
 export default function ChatLayout({ children, isAdminMode = false, isPublicView = false }: ChatLayoutProps) {
   const { user, logout } = useAuth();
   const { onlineUsers } = useSocket();
+  const [, setLocation] = useLocation();
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const [showSupportInbox, setShowSupportInbox] = useState(false);
   const [showUserSupportChat, setShowUserSupportChat] = useState(false);
@@ -196,9 +197,7 @@ export default function ChatLayout({ children, isAdminMode = false, isPublicView
             </div>
           ) : (
             <Button
-              onClick={() => {
-                window.location.href = getLoginUrl();
-              }}
+              onClick={() => setLocation("/login")}
               variant="secondary"
               size="sm"
               className="gap-2"
@@ -230,7 +229,7 @@ export default function ChatLayout({ children, isAdminMode = false, isPublicView
                   onClick={() => {
                     if (isPublicView) {
                       // For public users: redirect to sign-in
-                      window.location.href = getLoginUrl();
+                      setLocation("/login");
                       return;
                     }
                     if (isAdminMode) {
@@ -394,9 +393,7 @@ export default function ChatLayout({ children, isAdminMode = false, isPublicView
                   <div className="mt-6 p-4 bg-muted rounded-lg">
                     <p className="text-sm mb-3">Join the conversation with a MojiTax account</p>
                     <Button
-                      onClick={() => {
-                        window.location.href = getLoginUrl();
-                      }}
+                      onClick={() => setLocation("/login")}
                       className="gap-2"
                     >
                       <LogIn className="h-4 w-4" />
