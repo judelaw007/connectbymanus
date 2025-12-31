@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import * as messageService from "./messages";
 import * as chatbot from "./chatbot";
+import * as emailService from "./services/email";
 
 // Admin-only procedure
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -20,11 +21,30 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 export const appRouter = router({
   system: systemRouter,
 
-  // Debug endpoint to test database connection
+  // Debug endpoints
   debug: router({
     testDb: publicProcedure.query(async () => {
       return await db.testDatabaseConnection();
     }),
+    emailStatus: publicProcedure.query(() => {
+      return emailService.getEmailServiceStatus();
+    }),
+    // Test email send (admin only, respects TEST_MODE)
+    testEmail: adminProcedure
+      .input(z.object({
+        to: z.string().email(),
+        subject: z.string(),
+        message: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const result = await emailService.sendEmail({
+          to: input.to,
+          subject: input.subject,
+          html: `<p>${input.message}</p>`,
+          templateType: "verification_code", // Using generic template type for test
+        });
+        return result;
+      }),
   }),
 
   auth: router({
@@ -594,6 +614,197 @@ export const appRouter = router({
           status: "pending",
         });
         return { id, success: true };
+      }),
+  }),
+
+  // Study Groups - dedicated router for study group management
+  studyGroups: router({
+    // Get all study groups (for discovery/browsing)
+    getAll: protectedProcedure.query(async () => {
+      return await db.getStudyGroups();
+    }),
+
+    // Get user's study groups
+    getMy: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserStudyGroups(ctx.user.id);
+    }),
+
+    // Get study group by ID with member count
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const group = await db.getStudyGroupById(input.id);
+        if (!group) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Study group not found' });
+        }
+
+        const memberCount = await db.getStudyGroupMemberCount(input.id);
+        const isMember = await db.isUserInChannel(input.id, ctx.user.id);
+        const memberRole = isMember ? await db.getChannelMemberRole(input.id, ctx.user.id) : null;
+
+        return {
+          ...group,
+          memberCount,
+          isMember,
+          memberRole,
+        };
+      }),
+
+    // Create a new study group
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1).max(255),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const groupId = await db.createStudyGroup({
+          name: input.name,
+          description: input.description,
+          createdBy: ctx.user.id,
+        });
+
+        return { groupId, success: true };
+      }),
+
+    // Update study group settings (owner/admin only)
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).max(255).optional(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Check if user is owner or admin
+        const memberRole = await db.getChannelMemberRole(input.id, ctx.user.id);
+        if (memberRole !== 'owner' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only group owner can update settings' });
+        }
+
+        await db.updateStudyGroup(input.id, {
+          name: input.name,
+          description: input.description,
+        });
+
+        return { success: true };
+      }),
+
+    // Archive a study group (owner/admin only)
+    archive: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const memberRole = await db.getChannelMemberRole(input.id, ctx.user.id);
+        if (memberRole !== 'owner' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only group owner can archive' });
+        }
+
+        await db.archiveStudyGroup(input.id);
+        return { success: true };
+      }),
+
+    // Join a study group
+    join: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const group = await db.getStudyGroupById(input.id);
+        if (!group) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Study group not found' });
+        }
+
+        const isMember = await db.isUserInChannel(input.id, ctx.user.id);
+        if (isMember) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Already a member' });
+        }
+
+        await db.addChannelMember({
+          channelId: input.id,
+          userId: ctx.user.id,
+          role: 'member',
+        });
+
+        return { success: true };
+      }),
+
+    // Leave a study group
+    leave: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const memberRole = await db.getChannelMemberRole(input.id, ctx.user.id);
+        if (memberRole === 'owner') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Owner cannot leave. Transfer ownership or archive the group.' });
+        }
+
+        await db.removeChannelMember(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // Get study group members
+    getMembers: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const isMember = await db.isUserInChannel(input.id, ctx.user.id);
+        if (!isMember && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be a member to view members' });
+        }
+
+        return await db.getChannelMembers(input.id);
+      }),
+
+    // Invite a member by email (owner/admin only)
+    invite: protectedProcedure
+      .input(z.object({
+        groupId: z.number(),
+        email: z.string().email(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const memberRole = await db.getChannelMemberRole(input.groupId, ctx.user.id);
+        if (memberRole !== 'owner' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only group owner can invite members' });
+        }
+
+        // Find user by email
+        const invitee = await db.getUserByEmail(input.email);
+        if (!invitee) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found with this email' });
+        }
+
+        // Check if already a member
+        const isAlreadyMember = await db.isUserInChannel(input.groupId, invitee.id);
+        if (isAlreadyMember) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'User is already a member' });
+        }
+
+        // Add as member
+        await db.addChannelMember({
+          channelId: input.groupId,
+          userId: invitee.id,
+          role: 'member',
+        });
+
+        // TODO: Send email notification to invited user
+
+        return { success: true, invitedUserId: invitee.id };
+      }),
+
+    // Remove a member (owner/admin only)
+    removeMember: protectedProcedure
+      .input(z.object({
+        groupId: z.number(),
+        userId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const memberRole = await db.getChannelMemberRole(input.groupId, ctx.user.id);
+        if (memberRole !== 'owner' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only group owner can remove members' });
+        }
+
+        // Cannot remove owner
+        const targetRole = await db.getChannelMemberRole(input.groupId, input.userId);
+        if (targetRole === 'owner') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot remove the owner' });
+        }
+
+        await db.removeChannelMember(input.groupId, input.userId);
+        return { success: true };
       }),
   }),
 

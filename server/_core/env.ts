@@ -9,4 +9,17 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+
+  // Email configuration
+  sendGridApiKey: process.env.SENDGRID_API_KEY ?? "",
+  emailFrom: process.env.EMAIL_FROM ?? "no-reply@mojitax.com",
+
+  // TEST_MODE - redirects all emails to test recipient for safe testing
+  isTestMode: process.env.TEST_MODE === "true",
+  testEmailRecipient: process.env.TEST_EMAIL_RECIPIENT ?? "",
+
+  // Learnworlds (member authentication)
+  learnworldsClientId: process.env.LEARNWORLDS_CLIENT_ID ?? "",
+  learnworldsClientSecret: process.env.LEARNWORLDS_CLIENT_SECRET ?? "",
+  learnworldsSchoolId: process.env.LEARNWORLDS_SCHOOL_ID ?? "",
 };
