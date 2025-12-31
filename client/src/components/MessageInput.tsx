@@ -3,19 +3,21 @@ import { trpc } from "@/lib/trpc";
 import { useSocket } from "@/contexts/SocketContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send } from "lucide-react";
+import { Send, LogIn } from "lucide-react";
+import { getLoginUrl } from "@/const";
 
 interface MessageInputProps {
   channelId: number;
+  isPublicView?: boolean; // When true, show sign-in prompt instead of input
 }
 
-export function MessageInput({ channelId }: MessageInputProps) {
+export function MessageInput({ channelId, isPublicView = false }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { socket } = useSocket();
-  
+
   const sendMessageMutation = trpc.messages.send.useMutation({
     onSuccess: () => {
       setMessage("");
@@ -32,14 +34,14 @@ export function MessageInput({ channelId }: MessageInputProps) {
 
   // Handle typing indicators
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || isPublicView) return;
 
     if (isTyping) {
       socket.emit("typing:start", channelId);
     } else {
       socket.emit("typing:stop", channelId);
     }
-  }, [isTyping, channelId, socket]);
+  }, [isTyping, channelId, socket, isPublicView]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
@@ -80,6 +82,29 @@ export function MessageInput({ channelId }: MessageInputProps) {
       handleSend();
     }
   };
+
+  // Show sign-in prompt for public/guest users
+  if (isPublicView) {
+    return (
+      <div className="border-t bg-muted/50 p-4">
+        <div className="flex items-center justify-center gap-4">
+          <p className="text-muted-foreground text-sm">
+            Sign in with your MojiTax account to join the conversation
+          </p>
+          <Button
+            onClick={() => {
+              window.location.href = getLoginUrl();
+            }}
+            size="sm"
+            className="gap-2"
+          >
+            <LogIn className="h-4 w-4" />
+            Sign In
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border-t bg-background p-4">
