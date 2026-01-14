@@ -20,6 +20,7 @@ export interface Channel {
   type: 'general' | 'topic' | 'study_group' | 'direct_message';
   isPrivate: boolean;
   isClosed: boolean;
+  inviteCode: string | null;
   createdBy: number | null;
   createdAt: Date;
 }
@@ -29,9 +30,10 @@ export interface Message {
   channelId: number;
   userId: number | null;
   content: string;
-  messageType: 'text' | 'system' | 'announcement' | 'event';
+  messageType: 'text' | 'system' | 'announcement' | 'event' | 'article' | 'newsletter' | 'admin' | 'user';
   isPinned: boolean;
   replyToId: number | null;
+  postId: number | null;
   createdAt: Date;
 }
 
@@ -41,12 +43,15 @@ export interface Post {
   title: string;
   content: string;
   authorId: number | null;
+  channelId: number | null;
   isPinned: boolean;
   eventDate: Date | null;
   eventLocation: string | null;
   tags: string | null;
   featuredImage: string | null;
-  priorityLevel: number;
+  distributionList: string | null;
+  scheduledFor: Date | null;
+  priorityLevel: 'low' | 'medium' | 'high' | 'urgent' | null;
   messageId: number | null;
   createdAt: Date;
 }
@@ -107,6 +112,7 @@ export interface EmailLog {
   recipientEmail: string;
   recipientName: string | null;
   subject: string;
+  content: string | null;
   templateType: string;
   status: 'pending' | 'sent' | 'failed';
   errorMessage: string | null;
