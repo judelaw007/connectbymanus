@@ -3,10 +3,11 @@ import { ForbiddenError } from "@shared/_core/errors";
 import axios, { type AxiosInstance } from "axios";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, decodeJwt } from "jose";
 import type { User } from "../db";
 import * as db from "../db";
 import { ENV } from "./env";
+import { createClient } from "@supabase/supabase-js";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
@@ -257,7 +258,13 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User> {
-    // Regular authentication flow
+    // Check for Supabase admin auth first (via sb-access-token cookie or Authorization header)
+    const supabaseUser = await this.authenticateSupabaseAdmin(req);
+    if (supabaseUser) {
+      return supabaseUser;
+    }
+
+    // Regular authentication flow (for members)
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
     const session = await this.verifySession(sessionCookie);
@@ -298,6 +305,78 @@ class SDKServer {
     });
 
     return user;
+  }
+
+  // Authenticate admin users via Supabase Auth
+  private async authenticateSupabaseAdmin(req: Request): Promise<User | null> {
+    try {
+      const cookies = this.parseCookies(req.headers.cookie);
+      
+      // Look for Supabase auth token in cookies (set by Supabase JS client)
+      // Supabase stores tokens in cookies with names like sb-<project-ref>-auth-token
+      let supabaseToken: string | null = null;
+      
+      cookies.forEach((value, name) => {
+        if (name.includes('sb-') && name.includes('-auth-token') && !supabaseToken) {
+          try {
+            const tokenData = JSON.parse(value);
+            supabaseToken = tokenData.access_token;
+          } catch {
+            // Not JSON, try as raw token
+            supabaseToken = value;
+          }
+        }
+      });
+      
+      // Also check Authorization header
+      const authHeader = req.headers.authorization;
+      if (!supabaseToken && authHeader?.startsWith('Bearer ')) {
+        supabaseToken = authHeader.slice(7);
+      }
+
+      if (!supabaseToken) {
+        return null;
+      }
+
+      // Decode the JWT to get user info (we trust Supabase's signature)
+      const decoded = decodeJwt(supabaseToken);
+      const email = decoded.email as string;
+      const supabaseUserId = decoded.sub as string;
+
+      if (!email || !supabaseUserId) {
+        return null;
+      }
+
+      // Find admin user by email
+      const admins = await db.getAdminUsers();
+      const adminUser = admins.find(a => a.email?.toLowerCase() === email.toLowerCase());
+
+      if (adminUser) {
+        // Update last signed in
+        await db.upsertUser({
+          openId: adminUser.openId,
+          lastSignedIn: new Date(),
+        });
+        return adminUser;
+      }
+
+      // If admin not in DB yet, create them
+      const openId = `supabase:${supabaseUserId}`;
+      await db.upsertUser({
+        openId,
+        email: email.toLowerCase(),
+        name: email.split('@')[0],
+        role: 'admin',
+        loginMethod: 'supabase',
+        lastSignedIn: new Date(),
+      });
+
+      const newUser = await db.getUserByOpenId(openId);
+      return newUser || null;
+    } catch (error) {
+      console.error("[Auth] Supabase admin auth check failed:", error);
+      return null;
+    }
   }
 }
 
