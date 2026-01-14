@@ -347,6 +347,14 @@ class SDKServer {
         return null;
       }
 
+      // Enforce domain restriction - only @mojitax.com allowed
+      const ALLOWED_ADMIN_DOMAIN = "mojitax.com";
+      const emailDomain = email.split("@")[1]?.toLowerCase();
+      if (emailDomain !== ALLOWED_ADMIN_DOMAIN) {
+        console.log(`[Auth] Rejected admin login - invalid domain: ${email}`);
+        return null;
+      }
+
       // Find admin user by email
       const admins = await db.getAdminUsers();
       const adminUser = admins.find(a => a.email?.toLowerCase() === email.toLowerCase());

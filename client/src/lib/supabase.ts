@@ -1,17 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Supabase client for browser (admin authentication only)
-// Regular users authenticate via mojitax.co.uk (Learnworlds)
-//
-// Security model:
-// - Only admins have Supabase credentials
-// - Regular users don't know about /auth/admin
-// - Regular users authenticate via Learnworlds SSO
-
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-// Only create client if credentials are available
+const ALLOWED_ADMIN_DOMAIN = "mojitax.com";
+
 export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -22,16 +15,23 @@ export const supabase = supabaseUrl && supabaseAnonKey
     })
   : null;
 
-// Check if Supabase is configured
 export function isSupabaseConfigured(): boolean {
   return supabase !== null;
 }
 
-// Admin authentication helpers
-// Any user with Supabase credentials is an admin by definition
+function isAllowedAdminEmail(email: string | undefined): boolean {
+  if (!email) return false;
+  const domain = email.split("@")[1]?.toLowerCase();
+  return domain === ALLOWED_ADMIN_DOMAIN;
+}
+
 export async function signInAdmin(email: string, password: string) {
   if (!supabase) {
     throw new Error("Supabase not configured. Check environment variables.");
+  }
+
+  if (!isAllowedAdminEmail(email)) {
+    throw new Error("Access denied. Only @mojitax.com email addresses are allowed.");
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -53,14 +53,29 @@ export async function signOutAdmin() {
 
 export async function getAdminSession() {
   if (!supabase) return null;
+  
   const { data } = await supabase.auth.getSession();
-  return data.session;
+  const session = data.session;
+  
+  if (!session) return null;
+  
+  if (!isAllowedAdminEmail(session.user?.email)) {
+    await supabase.auth.signOut();
+    return null;
+  }
+  
+  return session;
 }
 
 export async function onAuthStateChange(callback: (session: any) => void) {
   if (!supabase) return { unsubscribe: () => {} };
 
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+  const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    if (session && !isAllowedAdminEmail(session.user?.email)) {
+      await supabase.auth.signOut();
+      callback(null);
+      return;
+    }
     callback(session);
   });
 
