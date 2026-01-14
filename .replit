@@ -9,6 +9,7 @@ channel = "stable-25_05"
 
 [userenv.shared]
 PORT = "5000"
+VITE_APP_URL = "https://b1825975-5b0d-4d35-9398-87c239552518-00-2hf6t1jwo47t7.worf.replit.dev"
 
 [workflows]
 runButton = "Project"

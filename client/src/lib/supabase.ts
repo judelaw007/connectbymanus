@@ -30,13 +30,23 @@ export async function signInWithGoogle() {
     throw new Error("Supabase not configured. Check environment variables.");
   }
 
+  // Use current origin, but ensure we're not using localhost for production
+  let redirectUrl = window.location.origin;
+  if (redirectUrl.includes('localhost')) {
+    // In development/testing, use the Replit domain
+    const replitDomain = import.meta.env.VITE_APP_URL;
+    if (replitDomain) {
+      redirectUrl = replitDomain;
+    }
+  }
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       queryParams: {
         hd: ALLOWED_ADMIN_DOMAIN,
       },
-      redirectTo: `${window.location.origin}/auth/admin/callback`,
+      redirectTo: `${redirectUrl}/auth/admin/callback`,
     },
   });
 
