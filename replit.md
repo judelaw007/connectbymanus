@@ -39,8 +39,8 @@ A platform for tax professionals to connect, learn, and collaborate. Features li
 - `LEARNWORLDS_CLIENT_SECRET` - Learnworlds OAuth client secret
 - `LEARNWORLDS_SCHOOL_ID` - Learnworlds school ID
 
-### Optional
-- `OPENAI_API_KEY` - OpenAI API key for @moji chatbot
+### Required for @moji Chatbot
+- `OPENAI_API_KEY` - OpenAI API key for @moji chatbot (already configured)
 - `RESEND_API_KEY` - Resend API key for email notifications
 - `EMAIL_FROM` - Email sender address
 - `OWNER_OPEN_ID` - Admin user identifier

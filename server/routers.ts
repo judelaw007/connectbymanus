@@ -430,12 +430,11 @@ export const appRouter = router({
           replyToId: input.replyToId,
         });
 
-        // @moji AI chatbot disabled for Phase 1 MVP
-        // TODO: Re-enable for Phase 2
-        // if (input.content.toLowerCase().includes('@moji')) {
-        //   chatbot.handleUserMessage(input.channelId, ctx.user.id, input.content)
-        //     .catch(err => console.error('[Chatbot] Error handling message:', err));
-        // }
+        // @moji AI chatbot - responds when users mention @moji
+        if (input.content.toLowerCase().includes('@moji')) {
+          chatbot.handleUserMessage(input.channelId, ctx.user.id, input.content)
+            .catch(err => console.error('[Chatbot] Error handling message:', err));
+        }
 
         // TODO: Handle other @mentions and trigger notifications
 
