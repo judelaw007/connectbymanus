@@ -30,7 +30,7 @@ export interface Message {
   channelId: number;
   userId: number | null;
   content: string;
-  messageType: 'text' | 'system' | 'announcement' | 'event' | 'article' | 'newsletter' | 'admin' | 'user';
+  messageType: 'text' | 'system' | 'announcement' | 'event' | 'article' | 'newsletter' | 'admin' | 'user' | 'bot';
   isPinned: boolean;
   replyToId: number | null;
   postId: number | null;

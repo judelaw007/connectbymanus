@@ -154,14 +154,7 @@ export default function Admin() {
                     <MessagesSquare className="h-4 w-4 mr-2" />
                     Go to Chat Mode
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="justify-start"
-                    onClick={() => setActiveSection("moji-settings")}
-                  >
-                    <Bot className="h-4 w-4 mr-2" />
-                    Configure Moji
-                  </Button>
+                  {/* Configure Moji hidden for Phase 1 MVP - TODO: Re-enable for Phase 2 */}
                   <Button 
                     variant="outline" 
                     className="justify-start"
@@ -315,14 +308,7 @@ export default function Admin() {
               <Mail className="h-4 w-4 mr-2" />
               Email Logs
             </Button>
-            <Button 
-              variant={activeSection === "moji-settings" ? "secondary" : "ghost"} 
-              className="w-full justify-start"
-              onClick={() => setActiveSection("moji-settings")}
-            >
-              <Bot className="h-4 w-4 mr-2" />
-              Moji Settings
-            </Button>
+            {/* Moji Settings hidden for Phase 1 MVP - TODO: Re-enable for Phase 2 */}
             <Button 
               variant={activeSection === "chat-analytics" ? "secondary" : "ghost"} 
               className="w-full justify-start"
