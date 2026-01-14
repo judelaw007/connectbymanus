@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import MojiSettings from "@/components/MojiSettings";
 import EmailLogs from "@/components/EmailLogs";
+import PlatformSettings from "@/components/PlatformSettings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -223,40 +224,7 @@ export default function Admin() {
         );
 
       case "platform-settings":
-        return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Platform Settings</CardTitle>
-                <CardDescription>Configure platform-wide settings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="platform-name">Platform Name</Label>
-                  <Input id="platform-name" defaultValue="MojiTax Connect" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="admin-email">Admin Email</Label>
-                  <Input id="admin-email" type="email" defaultValue="admin@mojitax.com" />
-                </div>
-
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Email notifications enabled</p>
-                    <p className="text-sm text-muted-foreground">Send email notifications for announcements and mentions</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <Button className="w-full">
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Platform Settings
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        );
+        return <PlatformSettings />;
 
       default:
         return null;

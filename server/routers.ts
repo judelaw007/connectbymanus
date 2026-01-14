@@ -1016,6 +1016,48 @@ export const appRouter = router({
         return { tickets, count: tickets.length };
       }),
   }),
+
+  // Platform settings (admin only)
+  settings: router({
+    // Get all platform settings
+    get: adminProcedure.query(async () => {
+      return await db.getPlatformSettings();
+    }),
+
+    // Update platform settings
+    update: adminProcedure
+      .input(z.object({
+        platformName: z.string().optional(),
+        adminEmail: z.string().email().optional(),
+        emailNotificationsEnabled: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const settings: Record<string, string> = {};
+        if (input.platformName !== undefined) settings.platform_name = input.platformName;
+        if (input.adminEmail !== undefined) settings.admin_email = input.adminEmail;
+        if (input.emailNotificationsEnabled !== undefined) {
+          settings.email_notifications_enabled = input.emailNotificationsEnabled ? 'true' : 'false';
+        }
+        await db.updatePlatformSettings(settings, ctx.user.id);
+        return { success: true };
+      }),
+
+    // Get admin users with their display names
+    getAdmins: adminProcedure.query(async () => {
+      return await db.getAdminUsers();
+    }),
+
+    // Update admin display name
+    updateAdminDisplayName: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        displayName: z.string().min(1).max(100),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateUserDisplayName(input.userId, input.displayName);
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

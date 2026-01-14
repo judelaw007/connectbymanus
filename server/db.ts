@@ -6,10 +6,20 @@ export interface User {
   id: number;
   openId: string;
   name: string | null;
+  displayName: string | null;
   email: string | null;
   role: 'user' | 'admin' | 'moderator';
   loginMethod: string | null;
   lastSignedIn: Date | null;
+  createdAt: Date;
+}
+
+export interface PlatformSetting {
+  id: number;
+  settingKey: string;
+  settingValue: string | null;
+  updatedBy: number | null;
+  updatedAt: Date;
   createdAt: Date;
 }
 
@@ -537,6 +547,7 @@ export async function getChannelMessages(channelId: number, limit: number = 50, 
       *,
       users (
         name,
+        display_name,
         role
       )
     `)
@@ -551,7 +562,7 @@ export async function getChannelMessages(channelId: number, limit: number = 50, 
 
   return (data || []).map((row: any) => ({
     ...snakeToCamel(row),
-    userName: row.users?.name,
+    userName: row.users?.display_name || row.users?.name,
     userRole: row.users?.role,
     users: undefined,
   }));
@@ -567,6 +578,7 @@ export async function getPinnedMessages(channelId: number) {
       *,
       users (
         name,
+        display_name,
         role
       )
     `)
@@ -581,7 +593,7 @@ export async function getPinnedMessages(channelId: number) {
 
   return (data || []).map((row: any) => ({
     ...snakeToCamel(row),
-    userName: row.users?.name,
+    userName: row.users?.display_name || row.users?.name,
     userRole: row.users?.role,
     users: undefined,
   }));
@@ -1554,4 +1566,84 @@ export async function upsertMemberUser(member: {
 
   console.log(`[Auth] Created new member user: ${member.email}`);
   return snakeToCamel(newUser);
+}
+
+// ============= Platform Settings Functions =============
+
+export async function getPlatformSettings(): Promise<Record<string, string>> {
+  const supabase = getSupabase();
+  if (!supabase) return {};
+
+  const { data, error } = await supabase
+    .from('platform_settings')
+    .select('setting_key, setting_value');
+
+  if (error) {
+    console.error("[Database] Error getting platform settings:", error);
+    return {};
+  }
+
+  const settings: Record<string, string> = {};
+  for (const row of data || []) {
+    settings[row.setting_key] = row.setting_value || '';
+  }
+  return settings;
+}
+
+export async function updatePlatformSetting(key: string, value: string, updatedBy?: number): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('platform_settings')
+    .upsert({
+      setting_key: key,
+      setting_value: value,
+      updated_by: updatedBy || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'setting_key' });
+
+  if (error) {
+    console.error("[Database] Error updating platform setting:", error);
+    throw error;
+  }
+}
+
+export async function updatePlatformSettings(settings: Record<string, string>, updatedBy?: number): Promise<void> {
+  for (const [key, value] of Object.entries(settings)) {
+    await updatePlatformSetting(key, value, updatedBy);
+  }
+}
+
+// Update admin display name
+export async function updateUserDisplayName(userId: number, displayName: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from('users')
+    .update({ display_name: displayName })
+    .eq('id', userId);
+
+  if (error) {
+    console.error("[Database] Error updating display name:", error);
+    throw error;
+  }
+}
+
+export async function getAdminUsers(): Promise<User[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('role', 'admin');
+
+  if (error) {
+    console.error("[Database] Error getting admin users:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
 }
