@@ -25,18 +25,19 @@ function isAllowedAdminEmail(email: string | undefined): boolean {
   return domain === ALLOWED_ADMIN_DOMAIN;
 }
 
-export async function signInAdmin(email: string, password: string) {
+export async function signInWithGoogle() {
   if (!supabase) {
     throw new Error("Supabase not configured. Check environment variables.");
   }
 
-  if (!isAllowedAdminEmail(email)) {
-    throw new Error("Access denied. Only @mojitax.com email addresses are allowed.");
-  }
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      queryParams: {
+        hd: ALLOWED_ADMIN_DOMAIN,
+      },
+      redirectTo: `${window.location.origin}/auth/admin/callback`,
+    },
   });
 
   if (error) {
