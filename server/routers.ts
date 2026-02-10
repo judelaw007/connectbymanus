@@ -12,11 +12,15 @@ import * as emailService from "./services/email";
 import * as learnworldsService from "./services/learnworlds";
 import { SignJWT } from "jose";
 import { ENV } from "./_core/env";
+import { timingSafeEqual, createHash } from "crypto";
 
 // Admin-only procedure
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== 'admin') {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+  if (ctx.user.role !== "admin") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Admin access required",
+    });
   }
   return next({ ctx });
 });
@@ -37,11 +41,13 @@ export const appRouter = router({
     }),
     // Test email send (admin only, respects TEST_MODE)
     testEmail: adminProcedure
-      .input(z.object({
-        to: z.string().email(),
-        subject: z.string(),
-        message: z.string(),
-      }))
+      .input(
+        z.object({
+          to: z.string().email(),
+          subject: z.string(),
+          message: z.string(),
+        })
+      )
       .mutation(async ({ input }) => {
         const result = await emailService.sendEmail({
           to: input.to,
@@ -57,9 +63,11 @@ export const appRouter = router({
   memberAuth: router({
     // Request a verification code
     requestCode: publicProcedure
-      .input(z.object({
-        email: z.string().email(),
-      }))
+      .input(
+        z.object({
+          email: z.string().email(),
+        })
+      )
       .mutation(async ({ input }) => {
         const email = input.email.toLowerCase().trim();
 
@@ -67,21 +75,25 @@ export const appRouter = router({
         const lwStatus = learnworldsService.getLearnworldsStatus();
         if (!lwStatus.isConfigured) {
           // For development/testing without Learnworlds, allow any email
-          console.log("[MemberAuth] Learnworlds not configured, allowing any email for testing");
+          console.log(
+            "[MemberAuth] Learnworlds not configured, allowing any email for testing"
+          );
         } else {
           // Verify the user exists in Learnworlds
           const lwUser = await learnworldsService.getUserByEmail(email);
           if (!lwUser) {
             throw new TRPCError({
-              code: 'NOT_FOUND',
-              message: 'This email is not registered as a MojiTax member. Please use your Learnworlds account email.',
+              code: "NOT_FOUND",
+              message:
+                "This email is not registered as a MojiTax member. Please use your Learnworlds account email.",
             });
           }
 
           if (!lwUser.is_active) {
             throw new TRPCError({
-              code: 'FORBIDDEN',
-              message: 'Your MojiTax account is inactive. Please contact support.',
+              code: "FORBIDDEN",
+              message:
+                "Your MojiTax account is inactive. Please contact support.",
             });
           }
         }
@@ -96,29 +108,39 @@ export const appRouter = router({
         }
 
         // Send verification email
-        const emailResult = await emailService.sendVerificationCode(email, userName, code);
+        const emailResult = await emailService.sendVerificationCode(
+          email,
+          userName,
+          code
+        );
 
         if (!emailResult.success) {
-          console.error("[MemberAuth] Failed to send verification email:", emailResult.error);
+          console.error(
+            "[MemberAuth] Failed to send verification email:",
+            emailResult.error
+          );
           // Don't expose email errors to users, just log them
         }
 
         return {
           success: true,
-          message: 'Verification code sent to your email',
+          message: "Verification code sent to your email",
           // Only show email in test mode for debugging
-          ...(ENV.isTestMode && emailResult.redirectedTo && {
-            testNote: `Code sent to ${emailResult.redirectedTo} (TEST MODE)`,
-          }),
+          ...(ENV.isTestMode &&
+            emailResult.redirectedTo && {
+              testNote: `Code sent to ${emailResult.redirectedTo} (TEST MODE)`,
+            }),
         };
       }),
 
     // Verify code and log in
     verifyCode: publicProcedure
-      .input(z.object({
-        email: z.string().email(),
-        code: z.string().length(6),
-      }))
+      .input(
+        z.object({
+          email: z.string().email(),
+          code: z.string().length(6),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const email = input.email.toLowerCase().trim();
 
@@ -126,8 +148,9 @@ export const appRouter = router({
         const isValid = await db.verifyCode(email, input.code);
         if (!isValid) {
           throw new TRPCError({
-            code: 'UNAUTHORIZED',
-            message: 'Invalid or expired verification code. Please request a new code.',
+            code: "UNAUTHORIZED",
+            message:
+              "Invalid or expired verification code. Please request a new code.",
           });
         }
 
@@ -145,18 +168,23 @@ export const appRouter = router({
 
         // Create session token using jose (ESM-compatible)
         // Use JWT_SECRET or fallback to a dev secret (not secure for production!)
-        const secretKey = ENV.cookieSecret || 'dev-secret-change-in-production-' + ENV.appId;
+        const secretKey =
+          ENV.cookieSecret || "dev-secret-change-in-production-" + ENV.appId;
         const secret = new TextEncoder().encode(secretKey);
-        const appId = ENV.appId || 'mojitax-connect';
-        const memberName = userName || user.email || 'Member';
-        console.log('[Auth] Creating token with:', { openId: user.openId, appId, name: memberName });
+        const appId = ENV.appId || "mojitax-connect";
+        const memberName = userName || user.email || "Member";
+        console.log("[Auth] Creating token with:", {
+          openId: user.openId,
+          appId,
+          name: memberName,
+        });
         const token = await new SignJWT({
           openId: user.openId,
           appId: appId,
-          name: memberName
+          name: memberName,
         })
-          .setProtectedHeader({ alg: 'HS256' })
-          .setExpirationTime('365d')
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("365d")
           .sign(secret);
 
         // Set session cookie
@@ -179,15 +207,17 @@ export const appRouter = router({
 
     // Check member status (for debugging)
     checkMember: publicProcedure
-      .input(z.object({
-        email: z.string().email(),
-      }))
+      .input(
+        z.object({
+          email: z.string().email(),
+        })
+      )
       .query(async ({ input }) => {
         const lwStatus = learnworldsService.getLearnworldsStatus();
         if (!lwStatus.isConfigured) {
           return {
             learnworldsConfigured: false,
-            message: 'Learnworlds not configured',
+            message: "Learnworlds not configured",
           };
         }
 
@@ -196,7 +226,9 @@ export const appRouter = router({
           learnworldsConfigured: true,
           exists: !!lwUser,
           isActive: lwUser?.is_active || false,
-          name: lwUser ? `${lwUser.first_name || ''} ${lwUser.last_name || ''}`.trim() : null,
+          name: lwUser
+            ? `${lwUser.first_name || ""} ${lwUser.last_name || ""}`.trim()
+            : null,
         };
       }),
   }),
@@ -208,6 +240,81 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+
+    // Admin password login
+    adminLogin: publicProcedure
+      .input(z.object({ password: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ENV.adminPassword) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Admin password not configured on this server.",
+          });
+        }
+
+        // Timing-safe comparison: hash both values to ensure equal-length buffers
+        const inputHash = createHash("sha256").update(input.password).digest();
+        const expectedHash = createHash("sha256")
+          .update(ENV.adminPassword)
+          .digest();
+        const passwordValid = timingSafeEqual(inputHash, expectedHash);
+
+        if (!passwordValid) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid admin password.",
+          });
+        }
+
+        // Find or create the password-auth admin user
+        const adminOpenId = "admin:password-auth";
+        await db.upsertUser({
+          openId: adminOpenId,
+          name: "Admin",
+          email: "admin@mojitax.com",
+          role: "admin",
+          loginMethod: "password",
+          lastSignedIn: new Date(),
+        });
+
+        const adminUser = await db.getUserByOpenId(adminOpenId);
+        if (!adminUser) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create admin session.",
+          });
+        }
+
+        // Create JWT session token
+        const secretKey =
+          ENV.cookieSecret || "dev-secret-change-in-production-" + ENV.appId;
+        const secret = new TextEncoder().encode(secretKey);
+        const appId = ENV.appId || "mojitax-connect";
+        const token = await new SignJWT({
+          openId: adminOpenId,
+          appId,
+          name: adminUser.displayName || adminUser.name || "Admin",
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("30d")
+          .sign(secret);
+
+        // Set HTTP-only session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, {
+          ...cookieOptions,
+          maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+        });
+
+        return {
+          success: true,
+          user: {
+            id: adminUser.id,
+            name: adminUser.displayName || adminUser.name,
+            role: adminUser.role,
+          },
+        };
+      }),
   }),
 
   channels: router({
@@ -227,36 +334,47 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         const channel = await db.getChannelById(input.id);
         if (!channel) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Channel not found' });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Channel not found",
+          });
         }
-        
+
         // Check if user has access to private channels
         if (channel.isPrivate) {
           const isMember = await db.isUserInChannel(input.id, ctx.user.id);
           if (!isMember) {
-            throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Access denied",
+            });
           }
         }
-        
+
         return channel;
       }),
 
     // Create a new channel (admin can create topic channels, users can create study groups)
     create: protectedProcedure
-      .input(z.object({
-        name: z.string().min(1).max(255),
-        description: z.string().optional(),
-        type: z.enum(["topic", "study_group"]),
-        isPrivate: z.boolean().default(false),
-      }))
+      .input(
+        z.object({
+          name: z.string().min(1).max(255),
+          description: z.string().optional(),
+          type: z.enum(["topic", "study_group"]),
+          isPrivate: z.boolean().default(false),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         // Only admins can create topic channels
         if (input.type === "topic" && ctx.user.role !== "admin") {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can create topic channels' });
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only admins can create topic channels",
+          });
         }
 
         const inviteCode = input.isPrivate ? nanoid(16) : undefined;
-        
+
         const channelId = await db.createChannel({
           name: input.name,
           description: input.description || null,
@@ -278,10 +396,12 @@ export const appRouter = router({
 
     // Join a channel
     join: protectedProcedure
-      .input(z.object({
-        channelId: z.number().optional(),
-        inviteCode: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          channelId: z.number().optional(),
+          inviteCode: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         let channelId = input.channelId;
 
@@ -290,29 +410,44 @@ export const appRouter = router({
           const channels = await db.getAllChannels();
           const channel = channels.find(c => c.inviteCode === input.inviteCode);
           if (!channel) {
-            throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid invite code' });
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Invalid invite code",
+            });
           }
           channelId = channel.id;
         }
 
         if (!channelId) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Channel ID or invite code required' });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Channel ID or invite code required",
+          });
         }
 
         const channel = await db.getChannelById(channelId);
         if (!channel) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Channel not found' });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Channel not found",
+          });
         }
 
         // Check if already a member
         const isMember = await db.isUserInChannel(channelId, ctx.user.id);
         if (isMember) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Already a member' });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Already a member",
+          });
         }
 
         // For private channels, require invite code
         if (channel.isPrivate && channel.inviteCode !== input.inviteCode) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Invite code required for private channels' });
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Invite code required for private channels",
+          });
         }
 
         await db.addChannelMember({
@@ -339,7 +474,7 @@ export const appRouter = router({
         // Check if user has access
         const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
         if (!isMember && ctx.user.role !== "admin") {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
         }
 
         return await db.getChannelMembers(input.channelId);
@@ -351,9 +486,12 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const members = await db.getChannelMembers(input.channelId);
         const userMember = members.find(m => m.id === ctx.user.id);
-        
+
         if (userMember?.memberRole !== "owner" && ctx.user.role !== "admin") {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only channel owner can close the channel' });
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only channel owner can close the channel",
+          });
         }
 
         await db.updateChannel(input.channelId, { isClosed: true });
@@ -364,26 +502,41 @@ export const appRouter = router({
   messages: router({
     // Get messages for a channel
     getByChannel: protectedProcedure
-      .input(z.object({
-        channelId: z.number(),
-        limit: z.number().default(50),
-        offset: z.number().default(0),
-      }))
+      .input(
+        z.object({
+          channelId: z.number(),
+          limit: z.number().default(50),
+          offset: z.number().default(0),
+        })
+      )
       .query(async ({ input, ctx }) => {
         // Check if user has access
         const channel = await db.getChannelById(input.channelId);
         if (!channel) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Channel not found' });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Channel not found",
+          });
         }
 
         if (channel.isPrivate) {
-          const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
+          const isMember = await db.isUserInChannel(
+            input.channelId,
+            ctx.user.id
+          );
           if (!isMember) {
-            throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Access denied",
+            });
           }
         }
 
-        return await db.getChannelMessages(input.channelId, input.limit, input.offset);
+        return await db.getChannelMessages(
+          input.channelId,
+          input.limit,
+          input.offset
+        );
       }),
 
     // Get pinned messages
@@ -392,13 +545,22 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         const channel = await db.getChannelById(input.channelId);
         if (!channel) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Channel not found' });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Channel not found",
+          });
         }
 
         if (channel.isPrivate) {
-          const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
+          const isMember = await db.isUserInChannel(
+            input.channelId,
+            ctx.user.id
+          );
           if (!isMember) {
-            throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Access denied",
+            });
           }
         }
 
@@ -407,20 +569,25 @@ export const appRouter = router({
 
     // Send a message
     send: protectedProcedure
-      .input(z.object({
-        channelId: z.number(),
-        content: z.string().min(1),
-        replyToId: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          channelId: z.number(),
+          content: z.string().min(1),
+          replyToId: z.number().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         // Check if user has access
         const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
         if (!isMember) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be a channel member to send messages' });
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Must be a channel member to send messages",
+          });
         }
 
         const messageType = ctx.user.role === "admin" ? "admin" : "user";
-        
+
         // Use messageService to create and broadcast message
         const result = await messageService.createMessage({
           channelId: input.channelId,
@@ -431,9 +598,12 @@ export const appRouter = router({
         });
 
         // @moji AI chatbot - responds when users mention @moji
-        if (input.content.toLowerCase().includes('@moji')) {
-          chatbot.handleUserMessage(input.channelId, ctx.user.id, input.content)
-            .catch(err => console.error('[Chatbot] Error handling message:', err));
+        if (input.content.toLowerCase().includes("@moji")) {
+          chatbot
+            .handleUserMessage(input.channelId, ctx.user.id, input.content)
+            .catch(err =>
+              console.error("[Chatbot] Error handling message:", err)
+            );
         }
 
         // TODO: Handle other @mentions and trigger notifications
@@ -443,10 +613,12 @@ export const appRouter = router({
 
     // Toggle pin on a message (admin only)
     togglePin: adminProcedure
-      .input(z.object({
-        messageId: z.number(),
-        isPinned: z.boolean(),
-      }))
+      .input(
+        z.object({
+          messageId: z.number(),
+          isPinned: z.boolean(),
+        })
+      )
       .mutation(async ({ input }) => {
         await db.togglePinMessage(input.messageId, input.isPinned);
         return { success: true };
@@ -456,27 +628,29 @@ export const appRouter = router({
   posts: router({
     // Create a post (admin only)
     create: adminProcedure
-      .input(z.object({
-        postType: z.enum(["event", "announcement", "article", "newsletter"]),
-        title: z.string().min(1).max(500),
-        content: z.string().min(1),
-        channelId: z.number().optional(),
-        
-        // Event fields
-        eventDate: z.date().optional(),
-        eventLocation: z.string().optional(),
-        
-        // Article fields
-        tags: z.string().optional(),
-        featuredImage: z.string().optional(),
-        
-        // Newsletter fields
-        distributionList: z.string().optional(),
-        scheduledFor: z.date().optional(),
-        
-        // Announcement fields
-        priorityLevel: z.enum(["low", "medium", "high", "urgent"]).optional(),
-      }))
+      .input(
+        z.object({
+          postType: z.enum(["event", "announcement", "article", "newsletter"]),
+          title: z.string().min(1).max(500),
+          content: z.string().min(1),
+          channelId: z.number().optional(),
+
+          // Event fields
+          eventDate: z.date().optional(),
+          eventLocation: z.string().optional(),
+
+          // Article fields
+          tags: z.string().optional(),
+          featuredImage: z.string().optional(),
+
+          // Newsletter fields
+          distributionList: z.string().optional(),
+          scheduledFor: z.date().optional(),
+
+          // Announcement fields
+          priorityLevel: z.enum(["low", "medium", "high", "urgent"]).optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const postId = await db.createPost({
           postType: input.postType,
@@ -495,15 +669,19 @@ export const appRouter = router({
 
         // Create a chat message in the General channel (or specified channel) for this post
         const targetChannelId = input.channelId || 1; // Default to General channel (id: 1)
-        
+
         // Format the post content as a rich message
         let messageContent = `**${input.title}**\n\n${input.content}`;
-        
+
         // Add metadata based on post type
         if (input.postType === "event" && input.eventDate) {
-          const dateStr = input.eventDate.toLocaleDateString('en-US', { 
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
-            hour: '2-digit', minute: '2-digit' 
+          const dateStr = input.eventDate.toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
           });
           messageContent += `\n\n📅 **Event Date:** ${dateStr}`;
           if (input.eventLocation) {
@@ -513,14 +691,14 @@ export const appRouter = router({
           messageContent += `\n\n🏷️ **Tags:** ${input.tags}`;
         } else if (input.postType === "announcement" && input.priorityLevel) {
           const priorityEmoji = {
-            low: '📌',
-            medium: '📢',
-            high: '⚠️',
-            urgent: '🚨'
+            low: "📌",
+            medium: "📢",
+            high: "⚠️",
+            urgent: "🚨",
           }[input.priorityLevel];
           messageContent += `\n\n${priorityEmoji} **Priority:** ${input.priorityLevel.toUpperCase()}`;
         }
-        
+
         // Create the message with special type
         const messageId = await db.createMessage({
           channelId: targetChannelId,
@@ -530,7 +708,7 @@ export const appRouter = router({
           replyToId: null,
           postId, // Link to the post
         });
-        
+
         // Update the post with the messageId
         await db.updatePost(postId, { messageId });
 
@@ -541,10 +719,12 @@ export const appRouter = router({
 
     // Get posts by type
     getByType: publicProcedure
-      .input(z.object({
-        postType: z.enum(["event", "announcement", "article", "newsletter"]),
-        limit: z.number().default(20),
-      }))
+      .input(
+        z.object({
+          postType: z.enum(["event", "announcement", "article", "newsletter"]),
+          limit: z.number().default(20),
+        })
+      )
       .query(async ({ input }) => {
         return await db.getPostsByType(input.postType, input.limit);
       }),
@@ -555,17 +735,19 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const post = await db.getPostById(input.id);
         if (!post) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Post not found' });
+          throw new TRPCError({ code: "NOT_FOUND", message: "Post not found" });
         }
         return post;
       }),
 
     // Toggle pin on a post (admin only)
     togglePin: adminProcedure
-      .input(z.object({
-        postId: z.number(),
-        isPinned: z.boolean(),
-      }))
+      .input(
+        z.object({
+          postId: z.number(),
+          isPinned: z.boolean(),
+        })
+      )
       .mutation(async ({ input }) => {
         await db.togglePinPost(input.postId, input.isPinned);
         return { success: true };
@@ -676,12 +858,14 @@ export const appRouter = router({
 
     // Create knowledge base entry (admin only)
     create: adminProcedure
-      .input(z.object({
-        question: z.string().min(1),
-        answer: z.string().min(1),
-        category: z.string().optional(),
-        tags: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          question: z.string().min(1),
+          answer: z.string().min(1),
+          category: z.string().optional(),
+          tags: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const id = await db.createKnowledgeBaseEntry({
           question: input.question,
@@ -694,13 +878,15 @@ export const appRouter = router({
 
     // Update knowledge base entry (admin only)
     update: adminProcedure
-      .input(z.object({
-        id: z.number(),
-        question: z.string().optional(),
-        answer: z.string().optional(),
-        category: z.string().optional(),
-        tags: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          question: z.string().optional(),
+          answer: z.string().optional(),
+          category: z.string().optional(),
+          tags: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...updates } = input;
         await db.updateKnowledgeBaseEntry(id, updates);
@@ -717,14 +903,18 @@ export const appRouter = router({
 
     // Bulk upload from CSV (admin only)
     bulkUpload: adminProcedure
-      .input(z.object({
-        entries: z.array(z.object({
-          question: z.string(),
-          answer: z.string(),
-          category: z.string().optional(),
-          tags: z.string().optional(),
-        }))
-      }))
+      .input(
+        z.object({
+          entries: z.array(
+            z.object({
+              question: z.string(),
+              answer: z.string(),
+              category: z.string().optional(),
+              tags: z.string().optional(),
+            })
+          ),
+        })
+      )
       .mutation(async ({ input }) => {
         const ids = [];
         for (const entry of input.entries) {
@@ -750,13 +940,22 @@ export const appRouter = router({
 
     // Create email log (admin only)
     create: adminProcedure
-      .input(z.object({
-        recipientEmail: z.string().email(),
-        recipientName: z.string().optional(),
-        subject: z.string(),
-        content: z.string(),
-        emailType: z.enum(["announcement", "reply", "mention", "ticket", "group_notification", "newsletter"]),
-      }))
+      .input(
+        z.object({
+          recipientEmail: z.string().email(),
+          recipientName: z.string().optional(),
+          subject: z.string(),
+          content: z.string(),
+          emailType: z.enum([
+            "announcement",
+            "reply",
+            "mention",
+            "ticket",
+            "group_notification",
+            "newsletter",
+          ]),
+        })
+      )
       .mutation(async ({ input }) => {
         const id = await db.createEmailLog({
           recipientEmail: input.recipientEmail,
@@ -788,12 +987,17 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         const group = await db.getStudyGroupById(input.id);
         if (!group) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Study group not found' });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Study group not found",
+          });
         }
 
         const memberCount = await db.getStudyGroupMemberCount(input.id);
         const isMember = await db.isUserInChannel(input.id, ctx.user.id);
-        const memberRole = isMember ? await db.getChannelMemberRole(input.id, ctx.user.id) : null;
+        const memberRole = isMember
+          ? await db.getChannelMemberRole(input.id, ctx.user.id)
+          : null;
 
         return {
           ...group,
@@ -805,10 +1009,12 @@ export const appRouter = router({
 
     // Create a new study group
     create: protectedProcedure
-      .input(z.object({
-        name: z.string().min(1).max(255),
-        description: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string().min(1).max(255),
+          description: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const groupId = await db.createStudyGroup({
           name: input.name,
@@ -821,16 +1027,21 @@ export const appRouter = router({
 
     // Update study group settings (owner/admin only)
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().min(1).max(255).optional(),
-        description: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().min(1).max(255).optional(),
+          description: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         // Check if user is owner or admin
         const memberRole = await db.getChannelMemberRole(input.id, ctx.user.id);
-        if (memberRole !== 'owner' && ctx.user.role !== 'admin') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only group owner can update settings' });
+        if (memberRole !== "owner" && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only group owner can update settings",
+          });
         }
 
         await db.updateStudyGroup(input.id, {
@@ -846,8 +1057,11 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
         const memberRole = await db.getChannelMemberRole(input.id, ctx.user.id);
-        if (memberRole !== 'owner' && ctx.user.role !== 'admin') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only group owner can archive' });
+        if (memberRole !== "owner" && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only group owner can archive",
+          });
         }
 
         await db.archiveStudyGroup(input.id);
@@ -860,18 +1074,24 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const group = await db.getStudyGroupById(input.id);
         if (!group) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Study group not found' });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Study group not found",
+          });
         }
 
         const isMember = await db.isUserInChannel(input.id, ctx.user.id);
         if (isMember) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Already a member' });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Already a member",
+          });
         }
 
         await db.addChannelMember({
           channelId: input.id,
           userId: ctx.user.id,
-          role: 'member',
+          role: "member",
         });
 
         return { success: true };
@@ -882,8 +1102,12 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
         const memberRole = await db.getChannelMemberRole(input.id, ctx.user.id);
-        if (memberRole === 'owner') {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Owner cannot leave. Transfer ownership or archive the group.' });
+        if (memberRole === "owner") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Owner cannot leave. Transfer ownership or archive the group.",
+          });
         }
 
         await db.removeChannelMember(input.id, ctx.user.id);
@@ -895,8 +1119,11 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
         const isMember = await db.isUserInChannel(input.id, ctx.user.id);
-        if (!isMember && ctx.user.role !== 'admin') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be a member to view members' });
+        if (!isMember && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Must be a member to view members",
+          });
         }
 
         return await db.getChannelMembers(input.id);
@@ -904,33 +1131,50 @@ export const appRouter = router({
 
     // Invite a member by email (owner/admin only)
     invite: protectedProcedure
-      .input(z.object({
-        groupId: z.number(),
-        email: z.string().email(),
-      }))
+      .input(
+        z.object({
+          groupId: z.number(),
+          email: z.string().email(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
-        const memberRole = await db.getChannelMemberRole(input.groupId, ctx.user.id);
-        if (memberRole !== 'owner' && ctx.user.role !== 'admin') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only group owner can invite members' });
+        const memberRole = await db.getChannelMemberRole(
+          input.groupId,
+          ctx.user.id
+        );
+        if (memberRole !== "owner" && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only group owner can invite members",
+          });
         }
 
         // Find user by email
         const invitee = await db.getUserByEmail(input.email);
         if (!invitee) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found with this email' });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found with this email",
+          });
         }
 
         // Check if already a member
-        const isAlreadyMember = await db.isUserInChannel(input.groupId, invitee.id);
+        const isAlreadyMember = await db.isUserInChannel(
+          input.groupId,
+          invitee.id
+        );
         if (isAlreadyMember) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'User is already a member' });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "User is already a member",
+          });
         }
 
         // Add as member
         await db.addChannelMember({
           channelId: input.groupId,
           userId: invitee.id,
-          role: 'member',
+          role: "member",
         });
 
         // TODO: Send email notification to invited user
@@ -940,20 +1184,34 @@ export const appRouter = router({
 
     // Remove a member (owner/admin only)
     removeMember: protectedProcedure
-      .input(z.object({
-        groupId: z.number(),
-        userId: z.number(),
-      }))
+      .input(
+        z.object({
+          groupId: z.number(),
+          userId: z.number(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
-        const memberRole = await db.getChannelMemberRole(input.groupId, ctx.user.id);
-        if (memberRole !== 'owner' && ctx.user.role !== 'admin') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only group owner can remove members' });
+        const memberRole = await db.getChannelMemberRole(
+          input.groupId,
+          ctx.user.id
+        );
+        if (memberRole !== "owner" && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only group owner can remove members",
+          });
         }
 
         // Cannot remove owner
-        const targetRole = await db.getChannelMemberRole(input.groupId, input.userId);
-        if (targetRole === 'owner') {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot remove the owner' });
+        const targetRole = await db.getChannelMemberRole(
+          input.groupId,
+          input.userId
+        );
+        if (targetRole === "owner") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot remove the owner",
+          });
         }
 
         await db.removeChannelMember(input.groupId, input.userId);
@@ -964,38 +1222,48 @@ export const appRouter = router({
   analytics: router({
     // Get support ticket analytics with filters
     getSupportAnalytics: adminProcedure
-      .input(z.object({
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-        resolutionType: z.enum(["bot-answered", "human-answered", "no-answer", "escalated"]).optional(),
-        enquiryType: z.string().optional(),
-        status: z.enum(["open", "in-progress", "closed"]).optional(),
-        searchQuery: z.string().optional(),
-        limit: z.number().default(100),
-        offset: z.number().default(0),
-      }))
+      .input(
+        z.object({
+          startDate: z.string().optional(),
+          endDate: z.string().optional(),
+          resolutionType: z
+            .enum(["bot-answered", "human-answered", "no-answer", "escalated"])
+            .optional(),
+          enquiryType: z.string().optional(),
+          status: z.enum(["open", "in-progress", "closed"]).optional(),
+          searchQuery: z.string().optional(),
+          limit: z.number().default(100),
+          offset: z.number().default(0),
+        })
+      )
       .query(async ({ input }) => {
         return await db.getSupportAnalytics(input);
       }),
 
     // Get analytics summary stats
     getSummaryStats: adminProcedure
-      .input(z.object({
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          startDate: z.string().optional(),
+          endDate: z.string().optional(),
+        })
+      )
       .query(async ({ input }) => {
         return await db.getAnalyticsSummary(input);
       }),
 
     // Update ticket categorization
     updateTicketCategory: adminProcedure
-      .input(z.object({
-        ticketId: z.number(),
-        resolutionType: z.enum(["bot-answered", "human-answered", "no-answer", "escalated"]).optional(),
-        enquiryType: z.string().optional(),
-        tags: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          ticketId: z.number(),
+          resolutionType: z
+            .enum(["bot-answered", "human-answered", "no-answer", "escalated"])
+            .optional(),
+          enquiryType: z.string().optional(),
+          tags: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { ticketId, ...updates } = input;
         await db.updateSupportTicket(ticketId, updates);
@@ -1004,15 +1272,23 @@ export const appRouter = router({
 
     // Export filtered conversations to CSV
     exportToCSV: adminProcedure
-      .input(z.object({
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-        resolutionType: z.enum(["bot-answered", "human-answered", "no-answer", "escalated"]).optional(),
-        enquiryType: z.string().optional(),
-        status: z.enum(["open", "in-progress", "closed"]).optional(),
-      }))
+      .input(
+        z.object({
+          startDate: z.string().optional(),
+          endDate: z.string().optional(),
+          resolutionType: z
+            .enum(["bot-answered", "human-answered", "no-answer", "escalated"])
+            .optional(),
+          enquiryType: z.string().optional(),
+          status: z.enum(["open", "in-progress", "closed"]).optional(),
+        })
+      )
       .query(async ({ input }) => {
-        const tickets = await db.getSupportAnalytics({ ...input, limit: 10000, offset: 0 });
+        const tickets = await db.getSupportAnalytics({
+          ...input,
+          limit: 10000,
+          offset: 0,
+        });
         return { tickets, count: tickets.length };
       }),
   }),
@@ -1026,17 +1302,23 @@ export const appRouter = router({
 
     // Update platform settings
     update: adminProcedure
-      .input(z.object({
-        platformName: z.string().optional(),
-        adminEmail: z.string().email().optional(),
-        emailNotificationsEnabled: z.boolean().optional(),
-      }))
+      .input(
+        z.object({
+          platformName: z.string().optional(),
+          adminEmail: z.string().email().optional(),
+          emailNotificationsEnabled: z.boolean().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const settings: Record<string, string> = {};
-        if (input.platformName !== undefined) settings.platform_name = input.platformName;
-        if (input.adminEmail !== undefined) settings.admin_email = input.adminEmail;
+        if (input.platformName !== undefined)
+          settings.platform_name = input.platformName;
+        if (input.adminEmail !== undefined)
+          settings.admin_email = input.adminEmail;
         if (input.emailNotificationsEnabled !== undefined) {
-          settings.email_notifications_enabled = input.emailNotificationsEnabled ? 'true' : 'false';
+          settings.email_notifications_enabled = input.emailNotificationsEnabled
+            ? "true"
+            : "false";
         }
         await db.updatePlatformSettings(settings, ctx.user.id);
         return { success: true };
@@ -1049,10 +1331,12 @@ export const appRouter = router({
 
     // Update admin display name
     updateAdminDisplayName: adminProcedure
-      .input(z.object({
-        userId: z.number(),
-        displayName: z.string().min(1).max(100),
-      }))
+      .input(
+        z.object({
+          userId: z.number(),
+          displayName: z.string().min(1).max(100),
+        })
+      )
       .mutation(async ({ input }) => {
         await db.updateUserDisplayName(input.userId, input.displayName);
         return { success: true };
