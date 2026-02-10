@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { io, Socket } from "socket.io-client";
 import Cookies from "js-cookie";
 import { COOKIE_NAME } from "@shared/const";
@@ -29,16 +35,15 @@ export function SocketProvider({ children }: SocketProviderProps) {
   const [onlineUsers, setOnlineUsers] = useState<number[]>([]);
 
   useEffect(() => {
-    // Get auth token from cookie
+    // Try to read token from cookie (works for non-httpOnly cookies).
+    // For httpOnly cookies, the browser sends them automatically via
+    // withCredentials, and the server parses them from the handshake headers.
     const token = Cookies.get(COOKIE_NAME);
-    if (!token) {
-      console.log("[Socket] No auth token, skipping connection");
-      return;
-    }
 
-    // Connect to Socket.io server
+    // Connect to Socket.io server — always connect so httpOnly cookies work
     const socketInstance = io({
-      auth: { token },
+      auth: token ? { token } : {},
+      withCredentials: true,
       autoConnect: true,
     });
 
