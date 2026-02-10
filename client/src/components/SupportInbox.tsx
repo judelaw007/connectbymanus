@@ -32,6 +32,7 @@ interface SupportInboxProps {
 
 export default function SupportInbox({ onClose }: SupportInboxProps) {
   const { socket } = useSocket();
+  const utils = trpc.useUtils();
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
   const [replyInput, setReplyInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,7 +51,6 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
 
   const replyMutation = trpc.support.reply.useMutation({
     onSuccess: () => {
-      setReplyInput("");
       refetchTicketDetails();
       refetchTickets();
     },
@@ -106,10 +106,32 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
 
   const handleSendReply = async () => {
     if (!replyInput.trim() || !selectedTicketId) return;
+    const content = replyInput;
+    setReplyInput("");
+
+    // Optimistically add the message to the cache so it appears instantly
+    utils.support.getById.setData({ ticketId: selectedTicketId }, old => {
+      if (!old) return old;
+      return {
+        ...old,
+        messages: [
+          ...(old.messages || []),
+          {
+            id: Date.now(),
+            ticketId: selectedTicketId,
+            senderId: 0,
+            senderType: "admin" as const,
+            senderName: "Admin",
+            content,
+            createdAt: new Date(),
+          },
+        ],
+      };
+    });
 
     await replyMutation.mutateAsync({
       ticketId: selectedTicketId,
-      content: replyInput,
+      content,
     });
   };
 

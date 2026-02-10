@@ -75,6 +75,11 @@ export function initializeSocket(httpServer: HTTPServer) {
     // Join user's personal room for direct notifications
     socket.join(`user:${userId}`);
 
+    // Admins auto-join the support admin room for global ticket notifications
+    if (socket.data.userRole === "admin") {
+      socket.join("support:admin");
+    }
+
     // Handle joining channels
     socket.on("channel:join", async (channelId: number) => {
       // Verify user has access to channel
@@ -185,13 +190,22 @@ export function emitSupportTicketToAdmins(ticket: any) {
   }
 }
 
-// Emit new support message to everyone in the ticket room
-export function emitSupportMessage(ticketId: number, message: any) {
+// Emit new support message to the ticket room, admins, and the ticket owner
+export function emitSupportMessage(
+  ticketId: number,
+  message: any,
+  ticketOwnerId?: number
+) {
   if (io) {
-    io.to(`support:${ticketId}`).emit("support:new-message", {
-      ticketId,
-      message,
-    });
+    const payload = { ticketId, message };
+    // Notify everyone viewing this ticket
+    io.to(`support:${ticketId}`).emit("support:new-message", payload);
+    // Notify all admins (for inbox list refresh)
+    io.to("support:admin").emit("support:new-message", payload);
+    // Notify the ticket owner directly (in case they haven't joined the room yet)
+    if (ticketOwnerId) {
+      io.to(`user:${ticketOwnerId}`).emit("support:new-message", payload);
+    }
   }
 }
 

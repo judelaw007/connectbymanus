@@ -35,6 +35,7 @@ interface UserSupportChatProps {
 export default function UserSupportChat({ onClose }: UserSupportChatProps) {
   const { user } = useAuth();
   const { socket } = useSocket();
+  const utils = trpc.useUtils();
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [newSubject, setNewSubject] = useState("");
@@ -67,7 +68,7 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
 
   const replyMutation = trpc.support.reply.useMutation({
     onSuccess: () => {
-      setReplyMessage("");
+      // Refetch from server to confirm and get canonical data
       refetchDetails();
     },
   });
@@ -122,9 +123,32 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
 
   const handleReply = async () => {
     if (!replyMessage.trim() || !activeTicketId) return;
+    const content = replyMessage;
+    setReplyMessage("");
+
+    // Optimistically add the message to the cache so it appears instantly
+    utils.support.getById.setData({ ticketId: activeTicketId }, old => {
+      if (!old) return old;
+      return {
+        ...old,
+        messages: [
+          ...old.messages,
+          {
+            id: Date.now(), // temporary ID, replaced on refetch
+            ticketId: activeTicketId,
+            senderId: user?.id ?? 0,
+            senderType: "user" as const,
+            senderName: user?.displayName || user?.name || "You",
+            content,
+            createdAt: new Date(),
+          },
+        ],
+      };
+    });
+
     await replyMutation.mutateAsync({
       ticketId: activeTicketId,
-      content: replyMessage,
+      content,
     });
   };
 
