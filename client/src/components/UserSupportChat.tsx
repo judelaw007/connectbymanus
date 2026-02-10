@@ -6,7 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Send,
   X,
@@ -17,9 +23,10 @@ import {
   ArrowLeft,
   Clock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useSocket } from "@/contexts/SocketContext";
 
 interface UserSupportChatProps {
   onClose: () => void;
@@ -27,6 +34,7 @@ interface UserSupportChatProps {
 
 export default function UserSupportChat({ onClose }: UserSupportChatProps) {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [newSubject, setNewSubject] = useState("");
@@ -35,18 +43,20 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch user's support tickets
-  const { data: myTickets, refetch: refetchTickets } = trpc.support.getMy.useQuery(undefined, {
-    enabled: !!user,
-  });
+  const { data: myTickets, refetch: refetchTickets } =
+    trpc.support.getMy.useQuery(undefined, {
+      enabled: !!user,
+    });
 
   // Fetch active ticket details
-  const { data: ticketDetails, refetch: refetchDetails } = trpc.support.getById.useQuery(
-    { ticketId: activeTicketId! },
-    { enabled: !!activeTicketId }
-  );
+  const { data: ticketDetails, refetch: refetchDetails } =
+    trpc.support.getById.useQuery(
+      { ticketId: activeTicketId! },
+      { enabled: !!activeTicketId }
+    );
 
   const createTicketMutation = trpc.support.create.useMutation({
-    onSuccess: (data) => {
+    onSuccess: data => {
       setActiveTicketId(data.ticketId);
       setShowNewTicket(false);
       setNewSubject("");
@@ -66,6 +76,41 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [ticketDetails?.messages]);
+
+  // Join/leave support ticket socket room for real-time messages
+  useEffect(() => {
+    if (!socket || !activeTicketId) return;
+    socket.emit("support:join", activeTicketId);
+    return () => {
+      socket.emit("support:leave", activeTicketId);
+    };
+  }, [socket, activeTicketId]);
+
+  // Listen for new messages on the active ticket
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (data: { ticketId: number }) => {
+      if (data.ticketId === activeTicketId) {
+        refetchDetails();
+      }
+    };
+
+    const handleTicketUpdated = (data: { ticketId: number }) => {
+      refetchTickets();
+      if (data.ticketId === activeTicketId) {
+        refetchDetails();
+      }
+    };
+
+    socket.on("support:new-message", handleNewMessage);
+    socket.on("support:ticket-updated", handleTicketUpdated);
+
+    return () => {
+      socket.off("support:new-message", handleNewMessage);
+      socket.off("support:ticket-updated", handleTicketUpdated);
+    };
+  }, [socket, activeTicketId, refetchDetails, refetchTickets]);
 
   const handleCreateTicket = async () => {
     if (!newSubject.trim() || !newMessage.trim()) return;
@@ -110,12 +155,18 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
     return (
       <div className="flex-1 flex flex-col">
         <div className="border-b p-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setShowNewTicket(false)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowNewTicket(false)}
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h2 className="font-semibold">New Support Request</h2>
-            <p className="text-sm text-muted-foreground">Get help from Team MojiTax</p>
+            <p className="text-sm text-muted-foreground">
+              Get help from Team MojiTax
+            </p>
           </div>
         </div>
 
@@ -137,7 +188,7 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
                 <Input
                   placeholder="Brief description of your question"
                   value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
+                  onChange={e => setNewSubject(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -146,13 +197,17 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
                   placeholder="Describe your question or issue in detail..."
                   rows={5}
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={e => setNewMessage(e.target.value)}
                 />
               </div>
               <Button
                 className="w-full"
                 onClick={handleCreateTicket}
-                disabled={!newSubject.trim() || !newMessage.trim() || createTicketMutation.isPending}
+                disabled={
+                  !newSubject.trim() ||
+                  !newMessage.trim() ||
+                  createTicketMutation.isPending
+                }
               >
                 {createTicketMutation.isPending ? "Sending..." : "Send Message"}
               </Button>
@@ -170,14 +225,20 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
         {/* Header */}
         <div className="border-b p-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setActiveTicketId(null)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setActiveTicketId(null)}
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
               <h2 className="font-semibold">{ticketDetails.ticket.subject}</h2>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 {getStatusBadge(ticketDetails.ticket.status)}
-                <span>Created {formatDate(ticketDetails.ticket.createdAt)}</span>
+                <span>
+                  Created {formatDate(ticketDetails.ticket.createdAt)}
+                </span>
               </div>
             </div>
           </div>
@@ -189,11 +250,13 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
         {/* Messages */}
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4 max-w-3xl mx-auto">
-            {ticketDetails.messages.map((message) => (
+            {ticketDetails.messages.map(message => (
               <div
                 key={message.id}
                 className={`flex gap-3 ${
-                  message.senderType === "user" ? "justify-end" : "justify-start"
+                  message.senderType === "user"
+                    ? "justify-end"
+                    : "justify-start"
                 }`}
               >
                 {message.senderType !== "user" && (
@@ -210,7 +273,9 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
                       : "bg-muted"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {message.content}
+                  </p>
                   <p
                     className={`text-xs mt-1 ${
                       message.senderType === "user"
@@ -239,10 +304,10 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
               <Textarea
                 placeholder="Type your reply..."
                 value={replyMessage}
-                onChange={(e) => setReplyMessage(e.target.value)}
+                onChange={e => setReplyMessage(e.target.value)}
                 className="flex-1 min-h-[44px] max-h-32"
                 rows={1}
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleReply();
@@ -263,7 +328,11 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
           <div className="border-t p-4 bg-muted/50">
             <p className="text-center text-sm text-muted-foreground">
               This conversation has been closed.
-              <Button variant="link" className="p-0 h-auto ml-1" onClick={() => setShowNewTicket(true)}>
+              <Button
+                variant="link"
+                className="p-0 h-auto ml-1"
+                onClick={() => setShowNewTicket(true)}
+              >
                 Start a new conversation
               </Button>
             </p>
@@ -306,9 +375,10 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
                 <div>
                   <p className="font-medium">Hi there! I'm @moji</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    I'm the MojiTax AI assistant. Ask me anything about international tax,
-                    VAT, transfer pricing, or your MojiTax account. If I can't help,
-                    I'll connect you with our human support team.
+                    I'm the MojiTax AI assistant. Ask me anything about
+                    international tax, VAT, transfer pricing, or your MojiTax
+                    account. If I can't help, I'll connect you with our human
+                    support team.
                   </p>
                 </div>
               </div>
@@ -316,7 +386,11 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
           </Card>
 
           {/* New conversation button */}
-          <Button className="w-full" size="lg" onClick={() => setShowNewTicket(true)}>
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={() => setShowNewTicket(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Start New Conversation
           </Button>
@@ -326,7 +400,7 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
             <div>
               <h3 className="font-medium mb-3">Your Conversations</h3>
               <div className="space-y-2">
-                {myTickets.map((ticket) => (
+                {myTickets.map(ticket => (
                   <Card
                     key={ticket.id}
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -335,10 +409,14 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{ticket.subject}</p>
+                          <p className="font-medium truncate">
+                            {ticket.subject}
+                          </p>
                           <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                             <Clock className="h-3 w-3" />
-                            {formatDate(ticket.lastMessageAt || ticket.createdAt)}
+                            {formatDate(
+                              ticket.lastMessageAt || ticket.createdAt
+                            )}
                           </p>
                         </div>
                         {getStatusBadge(ticket.status)}

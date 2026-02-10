@@ -12,9 +12,10 @@ const onlineUsers = new Map<number, Set<string>>(); // userId -> Set of socketId
 export function initializeSocket(httpServer: HTTPServer) {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env.NODE_ENV === "production" 
-        ? [process.env.VITE_APP_URL || ""] 
-        : ["http://localhost:5173", "http://localhost:3000"],
+      origin:
+        process.env.NODE_ENV === "production"
+          ? [process.env.VITE_APP_URL || ""]
+          : ["http://localhost:5173", "http://localhost:3000"],
       credentials: true,
     },
   });
@@ -29,7 +30,7 @@ export function initializeSocket(httpServer: HTTPServer) {
 
       const secretKey = new TextEncoder().encode(ENV.cookieSecret);
       const { payload } = await jwtVerify(token, secretKey);
-      
+
       if (!payload || !payload.openId) {
         return next(new Error("Invalid token"));
       }
@@ -49,7 +50,7 @@ export function initializeSocket(httpServer: HTTPServer) {
     }
   });
 
-  io.on("connection", (socket) => {
+  io.on("connection", socket => {
     const userId = socket.data.userId;
     console.log(`[Socket] User ${userId} connected (${socket.id})`);
 
@@ -96,21 +97,36 @@ export function initializeSocket(httpServer: HTTPServer) {
 
     // Handle typing indicators
     socket.on("typing:start", (channelId: number) => {
-      socket.to(`channel:${channelId}`).emit("user:typing", { userId, channelId });
+      socket
+        .to(`channel:${channelId}`)
+        .emit("user:typing", { userId, channelId });
     });
 
     socket.on("typing:stop", (channelId: number) => {
-      socket.to(`channel:${channelId}`).emit("user:stopped-typing", { userId, channelId });
+      socket
+        .to(`channel:${channelId}`)
+        .emit("user:stopped-typing", { userId, channelId });
+    });
+
+    // Handle support ticket rooms
+    socket.on("support:join", (ticketId: number) => {
+      socket.join(`support:${ticketId}`);
+      console.log(`[Socket] User ${userId} joined support ticket ${ticketId}`);
+    });
+
+    socket.on("support:leave", (ticketId: number) => {
+      socket.leave(`support:${ticketId}`);
+      console.log(`[Socket] User ${userId} left support ticket ${ticketId}`);
     });
 
     // Handle disconnection
     socket.on("disconnect", () => {
       console.log(`[Socket] User ${userId} disconnected (${socket.id})`);
-      
+
       const userSockets = onlineUsers.get(userId);
       if (userSockets) {
         userSockets.delete(socket.id);
-        
+
         // If user has no more connections, mark as offline
         if (userSockets.size === 0) {
           onlineUsers.delete(userId);
@@ -157,5 +173,29 @@ export function emitNotificationToUser(userId: number, notification: any) {
 export function emitSupportTicketToAdmins(ticket: any) {
   if (io) {
     io.emit("support:new-ticket", ticket);
+  }
+}
+
+// Emit new support message to everyone in the ticket room
+export function emitSupportMessage(ticketId: number, message: any) {
+  if (io) {
+    io.to(`support:${ticketId}`).emit("support:new-message", {
+      ticketId,
+      message,
+    });
+  }
+}
+
+// Emit support ticket status change to the ticket owner
+export function emitSupportTicketUpdate(
+  userId: number,
+  ticketId: number,
+  update: any
+) {
+  if (io) {
+    io.to(`user:${userId}`).emit("support:ticket-updated", {
+      ticketId,
+      ...update,
+    });
   }
 }
