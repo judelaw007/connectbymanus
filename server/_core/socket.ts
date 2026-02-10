@@ -2,6 +2,7 @@ import { Server as HTTPServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { jwtVerify } from "jose";
 import { ENV } from "./env";
+import { COOKIE_NAME } from "@shared/const";
 import * as db from "../db";
 
 let io: SocketIOServer | null = null;
@@ -23,7 +24,15 @@ export function initializeSocket(httpServer: HTTPServer) {
   // Authentication middleware
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth.token;
+      // Try auth token first, then fall back to httpOnly cookie from headers
+      let token = socket.handshake.auth.token;
+      if (!token) {
+        const cookieHeader = socket.handshake.headers.cookie || "";
+        const match = cookieHeader.match(
+          new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]*)`)
+        );
+        token = match?.[1];
+      }
       if (!token) {
         return next(new Error("Authentication required"));
       }
