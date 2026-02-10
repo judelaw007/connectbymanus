@@ -29,6 +29,7 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 ### API Layer (tRPC)
 
 All API routes are defined in `server/routers.ts`. Three procedure levels enforce access control:
+
 - `publicProcedure` — no auth required
 - `protectedProcedure` — requires logged-in user
 - `adminProcedure` — requires admin role
@@ -54,3 +55,10 @@ Server-side only, located at `server/*.test.ts`. Tests use Vitest with the tRPC 
 ## Code Style
 
 Prettier only (no ESLint). Key settings: double quotes, semicolons, 2-space indent, ES5 trailing commas, LF line endings, `arrowParens: "avoid"`.
+
+## Project Tracking
+
+- **`PLAN.md`** — The canonical project plan. Read this first to know what to build and in what order.
+- **`.claude/settings.json`** — Hook configuration that auto-loads context on session start, auto-logs progress on stop, and auto-formats files after edits.
+- **`.claude/progress.log`** — Auto-generated session activity log (not committed to git).
+- If you change architectural files (`server/_core/`, `routers.ts`, `db.ts`, `App.tsx`, `package.json`), update this file to reflect structural changes.
