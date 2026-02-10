@@ -137,6 +137,7 @@ export interface EmailLog {
   recipientName: string | null;
   subject: string;
   content: string | null;
+  emailType: string;
   templateType: string;
   status: "pending" | "sent" | "failed";
   errorMessage: string | null;
@@ -192,6 +193,7 @@ export type InsertMojiKnowledgeBase = Partial<MojiKnowledgeBase> & {
 export type InsertEmailLog = Partial<EmailLog> & {
   recipientEmail: string;
   subject: string;
+  emailType: string;
   templateType: string;
 };
 export type InsertVerificationCode = {
