@@ -3,9 +3,22 @@ import { Button } from "@/components/ui/button";
 import MojiSettings from "@/components/MojiSettings";
 import EmailLogs from "@/components/EmailLogs";
 import PlatformSettings from "@/components/PlatformSettings";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,7 +34,7 @@ import {
   Settings,
   LayoutDashboard,
   MessagesSquare,
-  Save
+  Save,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import ChatLayout from "@/components/ChatLayout";
@@ -29,16 +42,29 @@ import ChatAnalytics from "@/components/ChatAnalytics";
 import { trpc } from "@/lib/trpc";
 import { signOutAdmin } from "@/lib/supabase";
 
-type DashboardSection = "overview" | "email-logs" | "moji-settings" | "user-moderation" | "platform-settings" | "chat-analytics";
+type DashboardSection =
+  | "overview"
+  | "email-logs"
+  | "moji-settings"
+  | "user-moderation"
+  | "platform-settings"
+  | "chat-analytics";
 
 export default function Admin() {
   const [, setLocation] = useLocation();
-  const [viewMode, setViewMode] = useState<"dashboard" | "chat">("dashboard" as "dashboard" | "chat");
-  const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
+  const [viewMode, setViewMode] = useState<"dashboard" | "chat">(
+    "dashboard" as "dashboard" | "chat"
+  );
+  const [activeSection, setActiveSection] =
+    useState<DashboardSection>("overview");
 
   // Auth is now handled by AdminAuthGuard wrapper in App.tsx
+  const logoutMutation = trpc.auth.logout.useMutation();
 
   const handleLogout = async () => {
+    // Clear JWT session cookie (password login)
+    await logoutMutation.mutateAsync();
+    // Clear Supabase session (Google OAuth login)
     await signOutAdmin();
     setLocation("/auth/admin");
   };
@@ -59,9 +85,11 @@ export default function Admin() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-primary-foreground/10 px-3 py-1.5 rounded-lg">
               <LayoutDashboard className="h-4 w-4" />
-              <Switch 
-                checked={viewMode === ("chat" as typeof viewMode)} 
-                onCheckedChange={(checked: boolean) => setViewMode(checked ? "chat" : "dashboard")}
+              <Switch
+                checked={viewMode === ("chat" as typeof viewMode)}
+                onCheckedChange={(checked: boolean) =>
+                  setViewMode(checked ? "chat" : "dashboard")
+                }
                 className="data-[state=checked]:bg-accent"
               />
               <MessagesSquare className="h-4 w-4" />
@@ -96,40 +124,56 @@ export default function Admin() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Total Users
+                  </CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">0</div>
-                  <p className="text-xs text-muted-foreground">MojiTax customers</p>
+                  <p className="text-xs text-muted-foreground">
+                    MojiTax customers
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Channels</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Active Channels
+                  </CardTitle>
                   <Hash className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{channels?.length || 0}</div>
-                  <p className="text-xs text-muted-foreground">Public channels</p>
+                  <div className="text-2xl font-bold">
+                    {channels?.length || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Public channels
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Messages Today</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Messages Today
+                  </CardTitle>
                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">0</div>
-                  <p className="text-xs text-muted-foreground">Across all channels</p>
+                  <p className="text-xs text-muted-foreground">
+                    Across all channels
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Emails Sent</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Emails Sent
+                  </CardTitle>
                   <Mail className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -143,36 +187,38 @@ export default function Admin() {
             <Card>
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Switch to Chat Mode to post and manage channels</CardDescription>
+                <CardDescription>
+                  Switch to Chat Mode to post and manage channels
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="justify-start"
                     onClick={() => setViewMode("chat")}
                   >
                     <MessagesSquare className="h-4 w-4 mr-2" />
                     Go to Chat Mode
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="justify-start"
                     onClick={() => setActiveSection("moji-settings")}
                   >
                     <Bot className="h-4 w-4 mr-2" />
                     Configure Moji
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="justify-start"
                     onClick={() => setActiveSection("email-logs")}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     View Email Logs
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="justify-start"
                     onClick={() => setActiveSection("user-moderation")}
                   >
@@ -199,7 +245,10 @@ export default function Admin() {
           <Card>
             <CardHeader>
               <CardTitle>User Moderation</CardTitle>
-              <CardDescription>Suspend users from posting (no expulsion - they remain MojiTax customers)</CardDescription>
+              <CardDescription>
+                Suspend users from posting (no expulsion - they remain MojiTax
+                customers)
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -213,7 +262,10 @@ export default function Admin() {
                 </TableHeader>
                 <TableBody>
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={4}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       No users to moderate. Suspended users will appear here.
                     </TableCell>
                   </TableRow>
@@ -241,12 +293,14 @@ export default function Admin() {
           <h1 className="text-lg font-bold">Admin Dashboard</h1>
         </div>
 
-          <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-primary-foreground/10 px-3 py-1.5 rounded-lg">
             <LayoutDashboard className="h-4 w-4" />
-            <Switch 
-              checked={viewMode === ("chat" as typeof viewMode)} 
-              onCheckedChange={(checked: boolean) => setViewMode(checked ? "chat" : "dashboard")}
+            <Switch
+              checked={viewMode === ("chat" as typeof viewMode)}
+              onCheckedChange={(checked: boolean) =>
+                setViewMode(checked ? "chat" : "dashboard")
+              }
               className="data-[state=checked]:bg-accent"
             />
             <MessagesSquare className="h-4 w-4" />
@@ -267,48 +321,56 @@ export default function Admin() {
         {/* Sidebar */}
         <aside className="w-64 bg-muted border-r flex flex-col">
           <nav className="flex-1 p-4 space-y-2">
-            <Button 
-              variant={activeSection === "overview" ? "secondary" : "ghost"} 
+            <Button
+              variant={activeSection === "overview" ? "secondary" : "ghost"}
               className="w-full justify-start"
               onClick={() => setActiveSection("overview")}
             >
               <BarChart3 className="h-4 w-4 mr-2" />
               Overview
             </Button>
-            <Button 
-              variant={activeSection === "email-logs" ? "secondary" : "ghost"} 
+            <Button
+              variant={activeSection === "email-logs" ? "secondary" : "ghost"}
               className="w-full justify-start"
               onClick={() => setActiveSection("email-logs")}
             >
               <Mail className="h-4 w-4 mr-2" />
               Email Logs
             </Button>
-            <Button 
-              variant={activeSection === "moji-settings" ? "secondary" : "ghost"} 
+            <Button
+              variant={
+                activeSection === "moji-settings" ? "secondary" : "ghost"
+              }
               className="w-full justify-start"
               onClick={() => setActiveSection("moji-settings")}
             >
               <Bot className="h-4 w-4 mr-2" />
               Moji Settings
             </Button>
-            <Button 
-              variant={activeSection === "chat-analytics" ? "secondary" : "ghost"} 
+            <Button
+              variant={
+                activeSection === "chat-analytics" ? "secondary" : "ghost"
+              }
               className="w-full justify-start"
               onClick={() => setActiveSection("chat-analytics")}
             >
               <BarChart3 className="h-4 w-4 mr-2" />
               Chat Analytics
             </Button>
-            <Button 
-              variant={activeSection === "user-moderation" ? "secondary" : "ghost"} 
+            <Button
+              variant={
+                activeSection === "user-moderation" ? "secondary" : "ghost"
+              }
               className="w-full justify-start"
               onClick={() => setActiveSection("user-moderation")}
             >
               <UserX className="h-4 w-4 mr-2" />
               User Moderation
             </Button>
-            <Button 
-              variant={activeSection === "platform-settings" ? "secondary" : "ghost"} 
+            <Button
+              variant={
+                activeSection === "platform-settings" ? "secondary" : "ghost"
+              }
               className="w-full justify-start"
               onClick={() => setActiveSection("platform-settings")}
             >
@@ -318,7 +380,9 @@ export default function Admin() {
           </nav>
 
           <div className="p-4 border-t bg-muted-foreground/5">
-            <p className="text-xs text-muted-foreground mb-2 font-medium">Switch to Chat Mode to:</p>
+            <p className="text-xs text-muted-foreground mb-2 font-medium">
+              Switch to Chat Mode to:
+            </p>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Post announcements & events</li>
               <li>• Manage channels</li>
@@ -329,9 +393,7 @@ export default function Admin() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            {renderDashboardContent()}
-          </div>
+          <div className="max-w-7xl mx-auto">{renderDashboardContent()}</div>
         </main>
       </div>
     </div>

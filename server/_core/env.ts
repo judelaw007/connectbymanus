@@ -18,6 +18,9 @@ export const ENV = {
   isTestMode: process.env.TEST_MODE === "true",
   testEmailRecipient: process.env.TEST_EMAIL_RECIPIENT ?? "",
 
+  // Admin password (for password-based admin login)
+  adminPassword: process.env.ADMIN_PASSWORD ?? "",
+
   // Learnworlds (member authentication)
   learnworldsClientId: process.env.LEARNWORLDS_CLIENT_ID ?? "",
   learnworldsClientSecret: process.env.LEARNWORLDS_CLIENT_SECRET ?? "",
