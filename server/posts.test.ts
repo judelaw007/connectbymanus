@@ -59,7 +59,8 @@ describe("posts.create", () => {
     const result = await caller.posts.create({
       postType: "event",
       title: "Tax Webinar 2025",
-      content: "Join us for an exclusive webinar on international tax strategies.",
+      content:
+        "Join us for an exclusive webinar on international tax strategies.",
       eventDate,
       eventLocation: "Online via Zoom",
     });
@@ -92,7 +93,8 @@ describe("posts.create", () => {
     const result = await caller.posts.create({
       postType: "article",
       title: "Understanding VAT in the EU",
-      content: "A comprehensive guide to Value Added Tax regulations across European Union member states.",
+      content:
+        "A comprehensive guide to Value Added Tax regulations across European Union member states.",
       tags: "VAT, EU, Tax Compliance",
     });
 
@@ -154,14 +156,16 @@ describe("posts.getByType", () => {
       for (let i = 0; i < events.length - 1; i++) {
         const current = events[i];
         const next = events[i + 1];
-        
+
         // If current is pinned and next is not, order is correct
         if (current?.isPinned && !next?.isPinned) {
           expect(true).toBe(true);
         }
         // If both have same pinned status, check creation date
         else if (current?.isPinned === next?.isPinned) {
-          expect(current?.createdAt.getTime()).toBeGreaterThanOrEqual(next?.createdAt.getTime() || 0);
+          expect(current?.createdAt.getTime()).toBeGreaterThanOrEqual(
+            next?.createdAt.getTime() || 0
+          );
         }
       }
     }

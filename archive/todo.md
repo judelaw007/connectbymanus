@@ -1,6 +1,7 @@
 # MojiTax Connect - Project TODO
 
 ## Database & Schema
+
 - [x] Design and implement channels table (General, topic-specific, study groups)
 - [x] Design and implement messages table with support for different message types
 - [x] Design and implement posts table (Events, Announcements, Articles, Newsletters)
@@ -9,12 +10,14 @@
 - [x] Add support chat channel tracking
 
 ## Authentication & User Management
+
 - [x] Integrate LearnWorlds API for authentication
 - [x] Implement admin role detection and badges
 - [x] Add user profile management
 - [ ] Handle encrypted usernames for non-authenticated users
 
 ## Real-Time Chat System
+
 - [ ] Set up WebSocket/real-time infrastructure
 - [ ] Implement channel creation and management
 - [ ] Build message sending and receiving
@@ -24,6 +27,7 @@
 - [ ] Show online user status
 
 ## Admin Posting System
+
 - [x] Create post type selection modal (Event, Announcement, Article, Newsletter)
 - [x] Build Event template with fields (Title, Date/Time, Description, Location/Link, RSVP)
 - [x] Build Announcement template with fields (Title, Content, Priority Level, Distribution List)
@@ -33,6 +37,7 @@
 - [ ] Display pinned posts at top of chat feed
 
 ## Study Groups & Privacy
+
 - [x] Implement public/private group creation
 - [x] Add group invite link generation
 - [ ] Build group member management
@@ -41,6 +46,7 @@
 - [x] Add ability to close groups (stops notifications)
 
 ## Chatbot Integration
+
 - [ ] Integrate @moji chatbot for answering questions
 - [ ] Build private support chat with Team MojiTax
 - [ ] Implement chatbot-to-human agent handoff
@@ -48,6 +54,7 @@
 - [ ] Send email to admin@mojitax.com when user requests human support
 
 ## Frontend UI
+
 - [x] Build three-column desktop layout (Channels, Chat, Sidebar)
 - [x] Create responsive mobile layout with hamburger menu
 - [x] Design and implement header with global markets clock
@@ -61,6 +68,7 @@
 - [x] Style chatbot responses with light blue backgrounds
 
 ## Category Libraries
+
 - [ ] Build Articles Library with grid layout
 - [ ] Build Events Calendar view
 - [ ] Build Announcements Archive
@@ -70,6 +78,7 @@
 - [ ] Show pinned content first in each category
 
 ## Email Notifications
+
 - [ ] Set up email notification system
 - [ ] Send notifications for direct replies
 - [ ] Send notifications for @mentions
@@ -79,6 +88,7 @@
 - [ ] Implement announcement distribution to all users or group members
 
 ## Supporting Features
+
 - [ ] Add global markets clock (Sydney, Tokyo, London, New York)
 - [ ] Implement search functionality (messages, posts, users)
 - [ ] Add newsletter subscription preferences
@@ -87,6 +97,7 @@
 - [ ] Link to MojiTax ecosystem (Connect, MyTaxExam, MojiTax.co.uk)
 
 ## Testing & Optimization
+
 - [ ] Write unit tests for core functionality
 - [ ] Test real-time chat performance
 - [ ] Test authentication flow
@@ -99,6 +110,7 @@
 - [ ] Create final checkpoint
 
 ## Chat-Based Navigation for Posts
+
 - [x] Modify post creation to automatically create a chat message when admin posts
 - [x] Add post type styling to chat messages (Event, Article, Announcement, Newsletter)
 - [x] Implement scroll-to-message functionality in chat
@@ -108,6 +120,7 @@
 - [x] Display post metadata (event date, tags, priority) in chat message cards
 
 ## Sidebar Reorganization
+
 - [x] Move "Chat with Team MojiTax" to the very top of sidebar
 - [x] Add special support icon (headset) to Team MojiTax channel
 - [x] Add subtle highlight/background color to Team MojiTax channel
@@ -118,6 +131,7 @@
 - [x] Update mobile view to handle collapsible sections
 
 ## Admin Area & Login
+
 - [x] Create /auth/admin route with simple placeholder login button
 - [x] Implement admin session management (separate from regular OAuth)
 - [x] Build admin area interface (similar structure to main platform)
@@ -125,6 +139,7 @@
 - [x] Create admin sidebar with additional management sections
 
 ## Admin Features
+
 - [ ] Moji chatbot settings/configuration panel
 - [ ] User management (view all users, promote/demote roles, suspend)
 - [ ] Platform analytics dashboard (user counts, message stats, active channels)
@@ -134,6 +149,7 @@
 - [ ] Announcement scheduling
 
 ## Admin Area Redesign
+
 - [x] Remove complex tabs (Users, Channels, Settings)
 - [x] Create simple dashboard view with sidebar navigation
 - [x] Add stats cards (Total Users, Active Channels, Messages Today, Emails Sent)
@@ -147,6 +163,7 @@
 - [ ] Allow admin to manage channels (create, edit, archive) in Chat view
 
 ## Functional Admin Dashboard
+
 - [x] Implement clickable sidebar navigation (Overview, Email Logs, Moji Settings, User Moderation, Platform Settings)
 - [x] Create separate content area for each sidebar section
 - [x] Build Email Logs view with table of sent emails
@@ -156,6 +173,7 @@
 - [x] Make all buttons functional (not just placeholders)
 
 ## Admin Features in Chat View
+
 - [x] Show admin badge on messages posted by admin
 - [x] Add "Pin Message" button to admin's own messages
 - [ ] Add "Edit Channel" button for channel management
@@ -165,6 +183,7 @@
 - [ ] Add visual indicator when new support requests come in
 
 ## Admin Dashboard Bug Fixes & Enhancements
+
 - [x] Add CSV upload functionality for Moji knowledge base
 - [x] Create searchable knowledge base table in Moji Settings
 - [x] Add edit/delete functionality for knowledge base entries
@@ -177,6 +196,7 @@
 - [ ] Show scheduling options in Create Post modal for admins
 
 ## Admin Chat Mode Redesign
+
 - [x] Rename "Chat with Team MojiTax" to "Support Inbox" for admin view
 - [x] Add support ticket counter/notification badge on Support Inbox channel
 - [x] Add different header styling for admin chat mode (pink/purple accent bar)
@@ -189,6 +209,7 @@
 - [ ] Show "Posting as Admin" indicator when typing messages
 
 ## Complete Support Ticketing System
+
 - [x] Create support_tickets table in database schema
 - [x] Create support_messages table for ticket conversation history
 - [x] Build backend tRPC routers for support tickets (create, list, get, update, close)
@@ -207,6 +228,7 @@
 - [x] Write comprehensive unit tests for support ticket system (8 tests passing)
 
 ## Chat Analytics & Export System
+
 - [x] Add conversation categorization fields to support tickets (bot_answered, escalated, enquiry_type)
 - [x] Create chat analytics database views/queries
 - [x] Build backend tRPC router for analytics (filter, search, export)
@@ -224,6 +246,7 @@
 ## Phase 1: Core Functionality Implementation
 
 ### Real-Time Messaging Infrastructure
+
 - [x] Install Socket.io server and client packages
 - [x] Set up Socket.io server integration with Express
 - [x] Create WebSocket authentication middleware
@@ -234,6 +257,7 @@
 - [x] Add online user status tracking
 
 ### Message Sending & Receiving UI
+
 - [x] Build message input component with formatting
 - [x] Create message display component with user info
 - [x] Implement real-time message updates via Socket.io
@@ -245,6 +269,7 @@
 - [ ] Add message delivery status indicators (not critical for MVP)
 
 ### @moji Chatbot Integration
+
 - [x] Create chatbot message handler in backend
 - [x] Implement knowledge base search function
 - [x] Connect LLM for response generation
@@ -256,6 +281,7 @@
 - [ ] Style bot messages with light blue background (pending frontend styling)
 
 ### Posts Integration
+
 - [ ] Modify post creation to auto-create chat message
 - [ ] Add post rendering in chat feed
 - [ ] Style post messages differently (cards with metadata)
@@ -264,6 +290,7 @@
 - [ ] Show post type badges (Event, Article, etc.)
 
 ### User Support Ticket Creation
+
 - [ ] Add "Contact Support" button in user interface
 - [ ] Create support ticket creation modal for users
 - [ ] Connect to existing support ticket backend
@@ -272,6 +299,7 @@
 - [ ] Add notification when admin replies to ticket
 
 ### Testing & Quality
+
 - [x] Write unit tests for message sending/receiving (6/6 passing)
 - [x] Write unit tests for chatbot logic (6/6 passing)
 - [x] Test Socket.io connection handling
@@ -282,6 +310,7 @@
 ## 🚨 CRITICAL BUGS FOUND DURING SYSTEM TESTING (Dec 17, 2025)
 
 ### Message Sending Not Working
+
 - [ ] Debug why MessageInput send button doesn't work
 - [ ] Check tRPC client configuration and authentication state
 - [ ] Add error logging to MessageInput component
@@ -289,6 +318,7 @@
 - [ ] Test message sending with manual API calls
 
 ### Authentication Issues
+
 - [ ] Implement visible login button/flow
 - [ ] Show authentication state in UI (logged in/out)
 - [ ] Add logout functionality that's visible to users
@@ -296,6 +326,7 @@
 - [ ] Add authentication state indicators
 
 ### Error Handling Missing
+
 - [ ] Install toast notification library (sonner or react-hot-toast)
 - [ ] Add error boundaries to catch React errors
 - [ ] Show user-friendly error messages when operations fail
@@ -303,6 +334,7 @@
 - [ ] Implement retry logic for failed operations
 
 ### Real-time Updates Not Verified
+
 - [ ] Test with two browser windows simultaneously
 - [ ] Verify Socket.io client receives messages
 - [ ] Test typing indicators across clients
@@ -310,6 +342,7 @@
 - [ ] Verify message delivery in real-time
 
 ### User Support Ticket Creation Missing
+
 - [ ] Add "Contact Support" button for regular users
 - [ ] Create support ticket submission form
 - [ ] Test ticket creation from user side
@@ -317,6 +350,7 @@
 - [ ] Test full support ticket workflow
 
 **Test Results Summary:**
+
 - Backend Unit Tests: 20/20 passing ✅
 - Frontend Integration: BLOCKED ❌
 - Real-time Messaging: Backend works, Frontend broken ❌

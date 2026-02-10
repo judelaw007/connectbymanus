@@ -21,15 +21,23 @@ interface CreatePostModalProps {
   channelId?: number;
 }
 
-export default function CreatePostModal({ open, onOpenChange, channelId }: CreatePostModalProps) {
-  const [postType, setPostType] = useState<"event" | "announcement" | "article" | "newsletter">("announcement");
+export default function CreatePostModal({
+  open,
+  onOpenChange,
+  channelId,
+}: CreatePostModalProps) {
+  const [postType, setPostType] = useState<
+    "event" | "announcement" | "article" | "newsletter"
+  >("announcement");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [eventLocation, setEventLocation] = useState("");
   const [tags, setTags] = useState("");
   const [featuredImage, setFeaturedImage] = useState("");
-  const [priorityLevel, setPriorityLevel] = useState<"low" | "medium" | "high" | "urgent">("medium");
+  const [priorityLevel, setPriorityLevel] = useState<
+    "low" | "medium" | "high" | "urgent"
+  >("medium");
 
   const utils = trpc.useUtils();
   const createPostMutation = trpc.posts.create.useMutation({
@@ -39,7 +47,7 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
       resetForm();
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed to create post: ${error.message}`);
     },
   });
@@ -118,9 +126,12 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
           {/* Post Type Selection */}
           <div className="space-y-3">
             <Label>Post Type</Label>
-            <RadioGroup value={postType} onValueChange={(value: any) => setPostType(value)}>
+            <RadioGroup
+              value={postType}
+              onValueChange={(value: any) => setPostType(value)}
+            >
               <div className="grid grid-cols-2 gap-3">
-                {postTypes.map((type) => (
+                {postTypes.map(type => (
                   <div key={type.value}>
                     <RadioGroupItem
                       value={type.value}
@@ -152,7 +163,7 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
               <Input
                 id="title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={e => setTitle(e.target.value)}
                 placeholder="Enter post title"
                 required
               />
@@ -163,7 +174,7 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
               <Textarea
                 id="content"
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={e => setContent(e.target.value)}
                 placeholder="Enter post content"
                 rows={6}
                 required
@@ -180,7 +191,7 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
                   id="eventDate"
                   type="datetime-local"
                   value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
+                  onChange={e => setEventDate(e.target.value)}
                 />
               </div>
               <div>
@@ -188,7 +199,7 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
                 <Input
                   id="eventLocation"
                   value={eventLocation}
-                  onChange={(e) => setEventLocation(e.target.value)}
+                  onChange={e => setEventLocation(e.target.value)}
                   placeholder="Physical location or online meeting link"
                 />
               </div>
@@ -203,7 +214,7 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
                 <Input
                   id="tags"
                   value={tags}
-                  onChange={(e) => setTags(e.target.value)}
+                  onChange={e => setTags(e.target.value)}
                   placeholder="tax, vat, international (comma-separated)"
                 />
               </div>
@@ -212,7 +223,7 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
                 <Input
                   id="featuredImage"
                   value={featuredImage}
-                  onChange={(e) => setFeaturedImage(e.target.value)}
+                  onChange={e => setFeaturedImage(e.target.value)}
                   placeholder="https://example.com/image.jpg"
                 />
               </div>
@@ -223,9 +234,12 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
           {postType === "announcement" && (
             <div className="space-y-3">
               <Label>Priority Level</Label>
-              <RadioGroup value={priorityLevel} onValueChange={(value: any) => setPriorityLevel(value)}>
+              <RadioGroup
+                value={priorityLevel}
+                onValueChange={(value: any) => setPriorityLevel(value)}
+              >
                 <div className="grid grid-cols-4 gap-2">
-                  {["low", "medium", "high", "urgent"].map((level) => (
+                  {["low", "medium", "high", "urgent"].map(level => (
                     <div key={level}>
                       <RadioGroupItem
                         value={level}
@@ -246,7 +260,11 @@ export default function CreatePostModal({ open, onOpenChange, channelId }: Creat
           )}
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={createPostMutation.isPending}>

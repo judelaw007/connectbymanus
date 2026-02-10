@@ -1,21 +1,46 @@
 import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Upload, Save, Search, Edit, Trash2, Plus } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function MojiSettings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingEntry, setEditingEntry] = useState<any>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newEntry, setNewEntry] = useState({ question: "", answer: "", category: "", tags: "" });
+  const [newEntry, setNewEntry] = useState({
+    question: "",
+    answer: "",
+    category: "",
+    tags: "",
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: knowledgeBase, refetch } = trpc.mojiKnowledge.getAll.useQuery();
@@ -24,26 +49,35 @@ export default function MojiSettings() {
   const deleteMutation = trpc.mojiKnowledge.delete.useMutation();
   const bulkUploadMutation = trpc.mojiKnowledge.bulkUpload.useMutation();
 
-  const filteredKnowledge = knowledgeBase?.filter(entry =>
-    entry.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (entry.tags && entry.tags.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredKnowledge = knowledgeBase?.filter(
+    entry =>
+      entry.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (entry.tags &&
+        entry.tags.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCSVUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = async e => {
       const text = e.target?.result as string;
       const lines = text.split("\n").filter(line => line.trim());
-      
+
       // Skip header row
-      const entries = lines.slice(1).map(line => {
-        const [question, answer, category, tags] = line.split(",").map(s => s.trim().replace(/^"|"$/g, ""));
-        return { question, answer, category, tags };
-      }).filter(entry => entry.question && entry.answer);
+      const entries = lines
+        .slice(1)
+        .map(line => {
+          const [question, answer, category, tags] = line
+            .split(",")
+            .map(s => s.trim().replace(/^"|"$/g, ""));
+          return { question, answer, category, tags };
+        })
+        .filter(entry => entry.question && entry.answer);
 
       try {
         await bulkUploadMutation.mutateAsync({ entries });
@@ -104,21 +138,27 @@ export default function MojiSettings() {
       <Card>
         <CardHeader>
           <CardTitle>Moji Chatbot Configuration</CardTitle>
-          <CardDescription>Configure @moji's behavior and responses</CardDescription>
+          <CardDescription>
+            Configure @moji's behavior and responses
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <p className="font-medium">Auto-respond to mentions</p>
-              <p className="text-sm text-muted-foreground">Respond when @moji is mentioned in chat</p>
+              <p className="text-sm text-muted-foreground">
+                Respond when @moji is mentioned in chat
+              </p>
             </div>
             <Switch defaultChecked />
           </div>
-          
+
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <p className="font-medium">Escalate to human agents</p>
-              <p className="text-sm text-muted-foreground">Forward to "Chat with Team MojiTax" when Moji can't answer</p>
+              <p className="text-sm text-muted-foreground">
+                Forward to "Chat with Team MojiTax" when Moji can't answer
+              </p>
             </div>
             <Switch defaultChecked />
           </div>
@@ -129,7 +169,9 @@ export default function MojiSettings() {
       <Card>
         <CardHeader>
           <CardTitle>Knowledge Base Management</CardTitle>
-          <CardDescription>Upload, search, and manage Moji's knowledge base</CardDescription>
+          <CardDescription>
+            Upload, search, and manage Moji's knowledge base
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* CSV Upload */}
@@ -149,10 +191,7 @@ export default function MojiSettings() {
               <Upload className="h-4 w-4 mr-2" />
               {bulkUploadMutation.isPending ? "Uploading..." : "Upload CSV"}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowAddDialog(true)}
-            >
+            <Button variant="outline" onClick={() => setShowAddDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Entry
             </Button>
@@ -168,7 +207,7 @@ export default function MojiSettings() {
             <Input
               placeholder="Search knowledge base..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -187,10 +226,14 @@ export default function MojiSettings() {
               </TableHeader>
               <TableBody>
                 {filteredKnowledge && filteredKnowledge.length > 0 ? (
-                  filteredKnowledge.map((entry) => (
+                  filteredKnowledge.map(entry => (
                     <TableRow key={entry.id}>
-                      <TableCell className="font-medium">{entry.question}</TableCell>
-                      <TableCell className="text-sm">{entry.answer.substring(0, 100)}...</TableCell>
+                      <TableCell className="font-medium">
+                        {entry.question}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {entry.answer.substring(0, 100)}...
+                      </TableCell>
                       <TableCell>{entry.category || "-"}</TableCell>
                       <TableCell>{entry.tags || "-"}</TableCell>
                       <TableCell className="text-right">
@@ -215,8 +258,13 @@ export default function MojiSettings() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      {searchQuery ? "No matching entries found" : "No knowledge base entries yet. Upload a CSV or add entries manually."}
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-8"
+                    >
+                      {searchQuery
+                        ? "No matching entries found"
+                        : "No knowledge base entries yet. Upload a CSV or add entries manually."}
                     </TableCell>
                   </TableRow>
                 )}
@@ -231,7 +279,9 @@ export default function MojiSettings() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Knowledge Base Entry</DialogTitle>
-            <DialogDescription>Add a new question and answer to Moji's knowledge base</DialogDescription>
+            <DialogDescription>
+              Add a new question and answer to Moji's knowledge base
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -239,7 +289,9 @@ export default function MojiSettings() {
               <Input
                 id="new-question"
                 value={newEntry.question}
-                onChange={(e) => setNewEntry({ ...newEntry, question: e.target.value })}
+                onChange={e =>
+                  setNewEntry({ ...newEntry, question: e.target.value })
+                }
                 placeholder="What is the full meaning of ADIT?"
               />
             </div>
@@ -248,7 +300,9 @@ export default function MojiSettings() {
               <Textarea
                 id="new-answer"
                 value={newEntry.answer}
-                onChange={(e) => setNewEntry({ ...newEntry, answer: e.target.value })}
+                onChange={e =>
+                  setNewEntry({ ...newEntry, answer: e.target.value })
+                }
                 placeholder="ADIT stands for Advanced Diploma in International Taxation..."
                 rows={4}
               />
@@ -258,7 +312,9 @@ export default function MojiSettings() {
               <Input
                 id="new-category"
                 value={newEntry.category}
-                onChange={(e) => setNewEntry({ ...newEntry, category: e.target.value })}
+                onChange={e =>
+                  setNewEntry({ ...newEntry, category: e.target.value })
+                }
                 placeholder="Exams"
               />
             </div>
@@ -267,14 +323,21 @@ export default function MojiSettings() {
               <Input
                 id="new-tags"
                 value={newEntry.tags}
-                onChange={(e) => setNewEntry({ ...newEntry, tags: e.target.value })}
+                onChange={e =>
+                  setNewEntry({ ...newEntry, tags: e.target.value })
+                }
                 placeholder="ADIT, exam, qualification"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-            <Button onClick={handleAddEntry} disabled={createMutation.isPending}>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddEntry}
+              disabled={createMutation.isPending}
+            >
               {createMutation.isPending ? "Adding..." : "Add Entry"}
             </Button>
           </DialogFooter>
@@ -286,7 +349,9 @@ export default function MojiSettings() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Knowledge Base Entry</DialogTitle>
-            <DialogDescription>Update the question and answer</DialogDescription>
+            <DialogDescription>
+              Update the question and answer
+            </DialogDescription>
           </DialogHeader>
           {editingEntry && (
             <div className="space-y-4">
@@ -295,7 +360,12 @@ export default function MojiSettings() {
                 <Input
                   id="edit-question"
                   value={editingEntry.question}
-                  onChange={(e) => setEditingEntry({ ...editingEntry, question: e.target.value })}
+                  onChange={e =>
+                    setEditingEntry({
+                      ...editingEntry,
+                      question: e.target.value,
+                    })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -303,7 +373,9 @@ export default function MojiSettings() {
                 <Textarea
                   id="edit-answer"
                   value={editingEntry.answer}
-                  onChange={(e) => setEditingEntry({ ...editingEntry, answer: e.target.value })}
+                  onChange={e =>
+                    setEditingEntry({ ...editingEntry, answer: e.target.value })
+                  }
                   rows={4}
                 />
               </div>
@@ -312,7 +384,12 @@ export default function MojiSettings() {
                 <Input
                   id="edit-category"
                   value={editingEntry.category || ""}
-                  onChange={(e) => setEditingEntry({ ...editingEntry, category: e.target.value })}
+                  onChange={e =>
+                    setEditingEntry({
+                      ...editingEntry,
+                      category: e.target.value,
+                    })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -320,14 +397,21 @@ export default function MojiSettings() {
                 <Input
                   id="edit-tags"
                   value={editingEntry.tags || ""}
-                  onChange={(e) => setEditingEntry({ ...editingEntry, tags: e.target.value })}
+                  onChange={e =>
+                    setEditingEntry({ ...editingEntry, tags: e.target.value })
+                  }
                 />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingEntry(null)}>Cancel</Button>
-            <Button onClick={handleUpdateEntry} disabled={updateMutation.isPending}>
+            <Button variant="outline" onClick={() => setEditingEntry(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateEntry}
+              disabled={updateMutation.isPending}
+            >
               {updateMutation.isPending ? "Updating..." : "Update Entry"}
             </Button>
           </DialogFooter>

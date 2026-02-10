@@ -39,14 +39,18 @@ export interface EmailResult {
 /**
  * Send an email via SendGrid with TEST_MODE support
  */
-export async function sendEmail(options: SendEmailOptions): Promise<EmailResult> {
+export async function sendEmail(
+  options: SendEmailOptions
+): Promise<EmailResult> {
   let { to, toName, subject, html, text, templateType } = options;
 
   // Apply TEST_MODE transformations
   const originalRecipient = to;
   if (ENV.isTestMode) {
     if (!ENV.testEmailRecipient) {
-      console.warn("[Email] TEST_MODE is enabled but TEST_EMAIL_RECIPIENT is not set");
+      console.warn(
+        "[Email] TEST_MODE is enabled but TEST_EMAIL_RECIPIENT is not set"
+      );
       return {
         success: false,
         error: "TEST_MODE enabled but no test recipient configured",
@@ -67,7 +71,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<EmailResult>
     `;
     html = testBanner + html;
 
-    console.log(`[Email] TEST_MODE: Redirecting email from ${originalRecipient} to ${to}`);
+    console.log(
+      `[Email] TEST_MODE: Redirecting email from ${originalRecipient} to ${to}`
+    );
   }
 
   // Log the email attempt
@@ -237,7 +243,13 @@ export async function sendAnnouncementEmail(
 export async function sendEventEmail(
   email: string,
   name: string | null,
-  event: { title: string; content: string; date: Date; location?: string; authorName?: string }
+  event: {
+    title: string;
+    content: string;
+    date: Date;
+    location?: string;
+    authorName?: string;
+  }
 ): Promise<EmailResult> {
   const dateStr = event.date.toLocaleDateString("en-GB", {
     weekday: "long",
@@ -281,7 +293,12 @@ export async function sendEventEmail(
 export async function sendReplyNotification(
   email: string,
   name: string | null,
-  reply: { replierName: string; originalContent: string; replyContent: string; channelName: string }
+  reply: {
+    replierName: string;
+    originalContent: string;
+    replyContent: string;
+    channelName: string;
+  }
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -317,7 +334,11 @@ export async function sendReplyNotification(
 export async function sendMentionNotification(
   email: string,
   name: string | null,
-  mention: { mentionerName: string; messageContent: string; channelName: string }
+  mention: {
+    mentionerName: string;
+    messageContent: string;
+    channelName: string;
+  }
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -348,7 +369,12 @@ export async function sendMentionNotification(
 export async function sendSupportUpdate(
   email: string,
   name: string | null,
-  update: { ticketId: number; subject: string; status: string; latestMessage?: string }
+  update: {
+    ticketId: number;
+    subject: string;
+    status: string;
+    latestMessage?: string;
+  }
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

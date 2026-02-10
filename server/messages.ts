@@ -5,7 +5,15 @@ export interface CreateMessageInput {
   channelId: number;
   userId: number;
   content: string;
-  messageType?: "user" | "admin" | "bot" | "system" | "event" | "announcement" | "article" | "newsletter";
+  messageType?:
+    | "user"
+    | "admin"
+    | "bot"
+    | "system"
+    | "event"
+    | "announcement"
+    | "article"
+    | "newsletter";
   replyToId?: number;
 }
 
@@ -33,7 +41,11 @@ export async function createMessage(input: CreateMessageInput) {
   return { messageId, message: newMessage };
 }
 
-export async function getMessages(channelId: number, limit: number = 50, offset: number = 0) {
+export async function getMessages(
+  channelId: number,
+  limit: number = 50,
+  offset: number = 0
+) {
   return await db.getChannelMessages(channelId, limit, offset);
 }
 

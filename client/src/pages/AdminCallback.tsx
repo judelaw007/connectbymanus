@@ -13,9 +13,9 @@ export default function AdminCallback() {
     async function handleCallback() {
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         const session = await getAdminSession();
-        
+
         if (session) {
           setLocation("/admin");
         } else {
@@ -38,10 +38,7 @@ export default function AdminCallback() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button
-            onClick={() => setLocation("/auth/admin")}
-            className="w-full"
-          >
+          <Button onClick={() => setLocation("/auth/admin")} className="w-full">
             Back to Login
           </Button>
         </div>

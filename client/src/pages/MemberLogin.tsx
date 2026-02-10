@@ -1,9 +1,24 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MessageSquare, Users, AlertCircle, Loader2, Mail, KeyRound, ArrowLeft, CheckCircle } from "lucide-react";
+import {
+  MessageSquare,
+  Users,
+  AlertCircle,
+  Loader2,
+  Mail,
+  KeyRound,
+  ArrowLeft,
+  CheckCircle,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -20,7 +35,7 @@ export default function MemberLogin() {
   const [isLoading, setIsLoading] = useState(false);
 
   const requestCodeMutation = trpc.memberAuth.requestCode.useMutation({
-    onSuccess: (data) => {
+    onSuccess: data => {
       setStep("code");
       setSuccess(data.message);
       setError(null);
@@ -29,7 +44,7 @@ export default function MemberLogin() {
         setSuccess(`${data.message} ${data.testNote}`);
       }
     },
-    onError: (err) => {
+    onError: err => {
       setError(err.message || "Failed to send verification code");
     },
     onSettled: () => {
@@ -47,7 +62,7 @@ export default function MemberLogin() {
         window.location.reload(); // Refresh to pick up the new session
       }, 500);
     },
-    onError: (err) => {
+    onError: err => {
       setError(err.message || "Invalid verification code");
     },
     onSettled: () => {
@@ -99,9 +114,7 @@ export default function MemberLogin() {
               <MessageSquare className="h-6 w-6" />
               MojiTax Connect
             </CardTitle>
-            <CardDescription className="mt-2">
-              Member Sign In
-            </CardDescription>
+            <CardDescription className="mt-2">Member Sign In</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -123,7 +136,7 @@ export default function MemberLogin() {
                     type="email"
                     placeholder="your.email@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={e => setEmail(e.target.value)}
                     required
                     disabled={isLoading}
                     autoComplete="email"
@@ -131,7 +144,8 @@ export default function MemberLogin() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Use the email address registered with your MojiTax Learnworlds account.
+                  Use the email address registered with your MojiTax Learnworlds
+                  account.
                 </p>
               </div>
 
@@ -205,7 +219,8 @@ export default function MemberLogin() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Enter the 6-digit code from your email. Code expires in 10 minutes.
+                  Enter the 6-digit code from your email. Code expires in 10
+                  minutes.
                 </p>
               </div>
 
@@ -246,7 +261,9 @@ export default function MemberLogin() {
                     setError(null);
                     setSuccess(null);
                     setCode("");
-                    requestCodeMutation.mutate({ email: email.trim().toLowerCase() });
+                    requestCodeMutation.mutate({
+                      email: email.trim().toLowerCase(),
+                    });
                   }}
                   className="text-sm"
                   disabled={isLoading}

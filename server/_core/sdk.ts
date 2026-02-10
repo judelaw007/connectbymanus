@@ -156,7 +156,8 @@ class SDKServer {
   }
 
   private getSessionSecret() {
-    const secret = ENV.cookieSecret || 'dev-secret-change-in-production-' + ENV.appId;
+    const secret =
+      ENV.cookieSecret || "dev-secret-change-in-production-" + ENV.appId;
     return new TextEncoder().encode(secret);
   }
 
@@ -218,7 +219,11 @@ class SDKServer {
         !isNonEmptyString(appId) ||
         !isNonEmptyString(name)
       ) {
-        console.warn("[Auth] Session payload missing required fields:", { openId, appId, name });
+        console.warn("[Auth] Session payload missing required fields:", {
+          openId,
+          appId,
+          name,
+        });
         return null;
       }
 
@@ -311,13 +316,17 @@ class SDKServer {
   private async authenticateSupabaseAdmin(req: Request): Promise<User | null> {
     try {
       const cookies = this.parseCookies(req.headers.cookie);
-      
+
       // Look for Supabase auth token in cookies (set by Supabase JS client)
       // Supabase stores tokens in cookies with names like sb-<project-ref>-auth-token
       let supabaseToken: string | null = null;
-      
+
       cookies.forEach((value, name) => {
-        if (name.includes('sb-') && name.includes('-auth-token') && !supabaseToken) {
+        if (
+          name.includes("sb-") &&
+          name.includes("-auth-token") &&
+          !supabaseToken
+        ) {
           try {
             const tokenData = JSON.parse(value);
             supabaseToken = tokenData.access_token;
@@ -327,10 +336,10 @@ class SDKServer {
           }
         }
       });
-      
+
       // Also check Authorization header
       const authHeader = req.headers.authorization;
-      if (!supabaseToken && authHeader?.startsWith('Bearer ')) {
+      if (!supabaseToken && authHeader?.startsWith("Bearer ")) {
         supabaseToken = authHeader.slice(7);
       }
 
@@ -357,7 +366,9 @@ class SDKServer {
 
       // Find admin user by email
       const admins = await db.getAdminUsers();
-      const adminUser = admins.find(a => a.email?.toLowerCase() === email.toLowerCase());
+      const adminUser = admins.find(
+        a => a.email?.toLowerCase() === email.toLowerCase()
+      );
 
       if (adminUser) {
         // Update last signed in
@@ -373,9 +384,9 @@ class SDKServer {
       await db.upsertUser({
         openId,
         email: email.toLowerCase(),
-        name: email.split('@')[0],
-        role: 'admin',
-        loginMethod: 'supabase',
+        name: email.split("@")[0],
+        role: "admin",
+        loginMethod: "supabase",
         lastSignedIn: new Date(),
       });
 

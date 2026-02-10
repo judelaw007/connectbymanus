@@ -101,18 +101,18 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### Tables Created
 
-| Table | Description |
-|-------|-------------|
-| `users` | User accounts with roles (user/admin) |
-| `channels` | Chat channels (general, topic, study_group, support) |
-| `channel_members` | User membership in channels |
-| `messages` | Chat messages |
-| `posts` | Structured content (events, announcements, articles, newsletters) |
-| `support_tickets` | Support ticket tracking |
-| `support_messages` | Messages within support tickets |
-| `notifications` | User notifications |
-| `moji_knowledge_base` | Q&A for @moji chatbot |
-| `email_logs` | Email send tracking |
+| Table                 | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `users`               | User accounts with roles (user/admin)                             |
+| `channels`            | Chat channels (general, topic, study_group, support)              |
+| `channel_members`     | User membership in channels                                       |
+| `messages`            | Chat messages                                                     |
+| `posts`               | Structured content (events, announcements, articles, newsletters) |
+| `support_tickets`     | Support ticket tracking                                           |
+| `support_messages`    | Messages within support tickets                                   |
+| `notifications`       | User notifications                                                |
+| `moji_knowledge_base` | Q&A for @moji chatbot                                             |
+| `email_logs`          | Email send tracking                                               |
 
 ### Row Level Security (RLS)
 
@@ -146,13 +146,20 @@ SELECT content FROM messages LIMIT 1;
 ### Test the App Connection
 
 After setting up environment variables, visit:
+
 ```
 https://[your-app-url]/api/trpc/debug.testDb
 ```
 
 You should see:
+
 ```json
-{"success":true,"channelCount":7,"userCount":2,"message":"Connected! Found 7 channels and 2 users"}
+{
+  "success": true,
+  "channelCount": 7,
+  "userCount": 2,
+  "message": "Connected! Found 7 channels and 2 users"
+}
 ```
 
 ---
@@ -206,15 +213,18 @@ ON CONFLICT (open_id) DO UPDATE SET role = 'admin';
 ## Troubleshooting
 
 ### "relation does not exist" error
+
 - Make sure you ran the migrations in order (001 before 002)
 - Check that all tables were created in Table Editor
 
 ### Connection/Query errors
+
 - Verify VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are correct
 - Check the debug endpoint: `/api/trpc/debug.testDb`
 - Run the RLS fix migration if queries return empty results
 
 ### RLS blocking queries
+
 - Run `migrations/004_fix_rls_for_server.sql`
 - Or use the service_role key (already configured in server/db.ts)
 
@@ -223,19 +233,28 @@ ON CONFLICT (open_id) DO UPDATE SET role = 'admin';
 ## Useful Supabase Features
 
 ### Real-time Subscriptions
+
 Supabase can push database changes to clients in real-time:
+
 ```javascript
 supabase
-  .channel('messages')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, handleNewMessage)
-  .subscribe()
+  .channel("messages")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "messages" },
+    handleNewMessage
+  )
+  .subscribe();
 ```
 
 ### Storage (for file uploads)
+
 Supabase has built-in file storage for user uploads.
 
 ### Edge Functions
+
 Serverless functions that run close to your users.
 
 ### Auth
+
 Supabase Auth is used for **admin login only**. Regular users authenticate via mojitax.co.uk (Learnworlds).

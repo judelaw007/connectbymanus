@@ -35,7 +35,11 @@ let tokenExpiresAt: number = 0;
  */
 export function getLearnworldsStatus() {
   return {
-    isConfigured: !!(ENV.learnworldsClientId && ENV.learnworldsClientSecret && ENV.learnworldsSchoolId),
+    isConfigured: !!(
+      ENV.learnworldsClientId &&
+      ENV.learnworldsClientSecret &&
+      ENV.learnworldsSchoolId
+    ),
     schoolId: ENV.learnworldsSchoolId || null,
     hasClientId: !!ENV.learnworldsClientId,
     hasClientSecret: !!ENV.learnworldsClientSecret,
@@ -73,7 +77,9 @@ async function getAccessToken(): Promise<string> {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to get access token: ${response.status} - ${errorText}`);
+      throw new Error(
+        `Failed to get access token: ${response.status} - ${errorText}`
+      );
     }
 
     const data = await response.json();
@@ -92,7 +98,10 @@ async function getAccessToken(): Promise<string> {
 /**
  * Make authenticated API request to Learnworlds
  */
-async function learnworldsRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function learnworldsRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
   const token = await getAccessToken();
   const schoolId = ENV.learnworldsSchoolId || "mojitax";
   const baseUrl = `https://${schoolId}.learnworlds.com/admin/api/v2`;
@@ -101,7 +110,7 @@ async function learnworldsRequest<T>(endpoint: string, options: RequestInit = {}
     ...options,
     headers: {
       ...options.headers,
-      "Authorization": `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       "Lw-Client": ENV.learnworldsClientId,
     },
@@ -127,7 +136,9 @@ async function learnworldsRequest<T>(endpoint: string, options: RequestInit = {}
 /**
  * Look up a user by email in Learnworlds
  */
-export async function getUserByEmail(email: string): Promise<LearnworldsUser | null> {
+export async function getUserByEmail(
+  email: string
+): Promise<LearnworldsUser | null> {
   const status = getLearnworldsStatus();
   if (!status.isConfigured) {
     console.warn("[Learnworlds] API not configured, skipping user lookup");
@@ -137,9 +148,9 @@ export async function getUserByEmail(email: string): Promise<LearnworldsUser | n
   try {
     // URL encode the email for the query
     const encodedEmail = encodeURIComponent(email);
-    const response = await learnworldsRequest<LearnworldsApiResponse<LearnworldsUser[]>>(
-      `/users?email=${encodedEmail}`
-    );
+    const response = await learnworldsRequest<
+      LearnworldsApiResponse<LearnworldsUser[]>
+    >(`/users?email=${encodedEmail}`);
 
     if (response.data && response.data.length > 0) {
       const user = response.data[0];

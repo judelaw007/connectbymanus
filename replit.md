@@ -30,16 +30,19 @@ A platform for tax professionals to connect, learn, and collaborate. Features li
 ## Environment Variables
 
 ### Required for Supabase
+
 - `VITE_SUPABASE_URL` - Supabase project URL
 - `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key (client-side)
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side, bypasses RLS)
 
 ### Required for Authentication
+
 - `LEARNWORLDS_CLIENT_ID` - Learnworlds OAuth client ID
 - `LEARNWORLDS_CLIENT_SECRET` - Learnworlds OAuth client secret
 - `LEARNWORLDS_SCHOOL_ID` - Learnworlds school ID
 
 ### Required for @moji Chatbot
+
 - `OPENAI_API_KEY` - OpenAI API key for @moji chatbot (already configured)
 - `RESEND_API_KEY` - Resend API key for email notifications
 - `EMAIL_FROM` - Email sender address
@@ -48,6 +51,7 @@ A platform for tax professionals to connect, learn, and collaborate. Features li
 ## Development
 
 The application runs on port 5000 in development mode:
+
 - Express server serves both the API and Vite dev server
 - Hot module replacement enabled for frontend development
 - Socket.io for real-time chat functionality

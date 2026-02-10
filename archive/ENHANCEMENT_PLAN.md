@@ -9,6 +9,7 @@
 ## Overview
 
 Based on the **Production Audit** (mojitax-connect-production-audit.xlsx):
+
 - **Production Ready**: 15.4% (12/78 features passing)
 - **Not Implemented**: 47.4% (37 features)
 - **Partially Working**: 28.2% (22 features)
@@ -20,16 +21,16 @@ This plan prioritizes the **8 CRITICAL** blockers first, then HIGH priority item
 
 ## Critical Blockers (8 items - Must fix before launch)
 
-| # | Issue | Current State |
-|---|-------|---------------|
-| 1 | mojitax.co.uk OAuth Integration | No login button or OAuth flow |
-| 2 | Admin Login Security | No password protection on /auth/admin |
-| 3 | Email Notifications (Support) | No email integration |
-| 4 | Terms of Service | No ToS page or acceptance flow |
-| 5 | Privacy Policy | No privacy policy page |
-| 6 | XSS Protection | Unknown - not tested |
-| 7 | Login Button/Flow | Not implemented |
-| 8 | New Support Ticket Email | Not implemented |
+| #   | Issue                           | Current State                         |
+| --- | ------------------------------- | ------------------------------------- |
+| 1   | mojitax.co.uk OAuth Integration | No login button or OAuth flow         |
+| 2   | Admin Login Security            | No password protection on /auth/admin |
+| 3   | Email Notifications (Support)   | No email integration                  |
+| 4   | Terms of Service                | No ToS page or acceptance flow        |
+| 5   | Privacy Policy                  | No privacy policy page                |
+| 6   | XSS Protection                  | Unknown - not tested                  |
+| 7   | Login Button/Flow               | Not implemented                       |
+| 8   | New Support Ticket Email        | Not implemented                       |
 
 ---
 
@@ -39,10 +40,13 @@ This plan prioritizes the **8 CRITICAL** blockers first, then HIGH priority item
 **Status**: Blocking deployment
 
 ### Problem
+
 16 out of 62 tests are failing due to API naming mismatches between test expectations and actual implementation.
 
 ### Analysis
+
 Based on codebase exploration, the test files expect:
+
 - `support.create()` but API has `support.createTicket()`
 - `support.getById()` but API has `support.getTicketById()`
 - Parameter `initialMessage` but API expects `description`
@@ -58,6 +62,7 @@ Based on codebase exploration, the test files expect:
    - Option B: Update test files to match router implementation
 
 3. **Fix specific mismatches**
+
    ```typescript
    // In server/routers.ts - support router:
    // Change: createTicket → create
@@ -68,6 +73,7 @@ Based on codebase exploration, the test files expect:
 4. **Run full test suite and verify 62/62 passing**
 
 ### Deliverable
+
 - All 62 tests passing
 - No API breaking changes for existing frontend code
 
@@ -79,6 +85,7 @@ Based on codebase exploration, the test files expect:
 **Dependency**: None (can run parallel with Phase 1)
 
 ### Current State
+
 - Email logs table exists: `emailLogs` (schema in `drizzle/schema.ts:220-232`)
 - Email log API exists: `emailLogs.create()`, `emailLogs.getAll()`
 - Notification table exists: `notifications` with `emailSent` flag
@@ -87,11 +94,13 @@ Based on codebase exploration, the test files expect:
 ### Architecture Decision
 
 **Option A: Use SMTP/Nodemailer**
+
 - Requires SMTP credentials configuration
 - More control over email content
 - Works with any email provider
 
 **Option B: Use Third-party Email Service (SendGrid, Resend, etc.)**
+
 - Easier setup with API keys
 - Better deliverability tracking
 - Built-in templates
@@ -101,6 +110,7 @@ Based on codebase exploration, the test files expect:
 ### Tasks
 
 1. **Create email service abstraction**
+
    ```
    server/services/email.ts
    - sendEmail(to, subject, html, text)
@@ -130,6 +140,7 @@ Based on codebase exploration, the test files expect:
    - FROM_EMAIL address
 
 ### Deliverable
+
 - Email notifications working for support tickets
 - Email distribution for posts
 - Proper logging in emailLogs table
@@ -142,11 +153,13 @@ Based on codebase exploration, the test files expect:
 **Dependency**: None
 
 ### Problem
+
 Cannot launch without legal requirements - Terms of Service and Privacy Policy are mandatory.
 
 ### Tasks
 
 1. **Create Terms of Service page**
+
    ```
    client/src/pages/TermsOfService.tsx
    - Full legal terms (requires legal review)
@@ -155,6 +168,7 @@ Cannot launch without legal requirements - Terms of Service and Privacy Policy a
    ```
 
 2. **Create Privacy Policy page**
+
    ```
    client/src/pages/PrivacyPolicy.tsx
    - Data collection explanation
@@ -179,6 +193,7 @@ Cannot launch without legal requirements - Terms of Service and Privacy Policy a
    - Contact Us
 
 ### Deliverable
+
 - Legal pages accessible
 - ToS acceptance required for new users
 - GDPR-compliant cookie consent
@@ -191,6 +206,7 @@ Cannot launch without legal requirements - Terms of Service and Privacy Policy a
 **Dependency**: None
 
 ### Problem
+
 Currently anyone can access /auth/admin - no password protection.
 
 ### Tasks
@@ -214,6 +230,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Show lockout message
 
 ### Deliverable
+
 - Admin area password protected
 - Secure session management
 - Rate-limited login
@@ -226,6 +243,7 @@ Currently anyone can access /auth/admin - no password protection.
 **Dependency**: Requires API credentials from mojitax.co.uk
 
 ### Current State
+
 - Guest authentication works (name-based)
 - OAuth infrastructure exists via Manus SDK
 - Users table supports external users: `openId`, `loginMethod`
@@ -233,11 +251,13 @@ Currently anyone can access /auth/admin - no password protection.
 ### Architecture Decision
 
 **Option A: OAuth 2.0 Integration**
+
 - Learnworlds supports OAuth 2.0
 - Full SSO experience
 - User auto-sync on login
 
 **Option B: API Token Verification**
+
 - User provides mojitax.co.uk API token
 - Backend verifies token with Learnworlds API
 - Simpler implementation, less seamless UX
@@ -253,6 +273,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Available OAuth scopes
 
 2. **Implement authentication flow**
+
    ```
    client/src/components/MojitaxLogin.tsx - Login button
    server/routers.ts → auth router:
@@ -277,6 +298,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Guests prompted to login to post/chat
 
 ### Deliverable
+
 - Production authentication with mojitax.co.uk
 - User profile sync
 - Appropriate access controls
@@ -289,6 +311,7 @@ Currently anyone can access /auth/admin - no password protection.
 **Dependency**: Phase 2 (for reply notifications)
 
 ### Current State
+
 - Backend: `support.getMyTickets()` exists (implied from router structure)
 - Frontend: No UI for users to view their tickets
 - Users create tickets via "Request Human Agent" button
@@ -301,6 +324,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Badge with open ticket count
 
 2. **Create ticket list component**
+
    ```
    client/src/components/MyTicketsList.tsx
    - List all user's tickets
@@ -310,6 +334,7 @@ Currently anyone can access /auth/admin - no password protection.
    ```
 
 3. **Create ticket detail view**
+
    ```
    client/src/components/TicketDetail.tsx
    - Show ticket subject and status
@@ -328,6 +353,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Update ticket status in real-time
 
 ### Deliverable
+
 - Users can view all their support tickets
 - Users see ticket status and history
 - Real-time notification on admin reply
@@ -340,6 +366,7 @@ Currently anyone can access /auth/admin - no password protection.
 **Dependency**: Phase 2 (for email distribution)
 
 ### Current State
+
 - Backend: Posts API complete (`posts.create`, `posts.getByType`, etc.)
 - Frontend: `CreatePostModal.tsx` exists
 - Posts render in chat with special styling
@@ -357,6 +384,7 @@ Currently anyone can access /auth/admin - no password protection.
      - Newsletter: scheduledFor
 
 2. **Add post management UI (admin)**
+
    ```
    client/src/components/PostManagement.tsx
    - List all posts with filters
@@ -379,6 +407,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Log all sends in emailLogs
 
 ### Deliverable
+
 - Full post CRUD with type-specific fields
 - Beautiful post rendering in chat
 - Email distribution on post creation
@@ -391,6 +420,7 @@ Currently anyone can access /auth/admin - no password protection.
 **Dependency**: None
 
 ### Current State
+
 - No rate limiting implemented
 - Basic input validation via Zod schemas
 - tRPC provides some CSRF protection
@@ -399,6 +429,7 @@ Currently anyone can access /auth/admin - no password protection.
 ### Tasks
 
 1. **Implement rate limiting middleware**
+
    ```
    server/middleware/rateLimit.ts
    - Per-user rate limits:
@@ -410,6 +441,7 @@ Currently anyone can access /auth/admin - no password protection.
    ```
 
 2. **Add input sanitization**
+
    ```
    server/utils/sanitize.ts
    - sanitizeHtml() - Remove XSS vectors
@@ -423,6 +455,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Validate Origin header on mutations
 
 4. **Add abuse reporting**
+
    ```
    server/routers.ts → moderation router:
    - moderation.reportMessage
@@ -437,6 +470,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Implement in Express middleware
 
 ### Deliverable
+
 - Rate limiting prevents spam
 - XSS/injection attacks mitigated
 - Abuse reporting system
@@ -487,6 +521,7 @@ Currently anyone can access /auth/admin - no password protection.
    - Deployment guide
 
 ### Deliverable
+
 - Production-ready platform
 - All features tested and verified
 - Documentation complete
@@ -495,17 +530,17 @@ Currently anyone can access /auth/admin - no password protection.
 
 ## Implementation Priority Matrix
 
-| Phase | Priority | Effort | Dependencies | Can Parallelize |
-|-------|----------|--------|--------------|-----------------|
-| 1. Fix Tests | CRITICAL | Low | None | Yes |
-| 2. Email Notifications | HIGH | Medium | None | Yes |
-| 3. Legal & Compliance | CRITICAL | Medium | None | Yes |
-| 4. Admin Login Security | CRITICAL | Low | None | Yes |
-| 5. mojitax.co.uk Auth | CRITICAL | High | API Credentials | No |
-| 6. User Ticket UI | MEDIUM | Medium | Phase 2 | After Phase 2 |
-| 7. Posts Enhancement | MEDIUM | Medium | Phase 2 | After Phase 2 |
-| 8. Security (XSS/Rate Limit) | HIGH | Medium | None | Yes |
-| 9. Final Testing | HIGH | Medium | All phases | No |
+| Phase                        | Priority | Effort | Dependencies    | Can Parallelize |
+| ---------------------------- | -------- | ------ | --------------- | --------------- |
+| 1. Fix Tests                 | CRITICAL | Low    | None            | Yes             |
+| 2. Email Notifications       | HIGH     | Medium | None            | Yes             |
+| 3. Legal & Compliance        | CRITICAL | Medium | None            | Yes             |
+| 4. Admin Login Security      | CRITICAL | Low    | None            | Yes             |
+| 5. mojitax.co.uk Auth        | CRITICAL | High   | API Credentials | No              |
+| 6. User Ticket UI            | MEDIUM   | Medium | Phase 2         | After Phase 2   |
+| 7. Posts Enhancement         | MEDIUM   | Medium | Phase 2         | After Phase 2   |
+| 8. Security (XSS/Rate Limit) | HIGH     | Medium | None            | Yes             |
+| 9. Final Testing             | HIGH     | Medium | All phases      | No              |
 
 **Post-Production (Ongoing):**
 | Task | Priority | Effort | Notes |
@@ -517,27 +552,32 @@ Currently anyone can access /auth/admin - no password protection.
 ## Parallel Execution Strategy
 
 **Sprint 1: Critical Fixes** (Phases 1, 3, 4, 8 in parallel)
+
 - Fix test suite (Phase 1) - CRITICAL
 - Legal pages: ToS, Privacy Policy (Phase 3) - CRITICAL
 - Admin login security (Phase 4) - CRITICAL
 - XSS protection & security (Phase 8) - HIGH
 
 **Sprint 2: Email & Auth Foundation** (Phase 2, then Phase 5)
+
 - Email notifications (Phase 2) - HIGH
 - mojitax.co.uk authentication (Phase 5) - CRITICAL (requires API credentials)
 
 **Sprint 3: User Features** (Phases 6, 7 in parallel)
+
 - User ticket management UI (Phase 6)
 - Posts integration enhancement (Phase 7)
 - Both depend on email notifications (Phase 2)
 
 **Sprint 4: Polish & Launch** (Phase 9)
+
 - Final testing
 - Bug fixes
 - Documentation
 - Deployment
 
 **Post-Launch: Ongoing**
+
 - Knowledge base population (content work by tax experts)
 - @moji improves as KB grows from real user questions
 - Analytics inform which topics need more KB coverage
@@ -546,19 +586,20 @@ Currently anyone can access /auth/admin - no password protection.
 
 ## Risk Mitigation
 
-| Risk | Mitigation |
-|------|------------|
+| Risk                          | Mitigation                                                       |
+| ----------------------------- | ---------------------------------------------------------------- |
 | mojitax.co.uk API unavailable | Implement mock API for testing, deploy with guest auth initially |
-| Email service issues | Multiple provider support, fallback to console logging |
-| Test suite regressions | CI/CD pipeline with mandatory passing tests |
-| Performance issues at scale | Load testing before launch, horizontal scaling plan |
-| Security vulnerabilities | Regular dependency updates, security audit |
+| Email service issues          | Multiple provider support, fallback to console logging           |
+| Test suite regressions        | CI/CD pipeline with mandatory passing tests                      |
+| Performance issues at scale   | Load testing before launch, horizontal scaling plan              |
+| Security vulnerabilities      | Regular dependency updates, security audit                       |
 
 ---
 
 ## Success Metrics
 
 ### MVP (Minimum Viable Product) - Launch Blockers
+
 - [x] Real-time messaging works
 - [x] @moji chatbot responds (LLM fallback works without KB)
 - [x] Support tickets work (backend)
@@ -571,6 +612,7 @@ Currently anyone can access /auth/admin - no password protection.
 - [ ] Email notifications working
 
 ### Production Ready - Full Feature Set
+
 - [ ] All MVP criteria met
 - [ ] User ticket management UI
 - [ ] Full posts integration
@@ -580,6 +622,7 @@ Currently anyone can access /auth/admin - no password protection.
 - [ ] Documentation complete
 
 ### Post-Launch - Ongoing Improvements
+
 - [ ] Knowledge base populated with common Q&A (curated by tax experts)
 - [ ] @moji accuracy improves based on real user questions
 - [ ] Analytics-driven KB expansion
@@ -588,20 +631,20 @@ Currently anyone can access /auth/admin - no password protection.
 
 ## File Locations Reference
 
-| Component | File Location |
-|-----------|---------------|
-| tRPC Routers | `server/routers.ts` |
-| Database Functions | `server/db.ts` |
-| Chatbot Logic | `server/chatbot.ts` |
-| Socket.IO Server | `server/socket.ts` |
-| Database Schema | `drizzle/schema.ts` |
-| Main Layout | `client/src/components/ChatLayout.tsx` |
-| Message Input | `client/src/components/MessageInput.tsx` |
-| Support Inbox | `client/src/components/SupportInbox.tsx` |
-| Create Post Modal | `client/src/components/CreatePostModal.tsx` |
-| Auth Context | `client/src/_core/providers/auth-context.tsx` |
-| Socket Context | `client/src/contexts/SocketContext.tsx` |
-| Test Files | `server/*.test.ts` |
+| Component          | File Location                                 |
+| ------------------ | --------------------------------------------- |
+| tRPC Routers       | `server/routers.ts`                           |
+| Database Functions | `server/db.ts`                                |
+| Chatbot Logic      | `server/chatbot.ts`                           |
+| Socket.IO Server   | `server/socket.ts`                            |
+| Database Schema    | `drizzle/schema.ts`                           |
+| Main Layout        | `client/src/components/ChatLayout.tsx`        |
+| Message Input      | `client/src/components/MessageInput.tsx`      |
+| Support Inbox      | `client/src/components/SupportInbox.tsx`      |
+| Create Post Modal  | `client/src/components/CreatePostModal.tsx`   |
+| Auth Context       | `client/src/_core/providers/auth-context.tsx` |
+| Socket Context     | `client/src/contexts/SocketContext.tsx`       |
+| Test Files         | `server/*.test.ts`                            |
 
 ---
 
