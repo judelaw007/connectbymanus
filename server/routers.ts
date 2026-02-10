@@ -814,10 +814,22 @@ export const appRouter = router({
     reply: protectedProcedure
       .input(z.object({ ticketId: z.number(), content: z.string() }))
       .mutation(async ({ input, ctx }) => {
+        // Determine senderType from ticket relationship, not global role.
+        // This avoids misattribution when admin and member share a browser
+        // (same cookie name) and ensures correct alignment in chat UI.
+        const ticket = await db.getSupportTicketById(input.ticketId);
+        if (!ticket) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Ticket not found",
+          });
+        }
+        const senderType = ctx.user.id === ticket.userId ? "user" : "admin";
+
         const messageId = await db.createSupportMessage({
           ticketId: input.ticketId,
           senderId: ctx.user.id,
-          senderType: ctx.user.role === "admin" ? "admin" : "user",
+          senderType,
           content: input.content,
         });
 
@@ -831,7 +843,7 @@ export const appRouter = router({
           id: messageId,
           ticketId: input.ticketId,
           senderId: ctx.user.id,
-          senderType: ctx.user.role === "admin" ? "admin" : "user",
+          senderType,
           senderName: ctx.user.displayName || ctx.user.name || ctx.user.email,
           content: input.content,
           createdAt: new Date(),
