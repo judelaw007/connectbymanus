@@ -20,7 +20,10 @@ interface CreateGroupModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModalProps) {
+export default function CreateGroupModal({
+  open,
+  onOpenChange,
+}: CreateGroupModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -29,10 +32,12 @@ export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModa
 
   const utils = trpc.useUtils();
   const createChannelMutation = trpc.channels.create.useMutation({
-    onSuccess: (data) => {
+    onSuccess: data => {
       if (data.inviteCode) {
         setInviteCode(data.inviteCode);
-        toast.success("Study group created! Share the invite code with members.");
+        toast.success(
+          "Study group created! Share the invite code with members."
+        );
       } else {
         toast.success("Study group created successfully!");
         resetForm();
@@ -41,7 +46,7 @@ export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModa
       utils.channels.getMy.invalidate();
       utils.channels.getPublic.invalidate();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed to create group: ${error.message}`);
     },
   });
@@ -91,7 +96,9 @@ export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModa
 
           <div className="space-y-4">
             <div className="bg-muted p-4 rounded-lg">
-              <Label className="text-xs text-muted-foreground mb-2 block">Invite Code</Label>
+              <Label className="text-xs text-muted-foreground mb-2 block">
+                Invite Code
+              </Label>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-lg font-mono bg-background px-3 py-2 rounded">
                   {inviteCode}
@@ -101,13 +108,18 @@ export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModa
                   size="icon"
                   onClick={handleCopyInviteCode}
                 >
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Members can join by clicking "Join Group" and entering this code, or you can share a direct link.
+              Members can join by clicking "Join Group" and entering this code,
+              or you can share a direct link.
             </p>
 
             <Button onClick={handleClose} className="w-full">
@@ -136,7 +148,7 @@ export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModa
               <Input
                 id="name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={e => setName(e.target.value)}
                 placeholder="e.g., ADIT June 2025 Study Group"
                 required
               />
@@ -147,7 +159,7 @@ export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModa
               <Textarea
                 id="description"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={e => setDescription(e.target.value)}
                 placeholder="What is this group about?"
                 rows={3}
               />
@@ -156,7 +168,10 @@ export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModa
 
           <div className="space-y-3">
             <Label>Privacy</Label>
-            <RadioGroup value={isPrivate ? "private" : "public"} onValueChange={(value) => setIsPrivate(value === "private")}>
+            <RadioGroup
+              value={isPrivate ? "private" : "public"}
+              onValueChange={value => setIsPrivate(value === "private")}
+            >
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <RadioGroupItem
@@ -202,7 +217,11 @@ export default function CreateGroupModal({ open, onOpenChange }: CreateGroupModa
           </div>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={createChannelMutation.isPending}>

@@ -31,9 +31,11 @@ describe("Real-Time Messaging System", () => {
     });
 
     expect(result.messageId).toBeGreaterThan(0);
-    
+
     const messages = await messageService.getMessages(testChannelId, 10, 0);
-    const adminMsg = messages.find(m => m.content === "Admin announcement test");
+    const adminMsg = messages.find(
+      m => m.content === "Admin announcement test"
+    );
     expect(adminMsg?.messageType).toBe("admin");
   });
 
@@ -46,7 +48,7 @@ describe("Real-Time Messaging System", () => {
     });
 
     expect(result.messageId).toBeGreaterThan(0);
-    
+
     const messages = await messageService.getMessages(testChannelId, 10, 0);
     const botMsg = messages.find(m => m.content === "Bot response test");
     expect(botMsg?.messageType).toBe("bot");
@@ -82,7 +84,7 @@ describe("Real-Time Messaging System", () => {
     });
 
     expect(reply.messageId).toBeGreaterThan(0);
-    
+
     const messages = await messageService.getMessages(testChannelId, 50, 0);
     const replyMsg = messages.find(m => m.content === "Reply to original test");
     expect(replyMsg?.replyToId).toBe(original.messageId);

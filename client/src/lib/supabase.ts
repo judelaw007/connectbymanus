@@ -5,15 +5,16 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 const ALLOWED_ADMIN_DOMAIN = "mojitax.com";
 
-export const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    })
-  : null;
+export const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
+      })
+    : null;
 
 export function isSupabaseConfigured(): boolean {
   return supabase !== null;
@@ -32,7 +33,7 @@ export async function signInWithGoogle() {
 
   // Use current origin, but ensure we're not using localhost for production
   let redirectUrl = window.location.origin;
-  if (redirectUrl.includes('localhost')) {
+  if (redirectUrl.includes("localhost")) {
     // In development/testing, use the Replit domain
     const replitDomain = import.meta.env.VITE_APP_URL;
     if (replitDomain) {
@@ -64,17 +65,17 @@ export async function signOutAdmin() {
 
 export async function getAdminSession() {
   if (!supabase) return null;
-  
+
   const { data } = await supabase.auth.getSession();
   const session = data.session;
-  
+
   if (!session) return null;
-  
+
   if (!isAllowedAdminEmail(session.user?.email)) {
     await supabase.auth.signOut();
     return null;
   }
-  
+
   return session;
 }
 

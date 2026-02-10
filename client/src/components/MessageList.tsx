@@ -9,7 +9,15 @@ interface Message {
   channelId: number;
   userId: number | null;
   content: string;
-  messageType: "user" | "admin" | "bot" | "system" | "event" | "announcement" | "article" | "newsletter";
+  messageType:
+    | "user"
+    | "admin"
+    | "bot"
+    | "system"
+    | "event"
+    | "announcement"
+    | "article"
+    | "newsletter";
   isPinned: boolean;
   replyToId: number | null;
   createdAt: Date;
@@ -22,16 +30,20 @@ interface MessageListProps {
   isPublicView?: boolean; // When true, hide real usernames for privacy
 }
 
-export function MessageList({ channelId, isPublicView = false }: MessageListProps) {
+export function MessageList({
+  channelId,
+  isPublicView = false,
+}: MessageListProps) {
   const { socket } = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: initialMessages, isLoading } = trpc.messages.getByChannel.useQuery({
-    channelId,
-    limit: 50,
-    offset: 0,
-  });
+  const { data: initialMessages, isLoading } =
+    trpc.messages.getByChannel.useQuery({
+      channelId,
+      limit: 50,
+      offset: 0,
+    });
 
   // Load initial messages
   useEffect(() => {
@@ -88,8 +100,12 @@ export function MessageList({ channelId, isPublicView = false }: MessageListProp
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {messages.map((message) => (
-        <MessageItem key={message.id} message={message} isPublicView={isPublicView} />
+      {messages.map(message => (
+        <MessageItem
+          key={message.id}
+          message={message}
+          isPublicView={isPublicView}
+        />
       ))}
       <div ref={messagesEndRef} />
     </div>
@@ -123,7 +139,12 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
       return isAdmin ? "A" : "M";
     }
     if (!name) return "?";
-    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const getMessageBgColor = () => {
@@ -143,25 +164,29 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
   }
 
   return (
-    <div className={`flex gap-3 ${getMessageBgColor()} ${isBot ? "p-3 rounded-lg" : ""}`}>
+    <div
+      className={`flex gap-3 ${getMessageBgColor()} ${isBot ? "p-3 rounded-lg" : ""}`}
+    >
       <Avatar className="h-10 w-10 flex-shrink-0">
-        <AvatarFallback className={isAdmin ? "bg-primary text-primary-foreground" : ""}>
+        <AvatarFallback
+          className={isAdmin ? "bg-primary text-primary-foreground" : ""}
+        >
           {getInitials(message.userName)}
         </AvatarFallback>
       </Avatar>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
-          <span className="font-semibold text-sm">
-            {getDisplayName()}
-          </span>
+          <span className="font-semibold text-sm">{getDisplayName()}</span>
           {isAdmin && !isBot && (
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
               Admin
             </span>
           )}
           <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+            {formatDistanceToNow(new Date(message.createdAt), {
+              addSuffix: true,
+            })}
           </span>
         </div>
 

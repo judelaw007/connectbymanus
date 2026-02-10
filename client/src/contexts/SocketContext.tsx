@@ -9,10 +9,15 @@ import { io, Socket } from "socket.io-client";
 import Cookies from "js-cookie";
 import { COOKIE_NAME } from "@shared/const";
 
+export interface OnlineUser {
+  userId: number;
+  name: string;
+}
+
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
-  onlineUsers: number[];
+  onlineUsers: OnlineUser[];
 }
 
 const SocketContext = createContext<SocketContextType>({
@@ -32,7 +37,7 @@ interface SocketProviderProps {
 export function SocketProvider({ children }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<number[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
 
   useEffect(() => {
     // Try to read token from cookie (works for non-httpOnly cookies).
@@ -57,15 +62,23 @@ export function SocketProvider({ children }: SocketProviderProps) {
       setIsConnected(false);
     });
 
-    socketInstance.on("user:online", ({ userId }: { userId: number }) => {
-      setOnlineUsers(prev => {
-        if (prev.includes(userId)) return prev;
-        return [...prev, userId];
-      });
+    // Receive full list of currently online users on connect
+    socketInstance.on("users:online-list", (users: OnlineUser[]) => {
+      setOnlineUsers(users);
     });
 
+    socketInstance.on(
+      "user:online",
+      ({ userId, name }: { userId: number; name: string }) => {
+        setOnlineUsers(prev => {
+          if (prev.some(u => u.userId === userId)) return prev;
+          return [...prev, { userId, name }];
+        });
+      }
+    );
+
     socketInstance.on("user:offline", ({ userId }: { userId: number }) => {
-      setOnlineUsers(prev => prev.filter(id => id !== userId));
+      setOnlineUsers(prev => prev.filter(u => u.userId !== userId));
     });
 
     socketInstance.on("error", (error: { message: string }) => {

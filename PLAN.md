@@ -96,17 +96,17 @@ Estimated effort: 3-5 focused sessions.
 
 ## Key File Reference
 
-| Purpose | Path |
-|---------|------|
-| All API endpoints | `server/routers.ts` |
-| Database functions | `server/db.ts` |
-| Chatbot logic | `server/chatbot.ts` |
-| Main chat UI | `client/src/components/ChatLayout.tsx` |
-| Admin login (BROKEN) | `client/src/pages/AdminLogin.tsx` |
-| Support inbox (admin) | `client/src/components/SupportInbox.tsx` |
-| Socket.io server | `server/_core/socket.ts` |
-| Socket context (client) | `client/src/contexts/SocketContext.tsx` |
-| Email service | `server/services/email.ts` |
-| Routes/pages | `client/src/App.tsx` |
-| tRPC procedures | `server/_core/trpc.ts` |
-| Auth context | `server/_core/context.ts` |
+| Purpose                 | Path                                     |
+| ----------------------- | ---------------------------------------- |
+| All API endpoints       | `server/routers.ts`                      |
+| Database functions      | `server/db.ts`                           |
+| Chatbot logic           | `server/chatbot.ts`                      |
+| Main chat UI            | `client/src/components/ChatLayout.tsx`   |
+| Admin login (BROKEN)    | `client/src/pages/AdminLogin.tsx`        |
+| Support inbox (admin)   | `client/src/components/SupportInbox.tsx` |
+| Socket.io server        | `server/_core/socket.ts`                 |
+| Socket context (client) | `client/src/contexts/SocketContext.tsx`  |
+| Email service           | `server/services/email.ts`               |
+| Routes/pages            | `client/src/App.tsx`                     |
+| tRPC procedures         | `server/_core/trpc.ts`                   |
+| Auth context            | `server/_core/context.ts`                |

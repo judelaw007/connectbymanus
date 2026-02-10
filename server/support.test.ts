@@ -64,7 +64,9 @@ describe("Support Ticket System", () => {
     // Verify initial message was created
     const messages = await db.getSupportMessagesByTicket(result.ticketId);
     expect(messages.length).toBe(1);
-    expect(messages[0].content).toBe("I have a question about VAT rates in the EU");
+    expect(messages[0].content).toBe(
+      "I have a question about VAT rates in the EU"
+    );
     expect(messages[0].senderType).toBe("user");
   });
 
@@ -256,7 +258,7 @@ describe("Support Ticket System", () => {
     const lastMessageBefore = ticketBefore?.lastMessageAt;
 
     // Wait a bit to ensure timestamp difference
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await new Promise(resolve => setTimeout(resolve, 1100));
 
     // Reply
     await caller.support.reply({

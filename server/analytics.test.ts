@@ -93,7 +93,7 @@ describe("Chat Analytics System", () => {
     });
 
     expect(Array.isArray(results)).toBe(true);
-    const foundTicket = results.find((t) => t.id === ticket.ticketId);
+    const foundTicket = results.find(t => t.id === ticket.ticketId);
     expect(foundTicket).toBeDefined();
     expect(foundTicket?.resolutionType).toBe("bot-answered");
     expect(foundTicket?.enquiryType).toBe("VAT");
@@ -132,7 +132,7 @@ describe("Chat Analytics System", () => {
     });
 
     expect(results.length).toBeGreaterThan(0);
-    const foundTicket = results.find((t) => t.id === ticket.ticketId);
+    const foundTicket = results.find(t => t.id === ticket.ticketId);
     expect(foundTicket?.enquiryType).toBe("VAT");
   });
 
@@ -143,7 +143,7 @@ describe("Chat Analytics System", () => {
 
     expect(Array.isArray(results)).toBe(true);
     // All results should have status "open"
-    results.forEach((ticket) => {
+    results.forEach(ticket => {
       expect(ticket.status).toBe("open");
     });
   });
@@ -174,7 +174,7 @@ describe("Chat Analytics System", () => {
     });
 
     expect(results.length).toBeGreaterThan(0);
-    const foundTicket = results.find((t) => t.id === ticket.ticketId);
+    const foundTicket = results.find(t => t.id === ticket.ticketId);
     expect(foundTicket).toBeDefined();
     expect(foundTicket?.subject).toContain("XYZ123");
   });

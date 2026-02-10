@@ -5,17 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, LogIn } from "lucide-react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 interface MessageInputProps {
   channelId: number;
   isPublicView?: boolean; // When true, show sign-in prompt instead of input
 }
 
-export function MessageInput({ channelId, isPublicView = false }: MessageInputProps) {
+export function MessageInput({
+  channelId,
+  isPublicView = false,
+}: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
   const { socket } = useSocket();
   const [, setLocation] = useLocation();
 
@@ -27,9 +33,9 @@ export function MessageInput({ channelId, isPublicView = false }: MessageInputPr
         textareaRef.current.style.height = "auto";
       }
     },
-    onError: (error) => {
+    onError: error => {
       console.error("Failed to send message:", error.message);
-      alert(`Failed to send message: ${error.message}`);
+      toast.error("Failed to send message", { description: error.message });
     },
   });
 

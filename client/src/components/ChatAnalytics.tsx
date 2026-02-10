@@ -48,33 +48,35 @@ export default function ChatAnalytics() {
     endDate: endDate || undefined,
   });
 
-  const { data: analyticsData, refetch } = trpc.analytics.getSupportAnalytics.useQuery({
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
-    resolutionType: resolutionType as any || undefined,
-    enquiryType: enquiryType || undefined,
-    status: status as any || undefined,
-    searchQuery: searchQuery || undefined,
-    limit: 100,
-    offset: 0,
-  });
+  const { data: analyticsData, refetch } =
+    trpc.analytics.getSupportAnalytics.useQuery({
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      resolutionType: (resolutionType as any) || undefined,
+      enquiryType: enquiryType || undefined,
+      status: (status as any) || undefined,
+      searchQuery: searchQuery || undefined,
+      limit: 100,
+      offset: 0,
+    });
 
   const { data: exportData } = trpc.analytics.exportToCSV.useQuery(
     {
       startDate: startDate || undefined,
       endDate: endDate || undefined,
-      resolutionType: resolutionType as any || undefined,
+      resolutionType: (resolutionType as any) || undefined,
       enquiryType: enquiryType || undefined,
-      status: status as any || undefined,
+      status: (status as any) || undefined,
     },
     { enabled: false }
   );
 
-  const updateCategoryMutation = trpc.analytics.updateTicketCategory.useMutation({
-    onSuccess: () => {
-      refetch();
-    },
-  });
+  const updateCategoryMutation =
+    trpc.analytics.updateTicketCategory.useMutation({
+      onSuccess: () => {
+        refetch();
+      },
+    });
 
   const handleExportCSV = () => {
     if (!analyticsData || analyticsData.length === 0) return;
@@ -95,7 +97,7 @@ export default function ChatAnalytics() {
       "Closed At",
     ];
 
-    const rows = analyticsData.map((ticket) => [
+    const rows = analyticsData.map(ticket => [
       ticket.id,
       new Date(ticket.createdAt).toLocaleDateString(),
       ticket.userName || "Unknown",
@@ -113,14 +115,17 @@ export default function ChatAnalytics() {
 
     const csvContent = [
       headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(",")),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `moji-chat-analytics-${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute(
+      "download",
+      `moji-chat-analytics-${new Date().toISOString().split("T")[0]}.csv`
+    );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -138,7 +143,7 @@ export default function ChatAnalytics() {
 
   const getResolutionBadge = (type: string | null) => {
     if (!type) return <Badge variant="outline">Uncategorized</Badge>;
-    
+
     switch (type) {
       case "bot-answered":
         return <Badge className="bg-green-500 text-white">Bot Answered</Badge>;
@@ -177,7 +182,10 @@ export default function ChatAnalytics() {
               Analyze Moji chatbot interactions for insights and marketing
             </p>
           </div>
-          <Button onClick={handleExportCSV} disabled={!analyticsData || analyticsData.length === 0}>
+          <Button
+            onClick={handleExportCSV}
+            disabled={!analyticsData || analyticsData.length === 0}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
@@ -190,8 +198,12 @@ export default function ChatAnalytics() {
               <div className="flex items-center gap-3">
                 <MessageSquare className="h-8 w-8 text-blue-500" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Conversations</p>
-                  <p className="text-2xl font-bold">{summaryStats.totalConversations}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total Conversations
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {summaryStats.totalConversations}
+                  </p>
                 </div>
               </div>
             </Card>
@@ -200,7 +212,9 @@ export default function ChatAnalytics() {
                 <Bot className="h-8 w-8 text-green-500" />
                 <div>
                   <p className="text-sm text-muted-foreground">Bot Answered</p>
-                  <p className="text-2xl font-bold">{summaryStats.botAnswered}</p>
+                  <p className="text-2xl font-bold">
+                    {summaryStats.botAnswered}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {summaryStats.totalConversations > 0
                       ? `${Math.round((summaryStats.botAnswered / summaryStats.totalConversations) * 100)}%`
@@ -213,8 +227,12 @@ export default function ChatAnalytics() {
               <div className="flex items-center gap-3">
                 <User className="h-8 w-8 text-blue-500" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Human Answered</p>
-                  <p className="text-2xl font-bold">{summaryStats.humanAnswered}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Human Answered
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {summaryStats.humanAnswered}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {summaryStats.totalConversations > 0
                       ? `${Math.round((summaryStats.humanAnswered / summaryStats.totalConversations) * 100)}%`
@@ -245,7 +263,7 @@ export default function ChatAnalytics() {
             <Input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={e => setStartDate(e.target.value)}
               className="h-9"
             />
           </div>
@@ -254,12 +272,14 @@ export default function ChatAnalytics() {
             <Input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={e => setEndDate(e.target.value)}
               className="h-9"
             />
           </div>
           <div>
-            <label className="text-xs font-medium mb-1 block">Resolution Type</label>
+            <label className="text-xs font-medium mb-1 block">
+              Resolution Type
+            </label>
             <Select value={resolutionType} onValueChange={setResolutionType}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="All" />
@@ -288,10 +308,12 @@ export default function ChatAnalytics() {
             </Select>
           </div>
           <div>
-            <label className="text-xs font-medium mb-1 block">Enquiry Type</label>
+            <label className="text-xs font-medium mb-1 block">
+              Enquiry Type
+            </label>
             <Input
               value={enquiryType}
-              onChange={(e) => setEnquiryType(e.target.value)}
+              onChange={e => setEnquiryType(e.target.value)}
               placeholder="e.g., VAT, ADIT"
               className="h-9"
             />
@@ -302,7 +324,7 @@ export default function ChatAnalytics() {
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search..."
                 className="h-9 pl-8"
               />
@@ -336,39 +358,59 @@ export default function ChatAnalytics() {
             </TableHeader>
             <TableBody>
               {analyticsData && analyticsData.length > 0 ? (
-                analyticsData.map((ticket) => (
+                analyticsData.map(ticket => (
                   <TableRow key={ticket.id}>
-                    <TableCell className="font-mono text-xs">{ticket.id}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {ticket.id}
+                    </TableCell>
                     <TableCell className="text-sm">
                       {new Date(ticket.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="text-sm font-medium">{ticket.userName || "Unknown"}</p>
-                        <p className="text-xs text-muted-foreground">{ticket.userEmail}</p>
+                        <p className="text-sm font-medium">
+                          {ticket.userName || "Unknown"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {ticket.userEmail}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell className="max-w-xs">
                       <p className="text-sm truncate">{ticket.subject}</p>
                     </TableCell>
                     <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                    <TableCell>{getResolutionBadge(ticket.resolutionType)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{ticket.enquiryType || "N/A"}</Badge>
+                      {getResolutionBadge(ticket.resolutionType)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {ticket.enquiryType || "N/A"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-xs">
                       <div className="flex gap-2">
-                        <span className="text-green-600">🤖 {ticket.botInteractionCount}</span>
-                        <span className="text-blue-600">👤 {ticket.humanInteractionCount}</span>
+                        <span className="text-green-600">
+                          🤖 {ticket.botInteractionCount}
+                        </span>
+                        <span className="text-blue-600">
+                          👤 {ticket.humanInteractionCount}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {ticket.tags?.split(",").map((tag, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {tag.trim()}
-                          </Badge>
-                        ))}
+                        {ticket.tags
+                          ?.split(",")
+                          .map((tag: string, i: number) => (
+                            <Badge
+                              key={i}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {tag.trim()}
+                            </Badge>
+                          ))}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -384,7 +426,10 @@ export default function ChatAnalytics() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                  <TableCell
+                    colSpan={10}
+                    className="text-center py-12 text-muted-foreground"
+                  >
                     <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No conversations found matching your filters</p>
                   </TableCell>

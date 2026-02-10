@@ -63,13 +63,13 @@
 
 ### Key Architectural Decisions
 
-| Decision | Rationale | Benefit |
-|----------|-----------|---------|
-| **Stateless Server Design** | No server-side session storage | Horizontal scalability, easy deployment |
-| **Managed Database (Supabase)** | Reduce operational overhead | Built-in auth, RLS, automatic backups |
-| **API Gateway Pattern** | Centralized service access | Security, monitoring, rate limiting |
-| **Event-Driven Real-time** | Socket.IO for live features | Instant messaging, presence tracking |
-| **Multi-tier Authentication** | Different auth for different user types | Security isolation, appropriate UX |
+| Decision                        | Rationale                               | Benefit                                 |
+| ------------------------------- | --------------------------------------- | --------------------------------------- |
+| **Stateless Server Design**     | No server-side session storage          | Horizontal scalability, easy deployment |
+| **Managed Database (Supabase)** | Reduce operational overhead             | Built-in auth, RLS, automatic backups   |
+| **API Gateway Pattern**         | Centralized service access              | Security, monitoring, rate limiting     |
+| **Event-Driven Real-time**      | Socket.IO for live features             | Instant messaging, presence tracking    |
+| **Multi-tier Authentication**   | Different auth for different user types | Security isolation, appropriate UX      |
 
 ---
 
@@ -78,11 +78,13 @@
 ### Amazon S3 Integration
 
 **Implementation Details:**
+
 - SDK: `@aws-sdk/client-s3` v3.693.0
 - Security: `@aws-sdk/s3-request-presigner` for secure uploads
 - Pattern: Server-generated presigned URLs with expiration
 
 **Architecture:**
+
 ```
 ┌──────────┐    1. Request Upload URL    ┌──────────────┐
 │  Client  │ ────────────────────────────▶│    Server    │
@@ -100,25 +102,27 @@
 ```
 
 **Security Benefits:**
+
 - Client never has direct AWS credentials
 - URLs expire after defined period
 - Server controls access permissions
 - Audit trail through server logs
 
 **Use Cases in Project:**
+
 - User file uploads (documents, images)
 - AI-generated image storage
 - Voice recording storage for transcription
 
 ### AWS Well-Architected Framework Alignment
 
-| Pillar | Implementation |
-|--------|----------------|
+| Pillar                     | Implementation                                                   |
+| -------------------------- | ---------------------------------------------------------------- |
 | **Operational Excellence** | Health endpoints, structured logging, TEST_MODE for safe testing |
-| **Security** | Presigned URLs, JWT tokens, environment secrets, RLS |
-| **Reliability** | Managed services, stateless design, graceful error handling |
-| **Performance Efficiency** | Database indexing, connection pooling, CDN-ready static assets |
-| **Cost Optimization** | Serverless-ready, managed services, efficient resource usage |
+| **Security**               | Presigned URLs, JWT tokens, environment secrets, RLS             |
+| **Reliability**            | Managed services, stateless design, graceful error handling      |
+| **Performance Efficiency** | Database indexing, connection pooling, CDN-ready static assets   |
+| **Cost Optimization**      | Serverless-ready, managed services, efficient resource usage     |
 
 ---
 
@@ -196,20 +200,20 @@
 
 ### Security Controls Summary
 
-| Control | Implementation | OWASP Alignment |
-|---------|----------------|-----------------|
+| Control                | Implementation                     | OWASP Alignment           |
+| ---------------------- | ---------------------------------- | ------------------------- |
 | **Session Management** | HTTP-only cookies, SameSite=strict | A2: Broken Authentication |
-| **Input Validation** | Zod schemas on all inputs | A3: Injection |
-| **Access Control** | Role-based (user/admin), RLS | A1: Broken Access Control |
-| **Secrets Management** | Environment variables only | A2: Broken Authentication |
-| **CSRF Protection** | SameSite cookies | A8: CSRF |
-| **Domain Restriction** | @mojitax.com for admins | A1: Broken Access Control |
+| **Input Validation**   | Zod schemas on all inputs          | A3: Injection             |
+| **Access Control**     | Role-based (user/admin), RLS       | A1: Broken Access Control |
+| **Secrets Management** | Environment variables only         | A2: Broken Authentication |
+| **CSRF Protection**    | SameSite cookies                   | A8: CSRF                  |
+| **Domain Restriction** | @mojitax.com for admins            | A1: Broken Access Control |
 
 ### TEST_MODE Safety Pattern
 
 ```typescript
 // Prevents accidental email to 1,800+ production users during development
-if (process.env.TEST_MODE === 'true') {
+if (process.env.TEST_MODE === "true") {
   // Redirect ALL emails to test recipient
   recipient = process.env.TEST_EMAIL_RECIPIENT;
   subject = `[TEST] ${subject}`;
@@ -365,27 +369,25 @@ export const publicProcedure = t.procedure;
 export const protectedProcedure = t.procedure.use(requireUser);
 
 // Admin - Requires admin role
-export const adminProcedure = t.procedure
-  .use(requireUser)
-  .use(requireAdmin);
+export const adminProcedure = t.procedure.use(requireUser).use(requireAdmin);
 ```
 
 ### Real-Time Events (Socket.IO)
 
 ```typescript
 // Server Events
-socket.emit('message:new', message);      // New message in channel
-socket.emit('message:delete', messageId); // Message removed
-socket.emit('user:online', userId);       // User came online
-socket.emit('user:typing', { channelId, userId }); // Typing indicator
-socket.emit('notification:new', notification);     // New notification
+socket.emit("message:new", message); // New message in channel
+socket.emit("message:delete", messageId); // Message removed
+socket.emit("user:online", userId); // User came online
+socket.emit("user:typing", { channelId, userId }); // Typing indicator
+socket.emit("notification:new", notification); // New notification
 
 // Client Events
-socket.on('channel:join', channelId);     // Join channel room
-socket.on('channel:leave', channelId);    // Leave channel room
+socket.on("channel:join", channelId); // Join channel room
+socket.on("channel:leave", channelId); // Leave channel room
 
 // Online User Tracking
-onlineUsers: Map<userId, Set<socketId>>   // Multi-device support
+onlineUsers: Map<userId, Set<socketId>>; // Multi-device support
 ```
 
 ---
@@ -437,14 +439,14 @@ onlineUsers: Map<userId, Set<socketId>>   // Multi-device support
 
 ### Service Configuration Summary
 
-| Service | Purpose | Auth Method | Error Handling |
-|---------|---------|-------------|----------------|
-| **AWS S3** | File storage | Presigned URLs | Retry with backoff |
-| **SendGrid** | Transactional email | API Key | Logged to database |
-| **Learnworlds** | Member verification | OAuth2 Client Credentials | Token caching |
-| **Google OAuth** | Admin authentication | Supabase Auth Provider | Domain validation |
-| **Gemini AI** | Chatbot responses | Bearer Token | Graceful fallback |
-| **Whisper** | Voice transcription | Bearer Token | Size validation |
+| Service          | Purpose              | Auth Method               | Error Handling     |
+| ---------------- | -------------------- | ------------------------- | ------------------ |
+| **AWS S3**       | File storage         | Presigned URLs            | Retry with backoff |
+| **SendGrid**     | Transactional email  | API Key                   | Logged to database |
+| **Learnworlds**  | Member verification  | OAuth2 Client Credentials | Token caching      |
+| **Google OAuth** | Admin authentication | Supabase Auth Provider    | Domain validation  |
+| **Gemini AI**    | Chatbot responses    | Bearer Token              | Graceful fallback  |
+| **Whisper**      | Voice transcription  | Bearer Token              | Size validation    |
 
 ---
 
@@ -452,32 +454,32 @@ onlineUsers: Map<userId, Set<socketId>>   // Multi-device support
 
 ### Domain 1: Design Secure Architectures (30%)
 
-| Exam Topic | Project Implementation |
-|------------|------------------------|
-| Design secure access to AWS resources | S3 presigned URLs with server-side generation |
-| Design secure workloads and applications | Multi-tier auth, JWT tokens, domain restrictions |
-| Determine appropriate data security controls | RLS policies, encryption in transit (HTTPS) |
+| Exam Topic                                   | Project Implementation                           |
+| -------------------------------------------- | ------------------------------------------------ |
+| Design secure access to AWS resources        | S3 presigned URLs with server-side generation    |
+| Design secure workloads and applications     | Multi-tier auth, JWT tokens, domain restrictions |
+| Determine appropriate data security controls | RLS policies, encryption in transit (HTTPS)      |
 
 ### Domain 2: Design Resilient Architectures (26%)
 
-| Exam Topic | Project Implementation |
-|------------|------------------------|
-| Design scalable and loosely coupled architectures | Stateless server, managed database, API gateway |
-| Design highly available architectures | Managed services (Supabase), graceful degradation |
+| Exam Topic                                        | Project Implementation                            |
+| ------------------------------------------------- | ------------------------------------------------- |
+| Design scalable and loosely coupled architectures | Stateless server, managed database, API gateway   |
+| Design highly available architectures             | Managed services (Supabase), graceful degradation |
 
 ### Domain 3: Design High-Performing Architectures (24%)
 
-| Exam Topic | Project Implementation |
-|------------|------------------------|
-| Determine high-performing database solutions | PostgreSQL indexing, connection pooling |
-| Determine high-performing architectures | Real-time Socket.IO, CDN-ready static assets |
-| Determine high-performing data ingestion | Direct S3 uploads via presigned URLs |
+| Exam Topic                                   | Project Implementation                       |
+| -------------------------------------------- | -------------------------------------------- |
+| Determine high-performing database solutions | PostgreSQL indexing, connection pooling      |
+| Determine high-performing architectures      | Real-time Socket.IO, CDN-ready static assets |
+| Determine high-performing data ingestion     | Direct S3 uploads via presigned URLs         |
 
 ### Domain 4: Design Cost-Optimized Architectures (20%)
 
-| Exam Topic | Project Implementation |
-|------------|------------------------|
-| Design cost-optimized storage solutions | S3 for object storage, managed DB |
+| Exam Topic                              | Project Implementation                     |
+| --------------------------------------- | ------------------------------------------ |
+| Design cost-optimized storage solutions | S3 for object storage, managed DB          |
 | Design cost-optimized compute solutions | Serverless-ready, efficient resource usage |
 
 ---
@@ -487,18 +489,23 @@ onlineUsers: Map<userId, Set<socketId>>   // Multi-device support
 ### For Resume/CV
 
 **Cloud Architecture & AWS**
+
 > "Designed and implemented AWS S3 integration using presigned URLs for secure file storage serving 1,800+ users, following AWS Well-Architected Framework principles for security and cost optimization."
 
 **Security Architecture**
+
 > "Architected a multi-tier authentication system combining JWT tokens, email OTP verification, and Google OAuth with domain restrictions, implementing OWASP security best practices including CSRF protection and secure session management."
 
 **Database Design**
+
 > "Designed and optimized a PostgreSQL database schema with 10+ tables, implementing Row Level Security policies, composite indexes, and proper normalization to support a real-time collaborative platform."
 
 **System Integration**
+
 > "Integrated multiple third-party services (SendGrid, OAuth providers, AI/ML APIs) through a centralized API gateway pattern, implementing proper error handling, retry logic, and audit logging."
 
 **Real-Time Systems**
+
 > "Architected real-time communication infrastructure using Socket.IO for instant messaging, presence tracking, and live notifications across a multi-user platform."
 
 ---
@@ -506,9 +513,11 @@ onlineUsers: Map<userId, Set<socketId>>   // Multi-device support
 ### For LinkedIn Profile
 
 **Summary Section:**
+
 > Solutions Architect with hands-on experience designing cloud-native applications on AWS. Recently certified AWS Solutions Architect Associate with practical experience implementing S3, multi-tier authentication, and scalable database architectures for production systems serving 1,800+ users.
 
 **Experience Bullet Points:**
+
 - Architected secure file storage using AWS S3 presigned URLs, eliminating client-side credential exposure
 - Designed multi-tier authentication (JWT + OAuth + OTP) serving different user personas with appropriate security controls
 - Implemented PostgreSQL database with Row Level Security and optimized indexing for a real-time collaborative platform
@@ -543,6 +552,7 @@ onlineUsers: Map<userId, Set<socketId>>   // Multi-device support
 Design a secure, scalable platform for 1,800+ tax professionals to collaborate, access learning resources, and receive AI-powered support, with different access levels for public visitors, members, and administrators.
 
 **Solution:**
+
 - Designed 3-tier authentication architecture with appropriate security controls per user type
 - Implemented AWS S3 integration with presigned URLs for secure file handling
 - Created PostgreSQL schema with RLS policies and optimized indexes
@@ -552,6 +562,7 @@ Design a secure, scalable platform for 1,800+ tax professionals to collaborate, 
 **Technologies:** AWS S3, PostgreSQL, Node.js, React, Socket.IO, JWT, OAuth 2.0
 
 **Results:**
+
 - Zero security incidents since launch
 - Sub-second message delivery for real-time features
 - 99.9% uptime using managed services
@@ -574,6 +585,7 @@ Design a secure, scalable platform for 1,800+ tax professionals to collaborate, 
 **Decision:** Implement three separate authentication tiers rather than a single unified system.
 
 **Consequences:**
+
 - (+) Appropriate security for each user type
 - (+) Better UX - members don't need complex passwords
 - (+) Admin access isolated with domain restriction
@@ -587,6 +599,7 @@ Design a secure, scalable platform for 1,800+ tax professionals to collaborate, 
 **Decision:** Use Supabase (managed PostgreSQL) instead of self-hosted database.
 
 **Consequences:**
+
 - (+) Built-in auth providers for admin OAuth
 - (+) Row Level Security for data protection
 - (+) Automatic backups and scaling
@@ -601,6 +614,7 @@ Design a secure, scalable platform for 1,800+ tax professionals to collaborate, 
 **Decision:** Generate presigned URLs server-side for all S3 operations.
 
 **Consequences:**
+
 - (+) Clients never see AWS credentials
 - (+) Fine-grained access control per request
 - (+) Audit trail through server logs
@@ -640,5 +654,5 @@ LEARNWORLDS_SCHOOL_ID=        # LMS school identifier
 
 ---
 
-*Document prepared for portfolio and credential demonstration purposes.*
-*Last updated: January 2026*
+_Document prepared for portfolio and credential demonstration purposes._
+_Last updated: January 2026_

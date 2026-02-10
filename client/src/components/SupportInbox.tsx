@@ -25,12 +25,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 interface SupportInboxProps {
   onClose?: () => void;
 }
 
 export default function SupportInbox({ onClose }: SupportInboxProps) {
+  const { user: currentUser } = useAuth();
   const { socket } = useSocket();
   const utils = trpc.useUtils();
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
@@ -119,9 +121,10 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
           {
             id: Date.now(),
             ticketId: selectedTicketId,
-            senderId: 0,
+            senderId: currentUser?.id ?? 0,
             senderType: "admin" as const,
-            senderName: "Admin",
+            senderName:
+              currentUser?.displayName || currentUser?.name || "Admin",
             content,
             createdAt: new Date(),
           },

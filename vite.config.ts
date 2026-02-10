@@ -5,7 +5,6 @@ import fs from "node:fs";
 import path from "path";
 import { defineConfig } from "vite";
 
-
 const plugins = [react(), tailwindcss(), jsxLocPlugin()];
 
 export default defineConfig({

@@ -13,25 +13,27 @@ interface ChatbotResponse {
 /**
  * Search knowledge base for relevant information
  */
-async function searchKnowledgeBase(query: string): Promise<{ question: string; answer: string }[]> {
+async function searchKnowledgeBase(
+  query: string
+): Promise<{ question: string; answer: string }[]> {
   const allKB = await db.getAllKnowledgeBase();
-  
+
   // Simple keyword matching - can be enhanced with vector search later
   const queryLower = query.toLowerCase();
   const keywords = queryLower.split(/\s+/).filter(w => w.length > 3);
-  
+
   const matches = allKB
     .map(entry => {
       const questionLower = entry.question.toLowerCase();
       const answerLower = entry.answer.toLowerCase();
-      
+
       // Calculate relevance score
       let score = 0;
       keywords.forEach(keyword => {
         if (questionLower.includes(keyword)) score += 3;
         if (answerLower.includes(keyword)) score += 1;
       });
-      
+
       return { entry, score };
     })
     .filter(item => item.score > 0)
@@ -41,7 +43,7 @@ async function searchKnowledgeBase(query: string): Promise<{ question: string; a
       question: item.entry.question,
       answer: item.entry.answer,
     }));
-  
+
   return matches;
 }
 
@@ -52,27 +54,38 @@ export async function generateChatbotResponse(
   userMessage: string,
   channelId: number,
   userId: number,
-  conversationHistory: Array<{ role: "user" | "assistant"; content: string }> = []
+  conversationHistory: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }> = []
 ): Promise<ChatbotResponse> {
   try {
     // Search knowledge base
     const kbMatches = await searchKnowledgeBase(userMessage);
-    
+
     // Check for explicit escalation requests
-    const escalationKeywords = ["human", "agent", "person", "talk to someone", "speak to team", "real person"];
-    const requestsHuman = escalationKeywords.some(keyword => 
+    const escalationKeywords = [
+      "human",
+      "agent",
+      "person",
+      "talk to someone",
+      "speak to team",
+      "real person",
+    ];
+    const requestsHuman = escalationKeywords.some(keyword =>
       userMessage.toLowerCase().includes(keyword)
     );
-    
+
     if (requestsHuman) {
       return {
-        content: "I understand you'd like to speak with a human team member. Let me connect you with Team MojiTax. They'll be able to assist you shortly.\n\nIn the meantime, feel free to describe your question in detail so they have context when they respond.",
+        content:
+          "I understand you'd like to speak with a human team member. Let me connect you with Team MojiTax. They'll be able to assist you shortly.\n\nIn the meantime, feel free to describe your question in detail so they have context when they respond.",
         confidence: "high",
         shouldEscalate: true,
         knowledgeBaseUsed: false,
       };
     }
-    
+
     // Build context for LLM
     let systemPrompt = `You are @moji, a helpful AI assistant for MojiTax Connect, a community platform for tax professionals studying for ADIT (Advanced Diploma in International Taxation) and other tax qualifications.
 
@@ -96,21 +109,25 @@ Important guidelines:
       });
       systemPrompt += `\nUse this information to help answer the user's question, but rephrase it naturally.`;
     }
-    
+
     // Build conversation history for context
-    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    const messages: Array<{
+      role: "system" | "user" | "assistant";
+      content: string;
+    }> = [
       { role: "system", content: systemPrompt },
       ...conversationHistory.slice(-4), // Last 4 messages for context
       { role: "user", content: userMessage },
     ];
-    
+
     // Call LLM
     const response = await invokeLLM({ messages });
     const messageContent = response.choices[0]?.message?.content;
-    const botResponse = typeof messageContent === 'string' 
-      ? messageContent 
-      : "I'm sorry, I couldn't generate a response. Please try again or contact Team MojiTax for assistance.";
-    
+    const botResponse =
+      typeof messageContent === "string"
+        ? messageContent
+        : "I'm sorry, I couldn't generate a response. Please try again or contact Team MojiTax for assistance.";
+
     // Determine confidence based on knowledge base matches and response
     let confidence: "high" | "medium" | "low" = "medium";
     if (kbMatches.length >= 2) {
@@ -118,21 +135,32 @@ Important guidelines:
     } else if (kbMatches.length === 0) {
       confidence = "low";
     }
-    
+
     // Check if response indicates uncertainty
-    const uncertaintyPhrases = ["i'm not sure", "i don't know", "unclear", "uncertain", "not confident"];
-    if (uncertaintyPhrases.some(phrase => botResponse.toLowerCase().includes(phrase))) {
+    const uncertaintyPhrases = [
+      "i'm not sure",
+      "i don't know",
+      "unclear",
+      "uncertain",
+      "not confident",
+    ];
+    if (
+      uncertaintyPhrases.some(phrase =>
+        botResponse.toLowerCase().includes(phrase)
+      )
+    ) {
       confidence = "low";
     }
-    
+
     // Decide if we should escalate
     const shouldEscalate = confidence === "low" && kbMatches.length === 0;
-    
+
     let finalResponse = botResponse;
     if (shouldEscalate) {
-      finalResponse += "\n\n_If you'd like more detailed assistance, I can connect you with Team MojiTax who can provide expert guidance._";
+      finalResponse +=
+        "\n\n_If you'd like more detailed assistance, I can connect you with Team MojiTax who can provide expert guidance._";
     }
-    
+
     return {
       content: finalResponse,
       confidence,
@@ -142,9 +170,10 @@ Important guidelines:
     };
   } catch (error) {
     console.error("[Chatbot] Error generating response:", error);
-    
+
     return {
-      content: "I'm experiencing technical difficulties right now. Please try again in a moment, or contact Team MojiTax directly for immediate assistance.",
+      content:
+        "I'm experiencing technical difficulties right now. Please try again in a moment, or contact Team MojiTax directly for immediate assistance.",
       confidence: "low",
       shouldEscalate: true,
       knowledgeBaseUsed: false,
@@ -162,11 +191,11 @@ export async function handleUserMessage(
 ): Promise<void> {
   // Check if message mentions @moji
   const mentionsMoji = messageContent.toLowerCase().includes("@moji");
-  
+
   if (!mentionsMoji) {
     return; // Don't respond if not mentioned
   }
-  
+
   // Get recent conversation history
   const recentMessages = await db.getChannelMessages(channelId, 10, 0);
   const conversationHistory = recentMessages
@@ -174,10 +203,12 @@ export async function handleUserMessage(
     .filter(m => m.userId === userId || m.messageType === "bot")
     .slice(-4)
     .map(m => ({
-      role: (m.messageType === "bot" ? "assistant" : "user") as "user" | "assistant",
+      role: (m.messageType === "bot" ? "assistant" : "user") as
+        | "user"
+        | "assistant",
       content: m.content,
     }));
-  
+
   // Generate bot response
   const response = await generateChatbotResponse(
     messageContent,
@@ -185,7 +216,7 @@ export async function handleUserMessage(
     userId,
     conversationHistory
   );
-  
+
   // Send bot message
   await createMessage({
     channelId,
@@ -193,7 +224,7 @@ export async function handleUserMessage(
     content: response.content,
     messageType: "bot",
   });
-  
+
   // If should escalate, create support ticket
   if (response.shouldEscalate) {
     const user = await db.getUserById(userId);
@@ -206,10 +237,12 @@ export async function handleUserMessage(
       enquiryType: "general",
       botInteractionCount: 1,
     });
-    
+
     // Send initial support message
     const tickets = await db.getAllSupportTickets();
-    const ticket = tickets.find(t => t.userId === userId && t.subject === "Escalated from @moji chatbot");
+    const ticket = tickets.find(
+      t => t.userId === userId && t.subject === "Escalated from @moji chatbot"
+    );
     if (ticket) {
       await db.createSupportMessage({
         ticketId: ticket.id,

@@ -11,26 +11,26 @@ After reviewing the actual code, the platform is **~55% complete**, NOT 15% or 8
 
 ### What's Actually Working
 
-| Component | Completion | Notes |
-|-----------|------------|-------|
-| Backend APIs (routers.ts) | 95% | All endpoints implemented |
-| Database Schema | 100% | All 10 tables with indexes |
-| Chatbot + LLM | 90% | Works, needs KB content |
-| Admin Support Inbox | 90% | Full CRUD UI works |
-| Create Post Modal | 95% | All 4 types work |
-| Channel Chat | 80% | Send/receive messages works |
-| Socket.io | 70% | Connection works, typing indicators emit |
+| Component                 | Completion | Notes                                    |
+| ------------------------- | ---------- | ---------------------------------------- |
+| Backend APIs (routers.ts) | 95%        | All endpoints implemented                |
+| Database Schema           | 100%       | All 10 tables with indexes               |
+| Chatbot + LLM             | 90%        | Works, needs KB content                  |
+| Admin Support Inbox       | 90%        | Full CRUD UI works                       |
+| Create Post Modal         | 95%        | All 4 types work                         |
+| Channel Chat              | 80%        | Send/receive messages works              |
+| Socket.io                 | 70%        | Connection works, typing indicators emit |
 
 ### What's Missing (Critical)
 
-| Issue | Impact | Fix Effort |
-|-------|--------|------------|
-| Admin login has NO password | Anyone can access admin | 2-3 hours |
-| "Chat with Team MojiTax" does nothing for users | Core feature broken | 4-6 hours |
-| No email sending | Admins get no alerts | 4-6 hours |
-| No ToS/Privacy pages | Legal blocker | 2-3 hours |
-| Online users sidebar shows fake data | UX issue | 1-2 hours |
-| XSS protection unknown | Security risk | 2-4 hours |
+| Issue                                           | Impact                  | Fix Effort |
+| ----------------------------------------------- | ----------------------- | ---------- |
+| Admin login has NO password                     | Anyone can access admin | 2-3 hours  |
+| "Chat with Team MojiTax" does nothing for users | Core feature broken     | 4-6 hours  |
+| No email sending                                | Admins get no alerts    | 4-6 hours  |
+| No ToS/Privacy pages                            | Legal blocker           | 2-3 hours  |
+| Online users sidebar shows fake data            | UX issue                | 1-2 hours  |
+| XSS protection unknown                          | Security risk           | 2-4 hours  |
 
 ---
 
@@ -39,6 +39,7 @@ After reviewing the actual code, the platform is **~55% complete**, NOT 15% or 8
 ### 1.1 Admin Password Protection
 
 **Current Code** (`client/src/pages/AdminLogin.tsx:11-21`):
+
 ```typescript
 // THIS IS INSECURE - NO PASSWORD CHECK!
 const handleAdminLogin = () => {
@@ -50,6 +51,7 @@ const handleAdminLogin = () => {
 ```
 
 **Fix Required**:
+
 1. Add password input field to AdminLogin.tsx
 2. Create `auth.adminLogin` endpoint in routers.ts
 3. Use environment variable `ADMIN_PASSWORD`
@@ -58,6 +60,7 @@ const handleAdminLogin = () => {
 6. Check session in Admin.tsx before rendering
 
 **Files to modify**:
+
 - `client/src/pages/AdminLogin.tsx`
 - `server/routers.ts` (add auth.adminLogin)
 - `client/src/pages/Admin.tsx` (add session check)
@@ -69,6 +72,7 @@ const handleAdminLogin = () => {
 **Current State**: Pages don't exist
 
 **Fix Required**:
+
 1. Create `client/src/pages/TermsOfService.tsx`
 2. Create `client/src/pages/PrivacyPolicy.tsx`
 3. Add routes in `client/src/App.tsx`
@@ -81,6 +85,7 @@ const handleAdminLogin = () => {
 **Current State**: Unknown - content rendered without sanitization
 
 **Fix Required**:
+
 1. Install DOMPurify
 2. Sanitize all user-generated content before rendering
 3. Add Content-Security-Policy header
@@ -91,6 +96,7 @@ const handleAdminLogin = () => {
 ## Phase 2: Fix "Chat with Team MojiTax" for Users
 
 **Current Code** (`client/src/components/ChatLayout.tsx:209-218`):
+
 ```typescript
 onClick={() => {
   if (isAdminMode) {
@@ -104,6 +110,7 @@ onClick={() => {
 ```
 
 **Fix Required**:
+
 1. Create support channel per user (or single support channel)
 2. Show welcome message explaining @moji
 3. Auto-trigger @moji responses (already works in backend)
@@ -111,6 +118,7 @@ onClick={() => {
 5. Create support ticket on escalation
 
 **Implementation**:
+
 ```typescript
 // When user clicks "Chat with Team MojiTax":
 1. Open a support chat panel (like admin but simpler)
@@ -122,6 +130,7 @@ onClick={() => {
 ```
 
 **Files to modify**:
+
 - `client/src/components/ChatLayout.tsx`
 - `client/src/components/UserSupportChat.tsx` (new)
 
@@ -130,11 +139,13 @@ onClick={() => {
 ## Phase 3: Email Notifications
 
 **Current State**:
+
 - Email logs table exists
 - API to create logs exists
 - NO actual email sending
 
 **Fix Required**:
+
 1. Create `server/services/email.ts`
 2. Integrate with SMTP or SendGrid/Resend
 3. Call from routers.ts when:
@@ -144,6 +155,7 @@ onClick={() => {
    - High-priority announcement → email all users
 
 **Files to create/modify**:
+
 - `server/services/email.ts` (new)
 - `server/routers.ts` (add email calls)
 
@@ -152,6 +164,7 @@ onClick={() => {
 ## Phase 4: Fix Online Users Display
 
 **Current Code** (`client/src/components/ChatLayout.tsx:376-383`):
+
 ```typescript
 {/* Online Users */}
 <div>
@@ -168,6 +181,7 @@ onClick={() => {
 ```
 
 **Fix Required**:
+
 1. Use `onlineUsers` from SocketContext
 2. Fetch user names for online user IDs
 3. Display real online users
@@ -177,6 +191,7 @@ onClick={() => {
 ## Phase 5: mojitax.co.uk Authentication
 
 **Current State**:
+
 - Uses Manus platform OAuth (works for Manus users)
 - getLoginUrl() points to Manus OAuth portal
 - NOT connected to mojitax.co.uk
@@ -184,6 +199,7 @@ onClick={() => {
 **Requirement**: Users must authenticate via mojitax.co.uk (Learnworlds LMS)
 
 **Options**:
+
 1. **Learnworlds SSO** - If they support OAuth/SAML
 2. **API Token Verification** - User provides API token, backend verifies
 3. **Keep Manus OAuth** - Accept Manus users as valid (temporary)
@@ -195,10 +211,12 @@ onClick={() => {
 ## Phase 6: User Ticket Management
 
 **Current State**:
+
 - Backend: support.getById works
 - Frontend: No UI for users to see their tickets
 
 **Fix Required**:
+
 1. Add "My Tickets" section to sidebar or user menu
 2. List user's tickets with status
 3. Allow viewing conversation history
@@ -208,39 +226,44 @@ onClick={() => {
 
 ## Implementation Priority
 
-| Phase | Priority | Effort | Blocker? |
-|-------|----------|--------|----------|
-| 1.1 Admin Password | CRITICAL | 2-3h | YES - Security |
-| 1.2 ToS/Privacy | CRITICAL | 2-3h | YES - Legal |
-| 1.3 XSS Protection | CRITICAL | 2-4h | YES - Security |
-| 2. User Support Chat | HIGH | 4-6h | YES - Core feature |
-| 3. Email Notifications | HIGH | 4-6h | Soft blocker |
-| 4. Online Users Fix | MEDIUM | 1-2h | No |
-| 5. mojitax Auth | CRITICAL | 6-10h | Needs external API |
-| 6. User Tickets UI | MEDIUM | 3-4h | No |
+| Phase                  | Priority | Effort | Blocker?           |
+| ---------------------- | -------- | ------ | ------------------ |
+| 1.1 Admin Password     | CRITICAL | 2-3h   | YES - Security     |
+| 1.2 ToS/Privacy        | CRITICAL | 2-3h   | YES - Legal        |
+| 1.3 XSS Protection     | CRITICAL | 2-4h   | YES - Security     |
+| 2. User Support Chat   | HIGH     | 4-6h   | YES - Core feature |
+| 3. Email Notifications | HIGH     | 4-6h   | Soft blocker       |
+| 4. Online Users Fix    | MEDIUM   | 1-2h   | No                 |
+| 5. mojitax Auth        | CRITICAL | 6-10h  | Needs external API |
+| 6. User Tickets UI     | MEDIUM   | 3-4h   | No                 |
 
 ---
 
 ## Execution Order
 
 ### Sprint 1: Security + Legal (1-2 days)
+
 - [ ] 1.1 Admin password protection
 - [ ] 1.2 ToS/Privacy pages
 - [ ] 1.3 XSS protection audit
 
 ### Sprint 2: Core Feature Fix (2-3 days)
+
 - [ ] 2. Fix "Chat with Team MojiTax" for users
 - [ ] 3. Implement email notifications
 - [ ] 4. Fix online users display
 
 ### Sprint 3: Authentication (3-5 days)
+
 - [ ] 5. mojitax.co.uk integration (pending API access)
 
 ### Sprint 4: User Features (2-3 days)
+
 - [ ] 6. User ticket management UI
 - [ ] Bug fixes and polish
 
 ### Ongoing
+
 - [ ] Knowledge base content (non-technical)
 - [ ] Testing and QA
 
@@ -248,16 +271,16 @@ onClick={() => {
 
 ## Key Files Reference
 
-| Purpose | File |
-|---------|------|
-| All API endpoints | `server/routers.ts` |
-| Database functions | `server/db.ts` |
-| Chatbot logic | `server/chatbot.ts` |
-| Main chat UI | `client/src/components/ChatLayout.tsx` |
-| Admin login (BROKEN) | `client/src/pages/AdminLogin.tsx` |
-| Support inbox | `client/src/components/SupportInbox.tsx` |
-| Socket context | `client/src/contexts/SocketContext.tsx` |
-| Database schema | `drizzle/schema.ts` |
+| Purpose              | File                                     |
+| -------------------- | ---------------------------------------- |
+| All API endpoints    | `server/routers.ts`                      |
+| Database functions   | `server/db.ts`                           |
+| Chatbot logic        | `server/chatbot.ts`                      |
+| Main chat UI         | `client/src/components/ChatLayout.tsx`   |
+| Admin login (BROKEN) | `client/src/pages/AdminLogin.tsx`        |
+| Support inbox        | `client/src/components/SupportInbox.tsx` |
+| Socket context       | `client/src/contexts/SocketContext.tsx`  |
+| Database schema      | `drizzle/schema.ts`                      |
 
 ---
 

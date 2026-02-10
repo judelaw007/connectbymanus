@@ -4,44 +4,55 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Save, Loader2, User, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function PlatformSettings() {
   const [platformName, setPlatformName] = useState("MojiTax Connect");
   const [adminEmail, setAdminEmail] = useState("admin@mojitax.com");
-  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] =
+    useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   const { data: settings, isLoading } = trpc.settings.get.useQuery();
-  const { data: admins, refetch: refetchAdmins } = trpc.settings.getAdmins.useQuery();
-  
+  const { data: admins, refetch: refetchAdmins } =
+    trpc.settings.getAdmins.useQuery();
+
   const updateSettingsMutation = trpc.settings.update.useMutation({
     onSuccess: () => {
       toast.success("Platform settings saved successfully");
     },
-    onError: (error) => {
+    onError: error => {
       toast.error("Failed to save settings: " + error.message);
     },
   });
 
-  const updateDisplayNameMutation = trpc.settings.updateAdminDisplayName.useMutation({
-    onSuccess: () => {
-      toast.success("Display name updated");
-      refetchAdmins();
-    },
-    onError: (error) => {
-      toast.error("Failed to update display name: " + error.message);
-    },
-  });
+  const updateDisplayNameMutation =
+    trpc.settings.updateAdminDisplayName.useMutation({
+      onSuccess: () => {
+        toast.success("Display name updated");
+        refetchAdmins();
+      },
+      onError: error => {
+        toast.error("Failed to update display name: " + error.message);
+      },
+    });
 
   useEffect(() => {
     if (settings) {
       if (settings.platform_name) setPlatformName(settings.platform_name);
       if (settings.admin_email) setAdminEmail(settings.admin_email);
       if (settings.email_notifications_enabled !== undefined) {
-        setEmailNotificationsEnabled(settings.email_notifications_enabled === 'true');
+        setEmailNotificationsEnabled(
+          settings.email_notifications_enabled === "true"
+        );
       }
     }
   }, [settings]);
@@ -59,7 +70,10 @@ export default function PlatformSettings() {
     }
   };
 
-  const handleDisplayNameChange = async (userId: number, displayName: string) => {
+  const handleDisplayNameChange = async (
+    userId: number,
+    displayName: string
+  ) => {
     await updateDisplayNameMutation.mutateAsync({ userId, displayName });
   };
 
@@ -81,29 +95,31 @@ export default function PlatformSettings() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="platform-name">Platform Name</Label>
-            <Input 
-              id="platform-name" 
+            <Input
+              id="platform-name"
               value={platformName}
-              onChange={(e) => setPlatformName(e.target.value)}
+              onChange={e => setPlatformName(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="admin-email">Admin Email</Label>
-            <Input 
-              id="admin-email" 
-              type="email" 
+            <Input
+              id="admin-email"
+              type="email"
               value={adminEmail}
-              onChange={(e) => setAdminEmail(e.target.value)}
+              onChange={e => setAdminEmail(e.target.value)}
             />
           </div>
 
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <p className="font-medium">Email notifications enabled</p>
-              <p className="text-sm text-muted-foreground">Send email notifications for announcements and mentions</p>
+              <p className="text-sm text-muted-foreground">
+                Send email notifications for announcements and mentions
+              </p>
             </div>
-            <Switch 
+            <Switch
               checked={emailNotificationsEnabled}
               onCheckedChange={setEmailNotificationsEnabled}
             />
@@ -127,22 +143,24 @@ export default function PlatformSettings() {
             Admin Display Names
           </CardTitle>
           <CardDescription>
-            Set display names for admin users. This name will be shown in chat messages instead of "Admin".
+            Set display names for admin users. This name will be shown in chat
+            messages instead of "Admin".
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {admins && admins.length > 0 ? (
             admins.map((admin: any) => (
-              <AdminDisplayNameRow 
-                key={admin.id} 
-                admin={admin} 
+              <AdminDisplayNameRow
+                key={admin.id}
+                admin={admin}
                 onSave={handleDisplayNameChange}
                 isSaving={updateDisplayNameMutation.isPending}
               />
             ))
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No admin users found. Admin users will appear here once they sign in.
+              No admin users found. Admin users will appear here once they sign
+              in.
             </p>
           )}
         </CardContent>
@@ -162,8 +180,14 @@ interface AdminDisplayNameRowProps {
   isSaving: boolean;
 }
 
-function AdminDisplayNameRow({ admin, onSave, isSaving }: AdminDisplayNameRowProps) {
-  const [displayName, setDisplayName] = useState(admin.displayName || admin.name || "");
+function AdminDisplayNameRow({
+  admin,
+  onSave,
+  isSaving,
+}: AdminDisplayNameRowProps) {
+  const [displayName, setDisplayName] = useState(
+    admin.displayName || admin.name || ""
+  );
   const [hasChanged, setHasChanged] = useState(false);
 
   const handleChange = (value: string) => {
@@ -180,16 +204,16 @@ function AdminDisplayNameRow({ admin, onSave, isSaving }: AdminDisplayNameRowPro
     <div className="flex items-center gap-3 p-3 border rounded-lg">
       <div className="flex-1">
         <p className="text-sm text-muted-foreground">{admin.email}</p>
-        <Input 
+        <Input
           value={displayName}
-          onChange={(e) => handleChange(e.target.value)}
+          onChange={e => handleChange(e.target.value)}
           placeholder="Enter display name (e.g., Esther, Jude)"
           className="mt-1"
         />
       </div>
-      <Button 
-        size="sm" 
-        onClick={handleSave} 
+      <Button
+        size="sm"
+        onClick={handleSave}
         disabled={!hasChanged || isSaving || !displayName.trim()}
         variant={hasChanged ? "default" : "outline"}
       >

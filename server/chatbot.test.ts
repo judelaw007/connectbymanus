@@ -13,7 +13,8 @@ describe("@moji Chatbot System", () => {
       // Add test knowledge base entry
       await db.createKnowledgeBaseEntry({
         question: "What is VAT?",
-        answer: "VAT (Value Added Tax) is a consumption tax placed on a product whenever value is added at each stage of the supply chain, from production to the point of sale.",
+        answer:
+          "VAT (Value Added Tax) is a consumption tax placed on a product whenever value is added at each stage of the supply chain, from production to the point of sale.",
       });
     }
   });
