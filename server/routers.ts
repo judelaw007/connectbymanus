@@ -788,6 +788,26 @@ export const appRouter = router({
           status: "open",
         });
 
+        // Email admin(s) about the new ticket (fire-and-forget)
+        db.getAdminUsers()
+          .then(admins => {
+            for (const admin of admins) {
+              if (admin.email) {
+                emailService
+                  .sendSupportUpdate(admin.email, admin.name, {
+                    ticketId,
+                    subject: input.subject,
+                    status: "New ticket",
+                    latestMessage: input.initialMessage,
+                  })
+                  .catch(err =>
+                    console.error("[Email] Failed to notify admin:", err)
+                  );
+              }
+            }
+          })
+          .catch(err => console.error("[Email] Failed to fetch admins:", err));
+
         return { ticketId, success: true };
       }),
 
@@ -853,6 +873,41 @@ export const appRouter = router({
           ticket.userId
         );
 
+        // Email the other party about the reply (fire-and-forget)
+        if (senderType === "admin" && ticket.userEmail) {
+          // Admin replied → email the user
+          emailService
+            .sendSupportUpdate(ticket.userEmail, ticket.userName, {
+              ticketId: input.ticketId,
+              subject: ticket.subject,
+              status: "New reply from support",
+              latestMessage: input.content,
+            })
+            .catch(err => console.error("[Email] Failed to notify user:", err));
+        } else if (senderType === "user") {
+          // User replied → email admin(s)
+          db.getAdminUsers()
+            .then(admins => {
+              for (const admin of admins) {
+                if (admin.email) {
+                  emailService
+                    .sendSupportUpdate(admin.email, admin.name, {
+                      ticketId: input.ticketId,
+                      subject: ticket.subject,
+                      status: "New reply from user",
+                      latestMessage: input.content,
+                    })
+                    .catch(err =>
+                      console.error("[Email] Failed to notify admin:", err)
+                    );
+                }
+              }
+            })
+            .catch(err =>
+              console.error("[Email] Failed to fetch admins:", err)
+            );
+        }
+
         return { messageId, success: true };
       }),
 
@@ -891,6 +946,19 @@ export const appRouter = router({
           emitSupportTicketUpdate(ticket.userId, input.ticketId, {
             status: "closed",
           });
+
+          // Email user that their ticket was closed (fire-and-forget)
+          if (ticket.userEmail) {
+            emailService
+              .sendSupportUpdate(ticket.userEmail, ticket.userName, {
+                ticketId: input.ticketId,
+                subject: ticket.subject,
+                status: "Closed",
+              })
+              .catch(err =>
+                console.error("[Email] Failed to notify user:", err)
+              );
+          }
         }
 
         return { success: true };
@@ -1377,6 +1445,18 @@ export const appRouter = router({
         await db.updatePlatformSettings(settings, ctx.user.id);
         return { success: true };
       }),
+
+    // Dashboard stats for admin overview
+    dashboardStats: adminProcedure.query(async () => {
+      const [totalUsers, messagesToday, emailsSentThisWeek] = await Promise.all(
+        [
+          db.getTotalUserCount(),
+          db.getMessagesTodayCount(),
+          db.getEmailsSentThisWeekCount(),
+        ]
+      );
+      return { totalUsers, messagesToday, emailsSentThisWeek };
+    }),
 
     // Get admin users with their display names
     getAdmins: adminProcedure.query(async () => {

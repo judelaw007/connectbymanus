@@ -7,8 +7,8 @@ import * as db from "../db";
 
 let io: SocketIOServer | null = null;
 
-// Track online users
-const onlineUsers = new Map<number, Set<string>>(); // userId -> Set of socketIds
+// Track online users: userId -> { name, socketIds }
+const onlineUsers = new Map<number, { name: string; socketIds: Set<string> }>();
 
 export function initializeSocket(httpServer: HTTPServer) {
   io = new SocketIOServer(httpServer, {
@@ -53,6 +53,8 @@ export function initializeSocket(httpServer: HTTPServer) {
       // Attach user info to socket
       socket.data.userId = user.id;
       socket.data.userRole = user.role;
+      socket.data.userName =
+        user.displayName || user.name || user.email || "User";
       next();
     } catch (error) {
       next(new Error("Authentication failed"));
@@ -61,16 +63,23 @@ export function initializeSocket(httpServer: HTTPServer) {
 
   io.on("connection", socket => {
     const userId = socket.data.userId;
+    const userName = socket.data.userName;
     console.log(`[Socket] User ${userId} connected (${socket.id})`);
 
     // Track online status
     if (!onlineUsers.has(userId)) {
-      onlineUsers.set(userId, new Set());
+      onlineUsers.set(userId, { name: userName, socketIds: new Set() });
     }
-    onlineUsers.get(userId)!.add(socket.id);
+    onlineUsers.get(userId)!.socketIds.add(socket.id);
 
-    // Broadcast online status
-    io!.emit("user:online", { userId });
+    // Broadcast online status with name
+    io!.emit("user:online", { userId, name: userName });
+
+    // Send the current list of online users to the newly connected socket
+    const currentOnline = Array.from(onlineUsers.entries()).map(
+      ([id, info]) => ({ userId: id, name: info.name })
+    );
+    socket.emit("users:online-list", currentOnline);
 
     // Join user's personal room for direct notifications
     socket.join(`user:${userId}`);
@@ -137,12 +146,12 @@ export function initializeSocket(httpServer: HTTPServer) {
     socket.on("disconnect", () => {
       console.log(`[Socket] User ${userId} disconnected (${socket.id})`);
 
-      const userSockets = onlineUsers.get(userId);
-      if (userSockets) {
-        userSockets.delete(socket.id);
+      const userEntry = onlineUsers.get(userId);
+      if (userEntry) {
+        userEntry.socketIds.delete(socket.id);
 
         // If user has no more connections, mark as offline
-        if (userSockets.size === 0) {
+        if (userEntry.socketIds.size === 0) {
           onlineUsers.delete(userId);
           io!.emit("user:offline", { userId });
         }
@@ -163,6 +172,13 @@ export function getIO(): SocketIOServer {
 
 export function getOnlineUsers(): number[] {
   return Array.from(onlineUsers.keys());
+}
+
+export function getOnlineUsersWithNames(): { userId: number; name: string }[] {
+  return Array.from(onlineUsers.entries()).map(([id, info]) => ({
+    userId: id,
+    name: info.name,
+  }));
 }
 
 export function isUserOnline(userId: number): boolean {

@@ -70,6 +70,7 @@ export default function Admin() {
   };
 
   const { data: channels } = trpc.channels.getPublic.useQuery();
+  const { data: stats } = trpc.settings.dashboardStats.useQuery();
 
   // If in chat mode, show the regular chat interface with admin privileges
   if (viewMode === "chat") {
@@ -130,7 +131,9 @@ export default function Admin() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-2xl font-bold">
+                    {stats?.totalUsers ?? 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     MojiTax customers
                   </p>
@@ -162,7 +165,9 @@ export default function Admin() {
                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-2xl font-bold">
+                    {stats?.messagesToday ?? 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Across all channels
                   </p>
@@ -177,7 +182,9 @@ export default function Admin() {
                   <Mail className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-2xl font-bold">
+                    {stats?.emailsSentThisWeek ?? 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">This week</p>
                 </CardContent>
               </Card>

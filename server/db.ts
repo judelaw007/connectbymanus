@@ -1803,3 +1803,59 @@ export async function getAdminUsers(): Promise<User[]> {
 
   return (data || []).map(snakeToCamel);
 }
+
+// ============= Dashboard Stats Functions =============
+
+export async function getTotalUserCount(): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+
+  const { count, error } = await supabase
+    .from("users")
+    .select("*", { count: "exact", head: true });
+
+  if (error) {
+    console.error("[Database] Error counting users:", error);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+export async function getMessagesTodayCount(): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { count, error } = await supabase
+    .from("messages")
+    .select("*", { count: "exact", head: true })
+    .gte("created_at", today.toISOString());
+
+  if (error) {
+    console.error("[Database] Error counting messages today:", error);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+export async function getEmailsSentThisWeekCount(): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const { count, error } = await supabase
+    .from("email_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "sent")
+    .gte("created_at", weekAgo.toISOString());
+
+  if (error) {
+    console.error("[Database] Error counting emails:", error);
+    return 0;
+  }
+  return count ?? 0;
+}
