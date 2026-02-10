@@ -838,16 +838,20 @@ export const appRouter = router({
           lastMessageAt: new Date(),
         });
 
-        // Broadcast message to everyone in the ticket room
-        emitSupportMessage(input.ticketId, {
-          id: messageId,
-          ticketId: input.ticketId,
-          senderId: ctx.user.id,
-          senderType,
-          senderName: ctx.user.displayName || ctx.user.name || ctx.user.email,
-          content: input.content,
-          createdAt: new Date(),
-        });
+        // Broadcast message to ticket room, admins, and ticket owner
+        emitSupportMessage(
+          input.ticketId,
+          {
+            id: messageId,
+            ticketId: input.ticketId,
+            senderId: ctx.user.id,
+            senderType,
+            senderName: ctx.user.displayName || ctx.user.name || ctx.user.email,
+            content: input.content,
+            createdAt: new Date(),
+          },
+          ticket.userId
+        );
 
         return { messageId, success: true };
       }),
