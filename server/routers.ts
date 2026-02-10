@@ -13,6 +13,11 @@ import * as learnworldsService from "./services/learnworlds";
 import { SignJWT } from "jose";
 import { ENV } from "./_core/env";
 import { timingSafeEqual, createHash } from "crypto";
+import {
+  emitSupportTicketToAdmins,
+  emitSupportMessage,
+  emitSupportTicketUpdate,
+} from "./_core/socket";
 
 // Admin-only procedure
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -774,7 +779,14 @@ export const appRouter = router({
           content: input.initialMessage,
         });
 
-        // TODO: Send email notification to admin@mojitax.com
+        // Notify admins in real-time
+        emitSupportTicketToAdmins({
+          ticketId,
+          subject: input.subject,
+          userId: ctx.user.id,
+          userName: ctx.user.displayName || ctx.user.name || ctx.user.email,
+          status: "open",
+        });
 
         return { ticketId, success: true };
       }),
@@ -814,7 +826,16 @@ export const appRouter = router({
           lastMessageAt: new Date(),
         });
 
-        // TODO: Send email notification if recipient is offline
+        // Broadcast message to everyone in the ticket room
+        emitSupportMessage(input.ticketId, {
+          id: messageId,
+          ticketId: input.ticketId,
+          senderId: ctx.user.id,
+          senderType: ctx.user.role === "admin" ? "admin" : "user",
+          senderName: ctx.user.displayName || ctx.user.name || ctx.user.email,
+          content: input.content,
+          createdAt: new Date(),
+        });
 
         return { messageId, success: true };
       }),
@@ -823,10 +844,19 @@ export const appRouter = router({
     assign: adminProcedure
       .input(z.object({ ticketId: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        const ticket = await db.getSupportTicketById(input.ticketId);
         await db.updateSupportTicket(input.ticketId, {
           status: "in-progress",
           assignedToAdminId: ctx.user.id,
         });
+
+        // Notify the ticket owner that an admin picked it up
+        if (ticket) {
+          emitSupportTicketUpdate(ticket.userId, input.ticketId, {
+            status: "in-progress",
+          });
+        }
+
         return { success: true };
       }),
 
@@ -834,11 +864,19 @@ export const appRouter = router({
     close: adminProcedure
       .input(z.object({ ticketId: z.number() }))
       .mutation(async ({ input }) => {
+        const ticket = await db.getSupportTicketById(input.ticketId);
         await db.updateSupportTicket(input.ticketId, {
           status: "closed",
           closedAt: new Date(),
         });
-        // TODO: Send email transcript to user
+
+        // Notify the ticket owner
+        if (ticket) {
+          emitSupportTicketUpdate(ticket.userId, input.ticketId, {
+            status: "closed",
+          });
+        }
+
         return { success: true };
       }),
   }),

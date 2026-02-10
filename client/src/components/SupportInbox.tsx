@@ -1,20 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { useSocket } from "@/contexts/SocketContext";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { 
-  Send, 
-  ArrowLeft, 
-  Clock, 
-  CheckCircle2, 
+import {
+  Send,
+  ArrowLeft,
+  Clock,
+  CheckCircle2,
   AlertCircle,
   User,
   Search,
-  Plus
+  Plus,
 } from "lucide-react";
 import {
   Dialog,
@@ -30,6 +31,7 @@ interface SupportInboxProps {
 }
 
 export default function SupportInbox({ onClose }: SupportInboxProps) {
+  const { socket } = useSocket();
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
   const [replyInput, setReplyInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,11 +40,13 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
   const [newConversationSubject, setNewConversationSubject] = useState("");
   const [newConversationMessage, setNewConversationMessage] = useState("");
 
-  const { data: tickets, refetch: refetchTickets } = trpc.support.getAll.useQuery();
-  const { data: ticketDetails, refetch: refetchTicketDetails } = trpc.support.getById.useQuery(
-    { ticketId: selectedTicketId! },
-    { enabled: !!selectedTicketId }
-  );
+  const { data: tickets, refetch: refetchTickets } =
+    trpc.support.getAll.useQuery();
+  const { data: ticketDetails, refetch: refetchTicketDetails } =
+    trpc.support.getById.useQuery(
+      { ticketId: selectedTicketId! },
+      { enabled: !!selectedTicketId }
+    );
 
   const replyMutation = trpc.support.reply.useMutation({
     onSuccess: () => {
@@ -66,6 +70,39 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
       setSelectedTicketId(null);
     },
   });
+
+  // Join/leave support ticket socket room for real-time messages
+  useEffect(() => {
+    if (!socket || !selectedTicketId) return;
+    socket.emit("support:join", selectedTicketId);
+    return () => {
+      socket.emit("support:leave", selectedTicketId);
+    };
+  }, [socket, selectedTicketId]);
+
+  // Listen for new tickets and messages in real-time
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewTicket = () => {
+      refetchTickets();
+    };
+
+    const handleNewMessage = (data: { ticketId: number }) => {
+      if (data.ticketId === selectedTicketId) {
+        refetchTicketDetails();
+      }
+      refetchTickets();
+    };
+
+    socket.on("support:new-ticket", handleNewTicket);
+    socket.on("support:new-message", handleNewMessage);
+
+    return () => {
+      socket.off("support:new-ticket", handleNewTicket);
+      socket.off("support:new-message", handleNewMessage);
+    };
+  }, [socket, selectedTicketId, refetchTickets, refetchTicketDetails]);
 
   const handleSendReply = async () => {
     if (!replyInput.trim() || !selectedTicketId) return;
@@ -114,7 +151,10 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
 
   const formatTime = (date: Date | string) => {
     const d = new Date(date);
-    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const formatDate = (date: Date | string) => {
@@ -126,15 +166,16 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
     if (!name) return "U";
     return name
       .split(" ")
-      .map((n) => n[0])
+      .map(n => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
   };
 
-  const filteredTickets = tickets?.filter((ticket) =>
-    ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ticket.userName?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTickets = tickets?.filter(
+    ticket =>
+      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.userName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (selectedTicketId && ticketDetails && ticketDetails.ticket) {
@@ -187,7 +228,7 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
         {/* Messages */}
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4 max-w-4xl mx-auto">
-            {messages?.map((msg) => (
+            {messages?.map(msg => (
               <div
                 key={msg.id}
                 className={`flex gap-3 ${
@@ -195,23 +236,41 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
                 }`}
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className={msg.senderType === "admin" ? "bg-accent text-accent-foreground" : ""}>
+                  <AvatarFallback
+                    className={
+                      msg.senderType === "admin"
+                        ? "bg-accent text-accent-foreground"
+                        : ""
+                    }
+                  >
                     {getInitials(msg.senderName)}
                   </AvatarFallback>
                 </Avatar>
-                <div className={`flex-1 ${msg.senderType === "admin" ? "text-right" : ""}`}>
+                <div
+                  className={`flex-1 ${msg.senderType === "admin" ? "text-right" : ""}`}
+                >
                   <div className="flex items-center gap-2 mb-1">
                     {msg.senderType === "user" && (
                       <>
-                        <span className="text-sm font-medium">{msg.senderName}</span>
-                        <span className="text-xs text-muted-foreground">{formatTime(msg.createdAt)}</span>
+                        <span className="text-sm font-medium">
+                          {msg.senderName}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatTime(msg.createdAt)}
+                        </span>
                       </>
                     )}
                     {msg.senderType === "admin" && (
                       <>
-                        <span className="text-xs text-muted-foreground">{formatTime(msg.createdAt)}</span>
-                        <span className="text-sm font-medium">{msg.senderName}</span>
-                        <Badge variant="outline" className="text-xs">Admin</Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {formatTime(msg.createdAt)}
+                        </span>
+                        <span className="text-sm font-medium">
+                          {msg.senderName}
+                        </span>
+                        <Badge variant="outline" className="text-xs">
+                          Admin
+                        </Badge>
                       </>
                     )}
                   </div>
@@ -238,10 +297,10 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
                 <div className="flex-1">
                   <Textarea
                     value={replyInput}
-                    onChange={(e) => setReplyInput(e.target.value)}
+                    onChange={e => setReplyInput(e.target.value)}
                     placeholder="Type your reply..."
                     className="min-h-[80px] resize-none"
-                    onKeyDown={(e) => {
+                    onKeyDown={e => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         handleSendReply();
@@ -279,10 +338,13 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
             )}
             <h2 className="text-xl font-semibold">Support Inbox</h2>
             <Badge className="bg-red-500 text-white">
-              {filteredTickets?.filter((t) => t.status === "open").length || 0}
+              {filteredTickets?.filter(t => t.status === "open").length || 0}
             </Badge>
           </div>
-          <Dialog open={showNewConversation} onOpenChange={setShowNewConversation}>
+          <Dialog
+            open={showNewConversation}
+            onOpenChange={setShowNewConversation}
+          >
             <DialogTrigger asChild>
               <Button size="sm">
                 <Plus className="h-4 w-4 mr-2" />
@@ -298,10 +360,12 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">User ID or Email</label>
+                  <label className="text-sm font-medium">
+                    User ID or Email
+                  </label>
                   <Input
                     value={newConversationUserId}
-                    onChange={(e) => setNewConversationUserId(e.target.value)}
+                    onChange={e => setNewConversationUserId(e.target.value)}
                     placeholder="Enter user ID or email"
                   />
                 </div>
@@ -309,7 +373,7 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
                   <label className="text-sm font-medium">Subject</label>
                   <Input
                     value={newConversationSubject}
-                    onChange={(e) => setNewConversationSubject(e.target.value)}
+                    onChange={e => setNewConversationSubject(e.target.value)}
                     placeholder="What is this about?"
                   />
                 </div>
@@ -317,7 +381,7 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
                   <label className="text-sm font-medium">Message</label>
                   <Textarea
                     value={newConversationMessage}
-                    onChange={(e) => setNewConversationMessage(e.target.value)}
+                    onChange={e => setNewConversationMessage(e.target.value)}
                     placeholder="Your message to the user..."
                     className="min-h-[100px]"
                   />
@@ -333,7 +397,7 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search tickets..."
             className="pl-10"
           />
@@ -344,7 +408,7 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
       <ScrollArea className="flex-1">
         <div className="divide-y">
           {filteredTickets && filteredTickets.length > 0 ? (
-            filteredTickets.map((ticket) => (
+            filteredTickets.map(ticket => (
               <button
                 key={ticket.id}
                 onClick={() => setSelectedTicketId(ticket.id)}
@@ -352,15 +416,21 @@ export default function SupportInbox({ onClose }: SupportInboxProps) {
               >
                 <div className="flex items-start gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarFallback>{getInitials(ticket.userName)}</AvatarFallback>
+                    <AvatarFallback>
+                      {getInitials(ticket.userName)}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium truncate">{ticket.userName || "Unknown User"}</span>
+                      <span className="font-medium truncate">
+                        {ticket.userName || "Unknown User"}
+                      </span>
                       {getStatusBadge(ticket.status)}
                       {getPriorityBadge(ticket.priority)}
                     </div>
-                    <p className="text-sm font-medium truncate mb-1">{ticket.subject}</p>
+                    <p className="text-sm font-medium truncate mb-1">
+                      {ticket.subject}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       Last message: {formatDate(ticket.lastMessageAt)}
                     </p>
