@@ -124,17 +124,25 @@ Estimated effort: 6-8 focused sessions.
 
 ## Key File Reference
 
-| Purpose                 | Path                                     |
-| ----------------------- | ---------------------------------------- |
-| All API endpoints       | `server/routers.ts`                      |
-| Database functions      | `server/db.ts`                           |
-| Chatbot logic           | `server/chatbot.ts`                      |
-| Main chat UI            | `client/src/components/ChatLayout.tsx`   |
-| Admin login             | `client/src/pages/AdminLogin.tsx`        |
-| Support inbox (admin)   | `client/src/components/SupportInbox.tsx` |
-| Socket.io server        | `server/_core/socket.ts`                 |
-| Socket context (client) | `client/src/contexts/SocketContext.tsx`  |
-| Email service           | `server/services/email.ts`               |
-| Routes/pages            | `client/src/App.tsx`                     |
-| tRPC procedures         | `server/_core/trpc.ts`                   |
-| Auth context            | `server/_core/context.ts`                |
+See `CLAUDE.md` for the full file-by-file map. Quick reference for Sprint 3 work:
+
+| Purpose                  | Path                                     |
+| ------------------------ | ---------------------------------------- |
+| All API endpoints        | `server/routers.ts`                      |
+| Database functions       | `server/db.ts`                           |
+| Chatbot logic            | `server/chatbot.ts`                      |
+| Main chat UI             | `client/src/components/ChatLayout.tsx`   |
+| AI chat widget (unwired) | `client/src/components/AIChatBox.tsx`    |
+| Admin dashboard          | `client/src/pages/Admin.tsx`             |
+| Admin login              | `client/src/pages/AdminLogin.tsx`        |
+| Member login             | `client/src/pages/MemberLogin.tsx`       |
+| Support inbox (admin)    | `client/src/components/SupportInbox.tsx` |
+| Socket.io server         | `server/_core/socket.ts`                 |
+| Socket context (client)  | `client/src/contexts/SocketContext.tsx`  |
+| Email service            | `server/services/email.ts`               |
+| Learnworlds integration  | `server/services/learnworlds.ts`         |
+| Routes/pages             | `client/src/App.tsx`                     |
+| tRPC procedures          | `server/_core/trpc.ts`                   |
+| Auth context             | `server/_core/context.ts`                |
+| Environment variables    | `.env.example`                           |
+| DB migrations            | `supabase/migrations/`                   |
