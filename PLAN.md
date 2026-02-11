@@ -1,56 +1,26 @@
 # MojiTax Connect — Development Plan
 
-> Last updated: 2026-02-10
-> Overall: ~55% complete | Backend 95% | Frontend has critical gaps
+> Last updated: 2026-02-11
+> Overall: ~80% complete | Backend 95% | Frontend core features done
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
 
-Sprint 1: Security and Core Fixes
-Goal: Close all CRITICAL security holes and fix the primary broken user features.
+Sprint 2: Hardening and Feature Expansion
+Goal: Add XSS hardening, build out remaining medium-priority features, prepare for production.
 Estimated effort: 3-5 focused sessions.
 
 ## Priorities
 
 ### CRITICAL — Must fix before any deployment
 
-- [ ] 1. Admin login has no password protection — anyone can access /auth/admin (SECURITY)
-  - Files: `client/src/pages/AdminLogin.tsx`, `server/routers.ts`, `client/src/pages/Admin.tsx`
-  - Add password input, create `auth.adminLogin` tRPC endpoint, use `ADMIN_PASSWORD` env var with bcrypt
-  - Set HTTP-only session cookie, check on all admin routes
-
-- [ ] 2. "Chat with Team MojiTax" does nothing for regular users (CORE FEATURE)
-  - Files: `client/src/components/ChatLayout.tsx`, new `client/src/components/UserSupportChat.tsx`
-  - Wire up onClick handler for non-admin users
-  - Show support chat panel with @moji welcome, "Request Human Agent" button
-  - Create support ticket on escalation via `support.create()`
-
-- [ ] 3. Email notifications do not actually send (NOTIFICATIONS)
-  - Files: `server/services/email.ts` (exists but not wired), `server/routers.ts`
-  - Wire SendGrid calls on: ticket create → email admin, admin reply → email user, ticket close → email transcript
-  - Requires `SENDGRID_API_KEY` and `EMAIL_FROM` env vars
-
-- [ ] 4. No Terms of Service or Privacy Policy pages (LEGAL)
-  - Create: `client/src/pages/TermsOfService.tsx`, `client/src/pages/PrivacyPolicy.tsx`
-  - Add routes in `client/src/App.tsx`, add footer links in ChatLayout
+All CRITICAL items resolved.
 
 ### HIGH — Important but not blocking initial testing
 
-- [ ] 5. Online users sidebar shows hardcoded fake data
-  - File: `client/src/components/ChatLayout.tsx` (lines ~376-383)
-  - Replace `[1,2,3,4,5].map(...)` with real data from SocketContext `onlineUsers`
-
-- [ ] 6. XSS protection unknown — user content may render unsanitized
-  - Install DOMPurify, sanitize user-generated content before rendering
-  - Add Content-Security-Policy header in Express middleware
-
-- [ ] 7. Message sending may not work reliably from frontend
-  - Debug MessageInput send button, check tRPC client config and auth state
-  - Files: `client/src/components/MessageInput.tsx`, `client/src/components/ChatLayout.tsx`
-
-- [ ] 8. Users cannot see their own support tickets
-  - Add "My Tickets" section to sidebar or user menu
-  - Connect to existing `support.getMy` tRPC endpoint
+- [ ] 6. XSS hardening — add DOMPurify and Content-Security-Policy header
+  - Current message rendering is text-safe (whitespace-pre-wrap, no HTML injection)
+  - Install DOMPurify for future HTML content, add CSP header in Express middleware
 
 ### MEDIUM — Post-launch improvements
 
@@ -63,8 +33,6 @@ Estimated effort: 3-5 focused sessions.
 ## Blockers
 
 - mojitax.co.uk OAuth: Requires API credentials and documentation from Learnworlds
-- Email sending: Requires SENDGRID_API_KEY in environment variables
-- Legal pages: Content needs legal review (can scaffold with placeholder text first)
 
 ## Completed
 
@@ -82,6 +50,13 @@ Estimated effort: 3-5 focused sessions.
 - [x] Three-column responsive layout with mobile hamburger menu
 - [x] CLAUDE.md with build commands, architecture, and code style
 - [x] Dynamic project tracking system (hooks + PLAN.md + auto-memory)
+- [x] Admin login password protection (timing-safe SHA256, HTTP-only session cookie)
+- [x] "Chat with Team MojiTax" support chat for regular users (UserSupportChat component)
+- [x] Email notifications via SendGrid (ticket create, reply, close — with logging)
+- [x] Terms of Service and Privacy Policy pages (routes + footer links)
+- [x] Online users sidebar with real Socket.io data (replaced hardcoded fake data)
+- [x] Message sending reliability (optimistic updates, error handling, Enter key support)
+- [x] "My Tickets" section for users (via UserSupportChat "Your Conversations")
 
 ## Out of Scope (for now)
 
@@ -102,7 +77,7 @@ Estimated effort: 3-5 focused sessions.
 | Database functions      | `server/db.ts`                           |
 | Chatbot logic           | `server/chatbot.ts`                      |
 | Main chat UI            | `client/src/components/ChatLayout.tsx`   |
-| Admin login (BROKEN)    | `client/src/pages/AdminLogin.tsx`        |
+| Admin login             | `client/src/pages/AdminLogin.tsx`        |
 | Support inbox (admin)   | `client/src/components/SupportInbox.tsx` |
 | Socket.io server        | `server/_core/socket.ts`                 |
 | Socket context (client) | `client/src/contexts/SocketContext.tsx`  |
