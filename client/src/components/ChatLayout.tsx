@@ -265,7 +265,9 @@ export default function ChatLayout({
   ];
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div
+      className={`${isAdminMode ? "h-full" : "h-screen"} flex flex-col bg-background`}
+    >
       {/* Admin Mode Accent Bar */}
       {isAdminMode && (
         <div className="h-1 bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500"></div>
