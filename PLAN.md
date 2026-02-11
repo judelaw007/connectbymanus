@@ -1,7 +1,7 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-11
-> Overall: ~70% complete | Backend core 90% | Frontend core features partial | Admin tools functional
+> Overall: ~75% complete | Backend core 95% | Frontend core features progressing | Admin tools functional
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
@@ -34,12 +34,12 @@ Estimated effort: 6-8 focused sessions.
 
 ### HIGH — Core feature gaps
 
-- [ ] H1. Rich post cards in chat + email distribution (#5)
-  - Posts (Events, Announcements, Articles, Newsletters) currently render as plain text messages
-  - Design and implement unique card components for each post type (event card with date/time, article card with preview, announcement banner, etc.)
-  - When admin posts to a channel, send email notification to ALL members of that channel
-  - General channel posts → email all MojiTax users
-  - Specific channel posts → email only channel members
+- [x] H1. Rich post cards in chat + email distribution (#5) ✓
+  - PostCard component with 4 styled card variants: Event (blue), Announcement (amber), Article (green), Newsletter (purple)
+  - Cards show title, content, metadata (event date/location, tags, priority badge), author, timestamp
+  - getChannelMessages LEFT JOINs posts table so message query includes full post metadata
+  - Email distribution on post creation: General channel → all users, specific channel → channel members only
+  - Email templates: sendAnnouncementEmail, sendEventEmail, sendNewsletterEmail, sendArticleEmail
 
 - [ ] H2. Unread message indicator / red badge (#7)
   - No unread message tracking exists currently
@@ -106,6 +106,7 @@ Estimated effort: 6-8 focused sessions.
 - [x] Admin login password protection (timing-safe SHA256, HTTP-only session cookie)
 - [x] "Chat with Team MojiTax" support chat for regular users (UserSupportChat component)
 - [x] Email notifications via SendGrid (ticket create, reply, close — with logging)
+- [x] Rich post cards in chat (Event, Announcement, Article, Newsletter) with styled card components + email distribution to channel members
 - [x] Terms of Service and Privacy Policy pages (routes + footer links)
 - [x] Online users sidebar with real Socket.io data (replaced hardcoded fake data)
 - [x] Message sending reliability (optimistic updates, error handling, Enter key support)

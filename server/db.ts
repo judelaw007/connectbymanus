@@ -802,6 +802,18 @@ export async function getChannelMessages(
         name,
         display_name,
         role
+      ),
+      posts (
+        id,
+        post_type,
+        title,
+        content,
+        event_date,
+        event_location,
+        tags,
+        featured_image,
+        priority_level,
+        is_pinned
       )
     `
     )
@@ -819,6 +831,21 @@ export async function getChannelMessages(
     userName: row.users?.display_name || row.users?.name,
     userRole: row.users?.role,
     users: undefined,
+    post: row.posts
+      ? {
+          id: row.posts.id,
+          postType: row.posts.post_type,
+          title: row.posts.title,
+          content: row.posts.content,
+          eventDate: row.posts.event_date,
+          eventLocation: row.posts.event_location,
+          tags: row.posts.tags,
+          featuredImage: row.posts.featured_image,
+          priorityLevel: row.posts.priority_level,
+          isPinned: row.posts.is_pinned,
+        }
+      : null,
+    posts: undefined,
   }));
 }
 
@@ -835,6 +862,18 @@ export async function getPinnedMessages(channelId: number) {
         name,
         display_name,
         role
+      ),
+      posts (
+        id,
+        post_type,
+        title,
+        content,
+        event_date,
+        event_location,
+        tags,
+        featured_image,
+        priority_level,
+        is_pinned
       )
     `
     )
@@ -852,6 +891,21 @@ export async function getPinnedMessages(channelId: number) {
     userName: row.users?.display_name || row.users?.name,
     userRole: row.users?.role,
     users: undefined,
+    post: row.posts
+      ? {
+          id: row.posts.id,
+          postType: row.posts.post_type,
+          title: row.posts.title,
+          content: row.posts.content,
+          eventDate: row.posts.event_date,
+          eventLocation: row.posts.event_location,
+          tags: row.posts.tags,
+          featuredImage: row.posts.featured_image,
+          priorityLevel: row.posts.priority_level,
+          isPinned: row.posts.is_pinned,
+        }
+      : null,
+    posts: undefined,
   }));
 }
 

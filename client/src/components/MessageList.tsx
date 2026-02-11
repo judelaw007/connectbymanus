@@ -4,6 +4,7 @@ import { useSocket } from "@/contexts/SocketContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { Loader2 } from "lucide-react";
+import { PostCard, type PostData } from "@/components/PostCard";
 
 interface Message {
   id: number;
@@ -21,6 +22,8 @@ interface Message {
     | "newsletter";
   isPinned: boolean;
   replyToId: number | null;
+  postId: number | null;
+  post: PostData | null;
   createdAt: Date;
   userName: string | null;
   userRole: "user" | "admin" | null;
@@ -143,10 +146,13 @@ interface MessageItemProps {
   isPublicView?: boolean;
 }
 
+const POST_TYPES = ["event", "announcement", "article", "newsletter"] as const;
+
 function MessageItem({ message, isPublicView = false }: MessageItemProps) {
   const isBot = message.messageType === "bot";
   const isSystem = message.messageType === "system";
   const isAdmin = message.userRole === "admin";
+  const isPost = POST_TYPES.includes(message.messageType as any);
 
   // For public view, hide real names and show generic "Member" or "Admin"
   const getDisplayName = () => {
@@ -178,6 +184,21 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
     if (isSystem) return "bg-muted";
     return "";
   };
+
+  // Render rich post cards for post-type messages
+  if (isPost && message.post) {
+    return (
+      <div className="max-w-lg">
+        <PostCard
+          post={message.post}
+          authorName={
+            isPublicView ? (isAdmin ? "Admin" : "Member") : message.userName
+          }
+          createdAt={message.createdAt}
+        />
+      </div>
+    );
+  }
 
   if (isSystem) {
     return (
