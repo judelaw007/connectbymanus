@@ -77,6 +77,9 @@ export interface Post {
   scheduledFor: Date | null;
   priorityLevel: "low" | "medium" | "high" | "urgent" | null;
   messageId: number | null;
+  reminderHours: number | null;
+  autoReminderSentAt: Date | null;
+  articleAuthor: string | null;
   createdAt: Date;
 }
 
@@ -835,7 +838,8 @@ export async function getChannelMessages(
         tags,
         featured_image,
         priority_level,
-        is_pinned
+        is_pinned,
+        article_author
       )
     `
     )
@@ -865,6 +869,7 @@ export async function getChannelMessages(
           featuredImage: row.posts.featured_image,
           priorityLevel: row.posts.priority_level,
           isPinned: row.posts.is_pinned,
+          articleAuthor: row.posts.article_author,
         }
       : null,
     posts: undefined,
@@ -895,7 +900,8 @@ export async function getPinnedMessages(channelId: number) {
         tags,
         featured_image,
         priority_level,
-        is_pinned
+        is_pinned,
+        article_author
       )
     `
     )
@@ -925,6 +931,7 @@ export async function getPinnedMessages(channelId: number) {
           featuredImage: row.posts.featured_image,
           priorityLevel: row.posts.priority_level,
           isPinned: row.posts.is_pinned,
+          articleAuthor: row.posts.article_author,
         }
       : null,
     posts: undefined,
@@ -1046,6 +1053,43 @@ export async function updatePost(postId: number, updates: Partial<InsertPost>) {
     .eq("id", postId);
 
   if (error) throw error;
+}
+
+export async function getEventsDueForReminder(): Promise<Post[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  // Find events where:
+  // - reminder_hours is set
+  // - auto_reminder_sent_at is null (not sent yet)
+  // - event_date minus reminder_hours <= now
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("post_type", "event")
+    .not("reminder_hours", "is", null)
+    .not("event_date", "is", null)
+    .is("auto_reminder_sent_at", null)
+    .lte(
+      "event_date",
+      new Date(Date.now() + 999 * 24 * 60 * 60 * 1000).toISOString()
+    ); // Get all future events — we'll filter in JS
+
+  if (error) {
+    console.error("[Database] Error getting events due for reminder:", error);
+    return [];
+  }
+
+  // Filter in JS: event_date - reminder_hours <= now
+  const now = Date.now();
+  return (data || [])
+    .map((row: any) => snakeToCamel(row) as Post)
+    .filter(post => {
+      if (!post.eventDate || !post.reminderHours) return false;
+      const eventTime = new Date(post.eventDate).getTime();
+      const reminderTime = eventTime - post.reminderHours * 60 * 60 * 1000;
+      return reminderTime <= now && eventTime > now; // Only for future events
+    });
 }
 
 // ============= Support Ticket Functions =============

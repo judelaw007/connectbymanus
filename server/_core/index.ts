@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { initializeSocket } from "./socket";
+import { startReminderScheduler } from "../services/eventReminders";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -60,6 +61,9 @@ async function startServer() {
 
   // Initialize Socket.io
   initializeSocket(server);
+
+  // Start auto-reminder scheduler for events
+  startReminderScheduler();
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${port}/`);
