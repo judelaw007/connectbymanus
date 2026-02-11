@@ -38,6 +38,9 @@ export interface Channel {
   inviteCode: string | null;
   createdBy: number | null;
   createdAt: Date;
+  learnworldsCourseId: string | null;
+  learnworldsBundleId: string | null;
+  learnworldsSubscriptionId: string | null;
 }
 
 export interface Message {
@@ -661,6 +664,26 @@ export async function getPublicChannels() {
   }
 
   return (data || []).map(snakeToCamel);
+}
+
+export async function getChannelsWithLearnworldsLinks() {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("channels")
+    .select("*")
+    .eq("is_closed", false)
+    .or(
+      "learnworlds_course_id.not.is.null,learnworlds_bundle_id.not.is.null,learnworlds_subscription_id.not.is.null"
+    );
+
+  if (error) {
+    console.error("[Database] Error getting LW-linked channels:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel) as Channel[];
 }
 
 export async function getUserChannels(userId: number) {

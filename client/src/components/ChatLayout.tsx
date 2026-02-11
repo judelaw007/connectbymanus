@@ -29,6 +29,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import CreatePostModal from "@/components/CreatePostModal";
 import CreateGroupModal from "@/components/CreateGroupModal";
+import CreateChannelModal from "@/components/CreateChannelModal";
 import SupportInbox from "@/components/SupportInbox";
 import UserSupportChat from "@/components/UserSupportChat";
 import { MessageList } from "@/components/MessageList";
@@ -61,6 +62,7 @@ export default function ChatLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<
     number | null
   >(null);
@@ -514,15 +516,26 @@ export default function ChatLayout({
           {user && (
             <div className="p-4 border-t border-white/10 space-y-2">
               {(user.role === "admin" || isAdminMode) && (
-                <Button
-                  className="w-full"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowCreatePost(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Post
-                </Button>
+                <>
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowCreateChannel(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Channel
+                  </Button>
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowCreatePost(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Post
+                  </Button>
+                </>
               )}
               <Button
                 className="w-full"
@@ -781,6 +794,10 @@ export default function ChatLayout({
       <CreateGroupModal
         open={showCreateGroup}
         onOpenChange={setShowCreateGroup}
+      />
+      <CreateChannelModal
+        open={showCreateChannel}
+        onOpenChange={setShowCreateChannel}
       />
     </div>
   );
