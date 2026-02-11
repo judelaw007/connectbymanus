@@ -10,6 +10,3 @@ ALTER TYPE email_type ADD VALUE IF NOT EXISTS 'general';
 
 -- 2. Make content nullable — the subject + template_type is sufficient for log readability
 ALTER TABLE email_logs ALTER COLUMN content DROP NOT NULL;
-
--- 3. Set a default for email_type so older code paths don't fail
-ALTER TABLE email_logs ALTER COLUMN email_type SET DEFAULT 'general';
