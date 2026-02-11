@@ -144,15 +144,22 @@ Server-side only, located at `server/*.test.ts`. Tests use Vitest with the tRPC 
 
 ## Environment Variables
 
+All secrets are configured in **Replit Secrets** (real credentials, not mocked). The Supabase instance is a live linked database.
+
 See `.env.example` for the full list. Key groups:
 
-- **Supabase**: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- **Supabase** (live, linked in Replit): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 - **Learnworlds**: `LEARNWORLDS_CLIENT_ID`, `LEARNWORLDS_CLIENT_SECRET`, `LEARNWORLDS_SCHOOL_ID`
 - **Email**: `SENDGRID_API_KEY`, `EMAIL_FROM`, `TEST_MODE`, `TEST_EMAIL_RECIPIENT`
 - **Auth**: `JWT_SECRET`, `SESSION_SECRET`, `OWNER_OPEN_ID`
+- **LLM**: `OPENAI_API_KEY` (for @moji chatbot)
 - **App**: `NODE_ENV`, `PORT` (default 5000)
 
+All 13 secrets configured in Replit: `EMAIL_FROM`, `JWT_SECRET`, `LEARNWORLDS_CLIENT_ID`, `LEARNWORLDS_CLIENT_SECRET`, `LEARNWORLDS_SCHOOL_ID`, `OPENAI_API_KEY`, `OWNER_OPEN_ID`, `SENDGRID_API_KEY`, `SESSION_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `TEST_EMAIL_RECIPIENT`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL`.
+
 When `TEST_MODE=true`, all emails redirect to `TEST_EMAIL_RECIPIENT` with `[TEST]` subject prefix.
+
+**Note:** Tests (`npm run test`) require these env vars to be set. In Replit, they are available at runtime. Locally without Supabase credentials, DB-dependent tests will fail with "Database not available".
 
 ## Code Style
 
