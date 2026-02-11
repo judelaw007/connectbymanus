@@ -25,6 +25,7 @@ export function MessageInput({
   );
   const { socket } = useSocket();
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
 
   const sendMessageMutation = trpc.messages.send.useMutation({
     onSuccess: () => {
@@ -33,6 +34,8 @@ export function MessageInput({
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
+      // Refetch messages so the new message appears even if socket event is missed
+      utils.messages.getByChannel.invalidate({ channelId });
     },
     onError: error => {
       console.error("Failed to send message:", error.message);

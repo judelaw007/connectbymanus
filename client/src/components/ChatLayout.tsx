@@ -58,7 +58,6 @@ export default function ChatLayout({
   );
   const [showSupportInbox, setShowSupportInbox] = useState(false);
   const [showUserSupportChat, setShowUserSupportChat] = useState(false);
-  const [messageInput, setMessageInput] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -75,10 +74,6 @@ export default function ChatLayout({
   const { data: myChannels } = trpc.channels.getMy.useQuery(undefined, {
     enabled: !!user,
   });
-  const { data: messages } = trpc.messages.getByChannel.useQuery(
-    { channelId: selectedChannelId!, limit: 100 },
-    { enabled: !!selectedChannelId }
-  );
   const { data: pinnedMessages } = trpc.messages.getPinned.useQuery(
     { channelId: selectedChannelId! },
     { enabled: !!selectedChannelId && !!user }
@@ -188,8 +183,6 @@ export default function ChatLayout({
     0
   );
 
-  const sendMessageMutation = trpc.messages.send.useMutation();
-
   // Scroll to a specific message
   const scrollToMessage = (messageId: number) => {
     const messageElement = messageRefs.current.get(messageId);
@@ -198,17 +191,6 @@ export default function ChatLayout({
       setHighlightedMessageId(messageId);
       setTimeout(() => setHighlightedMessageId(null), 2000);
     }
-  };
-
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedChannelId) return;
-
-    await sendMessageMutation.mutateAsync({
-      channelId: selectedChannelId,
-      content: messageInput,
-    });
-
-    setMessageInput("");
   };
 
   const getInitials = (name: string | null | undefined) => {

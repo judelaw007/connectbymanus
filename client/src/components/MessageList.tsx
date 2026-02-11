@@ -50,10 +50,10 @@ export function MessageList({
       offset: 0,
     });
 
-  // Load initial messages
+  // Load initial messages (spread to avoid mutating React Query cache)
   useEffect(() => {
     if (initialMessages) {
-      setMessages(initialMessages.reverse()); // Reverse to show oldest first
+      setMessages([...initialMessages].reverse());
     }
   }, [initialMessages]);
 
@@ -67,7 +67,10 @@ export function MessageList({
     // Listen for new messages
     const handleNewMessage = (message: Message) => {
       if (message.channelId === channelId) {
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
 
         // Show thinking indicator when a user message mentions @moji
         if (
