@@ -1084,6 +1084,7 @@ export const appRouter = router({
           recipientName: input.recipientName || null,
           subject: input.subject,
           content: input.content,
+          emailType: input.emailType,
           templateType: input.emailType,
           status: "pending",
         });

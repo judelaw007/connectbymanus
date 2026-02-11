@@ -36,6 +36,20 @@ export interface EmailResult {
   redirectedTo?: string; // Set when TEST_MODE redirects email
 }
 
+// Map templateType to the email_type DB enum
+function templateToEmailType(templateType: EmailTemplateType): string {
+  const map: Record<EmailTemplateType, string> = {
+    verification_code: "verification_code",
+    announcement: "announcement",
+    event: "event",
+    reply_notification: "reply",
+    mention_notification: "mention",
+    support_update: "support_update",
+    newsletter: "newsletter",
+  };
+  return map[templateType] || "general";
+}
+
 /**
  * Send an email via SendGrid with TEST_MODE support
  */
@@ -83,6 +97,7 @@ export async function sendEmail(
       recipientEmail: originalRecipient,
       recipientName: toName || null,
       subject: options.subject, // Log original subject
+      emailType: templateToEmailType(templateType),
       templateType,
       status: "pending",
     });
@@ -97,16 +112,18 @@ export async function sendEmail(
 
     if (logId) {
       await db.updateEmailLogStatus(logId, "failed", error);
+    } else {
+      console.warn("[Email] No log entry created — see error above");
     }
 
-    // In development without SendGrid, just log
+    // In development without SendGrid, log but still mark as not sent
     if (!ENV.isProduction) {
       console.log("[Email] Would send (dev mode, no SendGrid):", {
         to,
         subject,
         templateType,
       });
-      return { success: true, messageId: "dev-mode-no-send" };
+      return { success: false, error, messageId: "dev-mode-no-send" };
     }
 
     return { success: false, error };
