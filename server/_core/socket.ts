@@ -121,6 +121,12 @@ export function initializeSocket(httpServer: HTTPServer) {
     // Handle leaving channels
     socket.on("channel:leave", (channelId: number) => {
       socket.leave(`channel:${channelId}`);
+
+      // Mark channel as read when leaving (covers messages that arrived while viewing)
+      db.updateChannelLastRead(userId, channelId).catch(err => {
+        console.error("[Socket] Error marking channel read on leave:", err);
+      });
+
       console.log(`[Socket] User ${userId} left channel ${channelId}`);
     });
 

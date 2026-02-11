@@ -819,6 +819,32 @@ export async function isUserInChannel(channelId: number, userId: number) {
 
 // ============= Unread Tracking Functions =============
 
+export async function getUnreadCountForUserChannel(
+  userId: number,
+  channelId: number
+): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+
+  const { data: membership } = await supabase
+    .from("channel_members")
+    .select("last_read_at")
+    .eq("user_id", userId)
+    .eq("channel_id", channelId)
+    .single();
+
+  if (!membership?.last_read_at) return 0;
+
+  const { count } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("channel_id", channelId)
+    .neq("user_id", userId)
+    .gt("created_at", membership.last_read_at);
+
+  return count || 0;
+}
+
 export async function updateChannelLastRead(
   userId: number,
   channelId: number,
@@ -844,7 +870,7 @@ export async function getUnreadCountsForUser(
   const supabase = getSupabase();
   if (!supabase) return [];
 
-  // Get all channels the user is a member of, with their last_read_at
+  // Only track channels the user is a member of (not random public channels)
   const { data: memberships, error: memberError } = await supabase
     .from("channel_members")
     .select("channel_id, last_read_at")
@@ -855,53 +881,21 @@ export async function getUnreadCountsForUser(
     return [];
   }
 
-  // Also include public channels the user may not be a member of
-  const { data: publicChannels, error: pubError } = await supabase
-    .from("channels")
-    .select("id")
-    .eq("is_private", false)
-    .eq("is_closed", false);
-
-  if (pubError) {
-    console.error("[Database] Error getting public channels:", pubError);
-  }
-
-  // Build a map of channelId → lastReadAt
-  const readMap = new Map<number, string>();
-  for (const m of memberships) {
-    readMap.set(m.channel_id, m.last_read_at);
-  }
-
-  // Collect all channel IDs (member channels + public channels)
-  const allChannelIds = new Set<number>();
-  for (const m of memberships) allChannelIds.add(m.channel_id);
-  if (publicChannels) {
-    for (const c of publicChannels) allChannelIds.add(c.id);
-  }
-
   const results: { channelId: number; unreadCount: number }[] = [];
 
-  for (const channelId of Array.from(allChannelIds)) {
-    const lastRead = readMap.get(channelId);
+  for (const membership of memberships) {
+    // If user has never viewed this channel, don't show a massive backlog
+    if (!membership.last_read_at) continue;
 
-    let query = supabase
+    const { count, error } = await supabase
       .from("messages")
       .select("id", { count: "exact", head: true })
-      .eq("channel_id", channelId);
+      .eq("channel_id", membership.channel_id)
+      .neq("user_id", userId) // Exclude user's own messages
+      .gt("created_at", membership.last_read_at);
 
-    if (lastRead) {
-      query = query.gt("created_at", lastRead);
-    }
-    // If no lastRead (public channel, user not a member), count all messages
-    // But to avoid showing huge counts, only count messages from last 24h
-    if (!lastRead) {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      query = query.gt("created_at", oneDayAgo.toISOString());
-    }
-
-    const { count, error } = await query;
     if (!error && count && count > 0) {
-      results.push({ channelId, unreadCount: count });
+      results.push({ channelId: membership.channel_id, unreadCount: count });
     }
   }
 

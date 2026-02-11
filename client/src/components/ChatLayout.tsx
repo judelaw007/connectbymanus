@@ -122,21 +122,21 @@ export default function ChatLayout({
   const markAsReadMutation = trpc.channels.markAsRead.useMutation();
   const utils = trpc.useUtils();
 
-  // Sync server unread counts into local state
+  // Sync server unread counts into local state (server is source of truth)
   useEffect(() => {
     if (serverUnreadCounts) {
       setLocalUnreadCounts(prev => {
-        const next = new Map(prev);
+        const next = new Map<number, number>();
         for (const { channelId, unreadCount } of serverUnreadCounts) {
-          // Only update if local doesn't already have a higher count (from real-time)
-          if ((next.get(channelId) || 0) < unreadCount) {
-            next.set(channelId, unreadCount);
-          }
+          // Skip the currently viewed channel (user is reading it right now)
+          if (channelId === selectedChannelId) continue;
+          // Use higher of server vs local to avoid brief regression from Socket events
+          next.set(channelId, Math.max(unreadCount, prev.get(channelId) || 0));
         }
         return next;
       });
     }
-  }, [serverUnreadCounts]);
+  }, [serverUnreadCounts, selectedChannelId]);
 
   // Listen for real-time unread updates via Socket
   useEffect(() => {
@@ -146,12 +146,13 @@ export default function ChatLayout({
       channelId: number;
       unreadCount: number;
     }) => {
-      // Don't increment if user is currently viewing this channel
+      // Don't update if user is currently viewing this channel
       if (data.channelId === selectedChannelId) return;
 
       setLocalUnreadCounts(prev => {
         const next = new Map(prev);
-        next.set(data.channelId, (next.get(data.channelId) || 0) + 1);
+        // Use absolute count from server (not increment)
+        next.set(data.channelId, data.unreadCount);
         return next;
       });
     };
