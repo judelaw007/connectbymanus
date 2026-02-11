@@ -106,6 +106,18 @@ export function initializeSocket(httpServer: HTTPServer) {
           socket.emit("error", { message: "Access denied" });
           return;
         }
+      } else {
+        // For public channels, ensure membership exists (needed for unread tracking).
+        // Uses upsert so it's a no-op if the row already exists.
+        try {
+          await db.addChannelMember({
+            channelId,
+            userId,
+            role: "member",
+          });
+        } catch (err) {
+          console.error("[Socket] Error ensuring channel membership:", err);
+        }
       }
 
       socket.join(`channel:${channelId}`);
