@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { useSocket } from "@/contexts/SocketContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, LogIn } from "lucide-react";
+import { Send, LogIn, Bot } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -18,6 +18,7 @@ export function MessageInput({
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showMojiHint, setShowMojiHint] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
@@ -51,11 +52,20 @@ export function MessageInput({
   }, [isTyping, channelId, socket, isPublicView]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
+    const value = e.target.value;
+    setMessage(value);
 
     // Auto-resize textarea
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
+
+    // Show @moji autocomplete hint when user types "@" at word boundary
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/(^|\s)@(\w{0,4})$/);
+    setShowMojiHint(
+      !!atMatch && !textBeforeCursor.toLowerCase().includes("@moji")
+    );
 
     // Typing indicator logic
     if (!isTyping) {
@@ -71,6 +81,22 @@ export function MessageInput({
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
     }, 2000);
+  };
+
+  const insertMojiMention = () => {
+    if (!textareaRef.current) return;
+    const cursorPos = textareaRef.current.selectionStart;
+    const text = message;
+    // Find the @ that triggered the hint
+    const beforeCursor = text.slice(0, cursorPos);
+    const atIndex = beforeCursor.lastIndexOf("@");
+    if (atIndex === -1) return;
+
+    const newMessage =
+      text.slice(0, atIndex) + "@moji " + text.slice(cursorPos);
+    setMessage(newMessage);
+    setShowMojiHint(false);
+    textareaRef.current.focus();
   };
 
   const handleSend = () => {
@@ -113,13 +139,24 @@ export function MessageInput({
 
   return (
     <div className="border-t bg-background p-4">
+      {/* @moji mention autocomplete hint */}
+      {showMojiHint && (
+        <button
+          onClick={insertMojiMention}
+          className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg border bg-card hover:bg-accent text-sm transition-colors w-fit"
+        >
+          <Bot className="h-4 w-4 text-blue-500" />
+          <span className="font-medium">@moji</span>
+          <span className="text-muted-foreground">— Ask the AI assistant</span>
+        </button>
+      )}
       <div className="flex gap-2 items-end">
         <Textarea
           ref={textareaRef}
           value={message}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message... (Shift+Enter for new line)"
+          placeholder="Type a message... (use @moji to ask AI)"
           className="min-h-[44px] max-h-[200px] resize-none"
           rows={1}
         />

@@ -582,6 +582,15 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
+        // Check if user is suspended
+        if (await db.isUserSuspended(ctx.user.id)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "Your account has been suspended. You cannot send messages.",
+          });
+        }
+
         // Check if user has access
         const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
         if (!isMember) {
@@ -764,6 +773,14 @@ export const appRouter = router({
     create: protectedProcedure
       .input(z.object({ subject: z.string(), initialMessage: z.string() }))
       .mutation(async ({ ctx, input }) => {
+        if (await db.isUserSuspended(ctx.user.id)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "Your account has been suspended. You cannot create tickets.",
+          });
+        }
+
         const ticketId = await db.createSupportTicket({
           userId: ctx.user.id,
           subject: input.subject,
@@ -1413,6 +1430,83 @@ export const appRouter = router({
           offset: 0,
         });
         return { tickets, count: tickets.length };
+      }),
+  }),
+
+  // Admin user management
+  users: router({
+    // List all users with pagination, search, and role filter
+    list: adminProcedure
+      .input(
+        z.object({
+          limit: z.number().min(1).max(200).default(50),
+          offset: z.number().min(0).default(0),
+          search: z.string().optional(),
+          role: z.enum(["user", "admin", "moderator"]).optional(),
+          sortBy: z
+            .enum(["created_at", "last_signed_in", "name"])
+            .default("created_at"),
+          sortOrder: z.enum(["asc", "desc"]).default("desc"),
+        })
+      )
+      .query(async ({ input }) => {
+        return await db.getAllUsers(input);
+      }),
+
+    // Get detailed user profile
+    getById: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(async ({ input }) => {
+        const details = await db.getUserDetails(input.userId);
+        if (!details) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found",
+          });
+        }
+        return details;
+      }),
+
+    // Suspend a user
+    suspend: adminProcedure
+      .input(
+        z.object({
+          userId: z.number(),
+          reason: z.string().min(1).max(500),
+          until: z.string().datetime().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        // Prevent suspending admins
+        const target = await db.getUserById(input.userId);
+        if (!target) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found",
+          });
+        }
+        if (target.role === "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Cannot suspend admin users",
+          });
+        }
+
+        await db.suspendUser(
+          input.userId,
+          ctx.user.id,
+          input.reason,
+          input.until ? new Date(input.until) : undefined
+        );
+        return { success: true };
+      }),
+
+    // Unsuspend a user
+    unsuspend: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.unsuspendUser(input.userId);
+        return { success: true };
       }),
   }),
 

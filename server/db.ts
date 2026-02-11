@@ -12,6 +12,11 @@ export interface User {
   loginMethod: string | null;
   lastSignedIn: Date | null;
   createdAt: Date;
+  isSuspended: boolean;
+  suspensionReason: string | null;
+  suspendedAt: Date | null;
+  suspendedUntil: Date | null;
+  suspendedBy: number | null;
 }
 
 export interface PlatformSetting {
@@ -383,6 +388,183 @@ export async function getUserById(id: number) {
   }
 
   return data ? snakeToCamel(data) : undefined;
+}
+
+export async function getAllUsers(options?: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  role?: "user" | "admin" | "moderator";
+  sortBy?: "created_at" | "last_signed_in" | "name";
+  sortOrder?: "asc" | "desc";
+}) {
+  const supabase = getSupabase();
+  if (!supabase) return { users: [], total: 0 };
+
+  const {
+    limit = 50,
+    offset = 0,
+    search,
+    role,
+    sortBy = "created_at",
+    sortOrder = "desc",
+  } = options || {};
+
+  // Count query
+  let countQuery = supabase
+    .from("users")
+    .select("*", { count: "exact", head: true });
+  if (role) countQuery = countQuery.eq("role", role);
+  if (search) {
+    countQuery = countQuery.or(
+      `name.ilike.%${search}%,email.ilike.%${search}%`
+    );
+  }
+  const { count } = await countQuery;
+
+  // Data query
+  let query = supabase.from("users").select("*");
+  if (role) query = query.eq("role", role);
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+  }
+  query = query
+    .order(sortBy, { ascending: sortOrder === "asc" })
+    .range(offset, offset + limit - 1);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[Database] Error getting all users:", error);
+    return { users: [], total: 0 };
+  }
+
+  return {
+    users: (data || []).map(snakeToCamel) as User[],
+    total: count ?? 0,
+  };
+}
+
+export async function getUserDetails(userId: number) {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  // Get user
+  const { data: user, error: userError } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (userError || !user) return null;
+
+  // Get channels the user is a member of
+  const { data: memberships } = await supabase
+    .from("channel_members")
+    .select(
+      `
+      role,
+      joined_at,
+      channels (
+        id,
+        name,
+        type
+      )
+    `
+    )
+    .eq("user_id", userId);
+
+  // Get message count
+  const { count: messageCount } = await supabase
+    .from("messages")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  // Get support ticket count
+  const { count: ticketCount } = await supabase
+    .from("support_tickets")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  const channels = (memberships || [])
+    .filter((m: any) => m.channels)
+    .map((m: any) => ({
+      id: m.channels.id,
+      name: m.channels.name,
+      type: m.channels.type,
+      role: m.role,
+      joinedAt: m.joined_at,
+    }));
+
+  return {
+    ...snakeToCamel(user),
+    channels,
+    messageCount: messageCount ?? 0,
+    ticketCount: ticketCount ?? 0,
+  };
+}
+
+export async function suspendUser(
+  userId: number,
+  adminId: number,
+  reason: string,
+  until?: Date
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("users")
+    .update({
+      is_suspended: true,
+      suspension_reason: reason,
+      suspended_at: new Date().toISOString(),
+      suspended_until: until ? until.toISOString() : null,
+      suspended_by: adminId,
+    })
+    .eq("id", userId);
+
+  if (error) throw error;
+}
+
+export async function unsuspendUser(userId: number): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("users")
+    .update({
+      is_suspended: false,
+      suspension_reason: null,
+      suspended_at: null,
+      suspended_until: null,
+      suspended_by: null,
+    })
+    .eq("id", userId);
+
+  if (error) throw error;
+}
+
+export async function isUserSuspended(userId: number): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("is_suspended, suspended_until")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) return false;
+
+  if (!data.is_suspended) return false;
+
+  // Auto-unsuspend if the suspension has expired
+  if (data.suspended_until && new Date(data.suspended_until) < new Date()) {
+    await unsuspendUser(userId);
+    return false;
+  }
+
+  return true;
 }
 
 // ============= Channel Functions =============
