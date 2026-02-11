@@ -1,14 +1,14 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-11
-> Overall: ~85% complete | Backend core 98% | All HIGH priorities done | Moving to MEDIUM tier
+> Overall: ~88% complete | Backend core 98% | All CRITICAL + HIGH done | Bug-fix round complete | Moving to MEDIUM tier
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
 
-Sprint 3: Admin Tools, Moderation & Chat Enhancements
-Goal: Fix broken admin workflows, implement user moderation, enhance chat with rich posts and @mentions, wire up @moji.
-Estimated effort: 6-8 focused sessions.
+Sprint 4: Polish, MEDIUM Priorities & Launch Prep
+Goal: Address remaining MEDIUM items, harden for production, prepare for launch.
+Estimated effort: 4-6 focused sessions.
 
 ## Priorities
 
@@ -49,6 +49,10 @@ Estimated effort: 6-8 focused sessions.
   - Per-channel red badges in sidebar (Topic Channels + My Groups)
   - Admin "Go to Chat Mode" button turns red with count when unreads exist
   - Real-time: local tracking via Socket events + 60s polling safety net
+  - **Bug fixes (3 rounds):**
+    - Round 1: Fixed 5 issues — Socket handler joining wrong room, missing `emitUnreadUpdate` calls, sender self-notify, stale React Query cache, admin badge not wired
+    - Round 2: Auto-create `channel_members` row on `channel:join` for public channels (users had no membership row → unread counts returned 0)
+    - Round 3: Auto-join admins to all public channels on OAuth login (admins had no membership rows at all)
 
 - [x] H3. Admin-only channel creation linked to Learnworlds (#6) ✓
   - Migration 014: `learnworlds_course_id`, `learnworlds_bundle_id`, `learnworlds_subscription_id` on channels
@@ -64,26 +68,36 @@ Estimated effort: 6-8 focused sessions.
   - CSP header: restricts scripts, frames, objects; allows Supabase/OpenAI/fonts
   - X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Referrer-Policy
 
-### MEDIUM — Post-launch improvements
+### MEDIUM — Post-launch improvements (recommended order)
 
-- [ ] M1. @course/@bundle/@subscription mention autocomplete (#2)
+- [ ] **M6. Rate limiting middleware** ⬅️ START HERE (security, quick win)
+  - Add express-rate-limit to auth endpoints (login, verify), message send, and support ticket creation
+  - Prevents brute-force and abuse before launch
+
+- [ ] **M5. Search functionality across messages and posts** (high user value)
+  - Full-text search using Supabase `to_tsvector` / `ts_rank`
+  - Search bar in chat layout header, results grouped by channel
+  - Consider: search posts (title + content), messages (content), users (display name)
+
+- [ ] **M4. Category library pages (Articles, Events, Announcements, Newsletters)**
+  - Dedicated browse pages per post type with filtering/sorting
+  - Accessible from sidebar or navigation
+
+- [ ] **M1. @course/@bundle/@subscription mention autocomplete (#2)**
   - For Learnworlds users, admin types @ to see courses, bundles, subscriptions in a dropdown
   - e.g., `@essential subscription`, `@transfer pricing exam focus`
-  - Fetch Learnworlds catalog via API and cache it
+  - Fetch Learnworlds catalog via API and cache it (API already built for H3)
   - Build autocomplete dropdown component triggered by @ in message input
   - Selecting a mention inserts a styled chip/link and sends email to all enrolled users
 
-- [ ] M2. Email templates in SendGrid (#3)
+- [ ] **M2. Email templates in SendGrid (#3)**
   - Current templates are inline HTML strings in code (server/services/email.ts)
   - Migrate all 7+ email types to SendGrid dynamic templates
   - Use template IDs and dynamic data substitution instead of raw HTML
   - Templates: welcome, verification code, ticket created, ticket reply, ticket closed, channel post notification, event invitation
 
 - [ ] M3. mojitax.co.uk OAuth integration (BLOCKED — needs API credentials)
-- [ ] M4. Category library pages (Articles, Events, Announcements, Newsletters)
-- [ ] M5. Search functionality across messages and posts
-- [ ] M6. Rate limiting middleware
-- [ ] M7. Load testing (100+ concurrent users)
+- [ ] M7. Load testing (100+ concurrent users) — do this last, closer to launch
 
 ## Blockers
 
@@ -121,6 +135,22 @@ Estimated effort: 6-8 focused sessions.
 - [x] Admin-only channel creation with Learnworlds entity linking + auto-enrollment on login
 - [x] XSS hardening: DOMPurify on all HTML rendering + CSP/security headers in Express
 - [x] Bug fix: PGRST201 ambiguous FK between messages↔posts — disambiguated with `posts!messages_post_id_fkey` in getChannelMessages and getPinnedMessages
+- [x] Bug fix: Admin unable to send messages — membership check was too strict; admins now bypass it
+- [x] Bug fix: Messages disappearing after send — optimistic update conflicted with Socket.io event
+- [x] Bug fix: Admin chat mode layout overflowing — switched from h-screen to h-full
+- [x] Bug fix: DOMPurify import failing in Vite dev server — added explicit resolve alias
+- [x] Bug fix: Unread badges unreliable — 3 rounds of fixes (see H2 details above)
+
+## Recent Bug-Fix Summary (2026-02-11 evening)
+
+| Issue                         | Root Cause                                                | Fix                                             |
+| ----------------------------- | --------------------------------------------------------- | ----------------------------------------------- |
+| Admin can't send messages     | `channel_members` check rejected admins                   | Skip membership check for admin role            |
+| Messages vanish after send    | Optimistic update + Socket event = duplicate then removal | Deduplicate by message ID                       |
+| Admin chat overlaps dashboard | `h-screen` on nested layout                               | Use `h-full`                                    |
+| DOMPurify import error        | Vite can't resolve CJS default export                     | `resolve.alias` in vite.config                  |
+| Unread badges always 0        | No `channel_members` row for public channels              | Auto-create on `channel:join`                   |
+| Admin has no badges           | No membership rows created at OAuth login                 | Auto-join all public channels in OAuth callback |
 
 ## Out of Scope (for now)
 
