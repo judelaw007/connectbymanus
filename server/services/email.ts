@@ -471,17 +471,12 @@ export async function sendArticleEmail(
     content: string;
     tags?: string;
     authorName?: string;
-    postId?: number;
   }
 ): Promise<EmailResult> {
   // Strip HTML tags for summary, then truncate
   const plainText = article.content.replace(/<[^>]*>/g, "");
   const summary =
     plainText.length > 200 ? plainText.substring(0, 200) + "..." : plainText;
-
-  const articleUrl = article.postId
-    ? `https://connect.mojitax.co.uk/articles/${article.postId}`
-    : "https://connect.mojitax.co.uk";
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -494,7 +489,7 @@ export async function sendArticleEmail(
         ${article.tags ? `<p style="color: #6b7280; font-size: 14px; margin-top: 15px;">Tags: ${article.tags}</p>` : ""}
         ${article.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Written by ${article.authorName}</p>` : ""}
       </div>
-      <a href="${articleUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Read Full Article</a>
+      <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Read Full Article on Connect</a>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
       <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
     </div>

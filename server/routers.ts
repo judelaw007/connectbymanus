@@ -785,7 +785,6 @@ export const appRouter = router({
                     content: input.content,
                     tags: input.tags || undefined,
                     authorName,
-                    postId,
                   });
                 }
               } catch (emailErr) {
@@ -871,7 +870,6 @@ export const appRouter = router({
               content: input.content,
               tags: input.tags || undefined,
               authorName,
-              postId: 0, // test mode, no real post
             }
           );
         } else {
