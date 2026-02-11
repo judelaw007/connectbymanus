@@ -30,6 +30,7 @@ export interface PostData {
   featuredImage: string | null;
   priorityLevel: "low" | "medium" | "high" | "urgent" | null;
   isPinned: boolean;
+  articleAuthor: string | null;
 }
 
 interface PostCardProps {
@@ -159,8 +160,14 @@ export function PostCard({ post, authorName, createdAt }: PostCardProps) {
       </CardContent>
 
       <CardFooter className="pt-0 text-xs text-muted-foreground">
-        {authorName && <span>Posted by {authorName}</span>}
-        {authorName && <span className="mx-1.5">&middot;</span>}
+        {post.postType === "article" ? (
+          <span>Written by {post.articleAuthor || "MojiTax"}</span>
+        ) : (
+          authorName && <span>Posted by {authorName}</span>
+        )}
+        {(post.postType === "article" || authorName) && (
+          <span className="mx-1.5">&middot;</span>
+        )}
         <span>{format(new Date(createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
       </CardFooter>
     </Card>

@@ -26,6 +26,8 @@ import {
   Mail,
   FlaskConical,
   AlertTriangle,
+  Clock,
+  User,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -55,6 +57,8 @@ export default function CreatePostModal({
   const [priorityLevel, setPriorityLevel] = useState<
     "low" | "medium" | "high" | "urgent"
   >("medium");
+  const [reminderHours, setReminderHours] = useState<string>("");
+  const [articleAuthor, setArticleAuthor] = useState("");
   const [selectedChannel, setSelectedChannel] = useState<string>(
     channelId ? String(channelId) : TEST_EMAIL_VALUE
   );
@@ -98,6 +102,8 @@ export default function CreatePostModal({
     setTags("");
     setFeaturedImage("");
     setPriorityLevel("medium");
+    setReminderHours("");
+    setArticleAuthor("");
     setSelectedChannel(channelId ? String(channelId) : TEST_EMAIL_VALUE);
     setTestEmail("");
   };
@@ -124,6 +130,7 @@ export default function CreatePostModal({
         testData.eventLocation = eventLocation;
       } else if (postType === "article") {
         testData.tags = tags;
+        testData.articleAuthor = articleAuthor || undefined;
       } else if (postType === "announcement") {
         testData.priorityLevel = priorityLevel;
       }
@@ -143,9 +150,13 @@ export default function CreatePostModal({
     if (postType === "event") {
       postData.eventDate = eventDate ? new Date(eventDate) : undefined;
       postData.eventLocation = eventLocation;
+      if (reminderHours) {
+        postData.reminderHours = Number(reminderHours);
+      }
     } else if (postType === "article") {
       postData.tags = tags;
       postData.featuredImage = featuredImage;
+      postData.articleAuthor = articleAuthor || undefined;
     } else if (postType === "announcement") {
       postData.priorityLevel = priorityLevel;
     }
@@ -330,12 +341,63 @@ export default function CreatePostModal({
                   placeholder="Physical location or online meeting link"
                 />
               </div>
+              {!isTestMode && (
+                <div>
+                  <Label
+                    htmlFor="reminderHours"
+                    className="flex items-center gap-2"
+                  >
+                    <Clock className="h-4 w-4" />
+                    Auto-Reminder
+                  </Label>
+                  <Select
+                    value={reminderHours}
+                    onValueChange={setReminderHours}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No automatic reminder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No automatic reminder</SelectItem>
+                      <SelectItem value="1">1 hour before event</SelectItem>
+                      <SelectItem value="2">2 hours before event</SelectItem>
+                      <SelectItem value="4">4 hours before event</SelectItem>
+                      <SelectItem value="24">24 hours before event</SelectItem>
+                      <SelectItem value="48">48 hours before event</SelectItem>
+                      <SelectItem value="72">3 days before event</SelectItem>
+                      <SelectItem value="168">1 week before event</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Automatically sends a reminder email to all interested
+                    invitees
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
           {/* Article-specific Fields */}
           {postType === "article" && (
             <div className="space-y-4">
+              <div>
+                <Label
+                  htmlFor="articleAuthor"
+                  className="flex items-center gap-2"
+                >
+                  <User className="h-4 w-4" />
+                  Written by
+                </Label>
+                <Input
+                  id="articleAuthor"
+                  value={articleAuthor}
+                  onChange={e => setArticleAuthor(e.target.value)}
+                  placeholder="Leave empty for MojiTax (default)"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tag the author or leave blank to default to MojiTax
+                </p>
+              </div>
               <div>
                 <Label htmlFor="tags">Tags</Label>
                 <Input

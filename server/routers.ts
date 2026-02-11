@@ -663,6 +663,12 @@ export const appRouter = router({
 
           // Announcement fields
           priorityLevel: z.enum(["low", "medium", "high", "urgent"]).optional(),
+
+          // Event reminder scheduling
+          reminderHours: z.number().optional(),
+
+          // Article author attribution
+          articleAuthor: z.string().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -679,6 +685,8 @@ export const appRouter = router({
           distributionList: input.distributionList || null,
           scheduledFor: input.scheduledFor || null,
           priorityLevel: input.priorityLevel || null,
+          reminderHours: input.reminderHours || null,
+          articleAuthor: input.articleAuthor || null,
         });
 
         // Create a chat message in the General channel (or specified channel) for this post
@@ -784,7 +792,7 @@ export const appRouter = router({
                     title: input.title,
                     content: input.content,
                     tags: input.tags || undefined,
-                    authorName,
+                    authorName: input.articleAuthor || "MojiTax",
                   });
                 }
               } catch (emailErr) {
@@ -824,6 +832,9 @@ export const appRouter = router({
 
           // Announcement fields
           priorityLevel: z.enum(["low", "medium", "high", "urgent"]).optional(),
+
+          // Article author attribution
+          articleAuthor: z.string().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -869,7 +880,7 @@ export const appRouter = router({
               title: input.title,
               content: input.content,
               tags: input.tags || undefined,
-              authorName,
+              authorName: input.articleAuthor || "MojiTax",
             }
           );
         } else {
