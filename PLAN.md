@@ -120,6 +120,7 @@ Estimated effort: 6-8 focused sessions.
 - [x] Unread message indicators: per-channel red badges + admin "Go to Chat Mode" badge, real-time Socket updates
 - [x] Admin-only channel creation with Learnworlds entity linking + auto-enrollment on login
 - [x] XSS hardening: DOMPurify on all HTML rendering + CSP/security headers in Express
+- [x] Bug fix: PGRST201 ambiguous FK between messages↔posts — disambiguated with `posts!messages_post_id_fkey` in getChannelMessages and getPinnedMessages
 
 ## Out of Scope (for now)
 
