@@ -805,6 +805,91 @@ export const appRouter = router({
         return { postId, messageId, success: true };
       }),
 
+    // Send a test email using the real post template (admin only, no channel post)
+    testSend: adminProcedure
+      .input(
+        z.object({
+          postType: z.enum(["event", "announcement", "article", "newsletter"]),
+          title: z.string().min(1).max(500),
+          content: z.string().min(1),
+          testEmail: z.string().email(),
+
+          // Event fields
+          eventDate: z.date().optional(),
+          eventLocation: z.string().optional(),
+
+          // Article fields
+          tags: z.string().optional(),
+
+          // Announcement fields
+          priorityLevel: z.enum(["low", "medium", "high", "urgent"]).optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const authorName = ctx.user.name || "Admin";
+        const email = input.testEmail;
+
+        let result: emailService.EmailResult;
+
+        if (input.postType === "event" && input.eventDate) {
+          result = await emailService.sendEventEmail(email, "Test Recipient", {
+            title: input.title,
+            content: input.content,
+            date: input.eventDate,
+            location: input.eventLocation || undefined,
+            authorName,
+          });
+        } else if (input.postType === "announcement") {
+          result = await emailService.sendAnnouncementEmail(
+            email,
+            "Test Recipient",
+            {
+              title: input.title,
+              content: input.content,
+              authorName,
+            }
+          );
+        } else if (input.postType === "newsletter") {
+          result = await emailService.sendNewsletterEmail(
+            email,
+            "Test Recipient",
+            {
+              title: input.title,
+              content: input.content,
+              authorName,
+            }
+          );
+        } else if (input.postType === "article") {
+          result = await emailService.sendArticleEmail(
+            email,
+            "Test Recipient",
+            {
+              title: input.title,
+              content: input.content,
+              tags: input.tags || undefined,
+              authorName,
+            }
+          );
+        } else {
+          // Fallback for event without date
+          result = await emailService.sendAnnouncementEmail(
+            email,
+            "Test Recipient",
+            {
+              title: input.title,
+              content: input.content,
+              authorName,
+            }
+          );
+        }
+
+        return {
+          success: result.success,
+          error: result.error,
+          sentTo: email,
+        };
+      }),
+
     // Get posts by type
     getByType: publicProcedure
       .input(
