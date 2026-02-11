@@ -107,6 +107,7 @@ Estimated effort: 6-8 focused sessions.
 - [x] "Chat with Team MojiTax" support chat for regular users (UserSupportChat component)
 - [x] Email notifications via SendGrid (ticket create, reply, close — with logging)
 - [x] Rich post cards in chat (Event, Announcement, Article, Newsletter) with styled card components + email distribution to channel members
+- [x] Bug fix: CreatePostModal crash when switching channel (empty-string SelectItem value → Radix UI runtime error)
 - [x] Terms of Service and Privacy Policy pages (routes + footer links)
 - [x] Online users sidebar with real Socket.io data (replaced hardcoded fake data)
 - [x] Message sending reliability (optimistic updates, error handling, Enter key support)
