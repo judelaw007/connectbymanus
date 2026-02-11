@@ -109,6 +109,12 @@ export function initializeSocket(httpServer: HTTPServer) {
       }
 
       socket.join(`channel:${channelId}`);
+
+      // Mark channel as read when user views it
+      db.updateChannelLastRead(userId, channelId).catch(err => {
+        console.error("[Socket] Error marking channel read:", err);
+      });
+
       console.log(`[Socket] User ${userId} joined channel ${channelId}`);
     });
 
@@ -189,6 +195,20 @@ export function isUserOnline(userId: number): boolean {
 export function emitMessageToChannel(channelId: number, message: any) {
   if (io) {
     io.to(`channel:${channelId}`).emit("message:new", message);
+  }
+}
+
+// Emit unread count update to a specific user
+export function emitUnreadUpdate(
+  userId: number,
+  channelId: number,
+  unreadCount: number
+) {
+  if (io) {
+    io.to(`user:${userId}`).emit("channel:unread-update", {
+      channelId,
+      unreadCount,
+    });
   }
 }
 

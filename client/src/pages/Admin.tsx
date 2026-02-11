@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -76,6 +77,9 @@ export default function Admin() {
 
   const { data: channels } = trpc.channels.getPublic.useQuery();
   const { data: stats } = trpc.settings.dashboardStats.useQuery();
+  const { data: unreadCounts } = trpc.channels.getUnreadCounts.useQuery();
+  const totalUnread =
+    unreadCounts?.reduce((sum, u) => sum + u.unreadCount, 0) ?? 0;
 
   // If in chat mode, show the regular chat interface with admin privileges
   if (viewMode === "chat") {
@@ -207,11 +211,16 @@ export default function Admin() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <Button
                     variant="outline"
-                    className="justify-start"
+                    className={`justify-start relative ${totalUnread > 0 ? "border-red-500 text-red-600 hover:text-red-700 hover:border-red-600" : ""}`}
                     onClick={() => setViewMode("chat")}
                   >
                     <MessagesSquare className="h-4 w-4 mr-2" />
                     Go to Chat Mode
+                    {totalUnread > 0 && (
+                      <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5">
+                        {totalUnread}
+                      </Badge>
+                    )}
                   </Button>
                   <Button
                     variant="outline"

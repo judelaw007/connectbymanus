@@ -50,7 +50,7 @@ export default function ChatLayout({
   isPublicView = false,
 }: ChatLayoutProps) {
   const { user, logout } = useAuth();
-  const { onlineUsers } = useSocket();
+  const { onlineUsers, socket } = useSocket();
   const [, setLocation] = useLocation();
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(
     null
@@ -110,6 +110,81 @@ export default function ChatLayout({
   const supportBadgeCount = isAdminMode
     ? (allTickets?.filter((t: any) => t.status !== "closed").length ?? 0)
     : (myTickets?.filter((t: any) => t.status !== "closed").length ?? 0);
+
+  // Unread message tracking
+  const { data: serverUnreadCounts } = trpc.channels.getUnreadCounts.useQuery(
+    undefined,
+    {
+      enabled: !!user,
+      refetchInterval: 60000, // Refresh every 60s as a safety net
+    }
+  );
+  const [localUnreadCounts, setLocalUnreadCounts] = useState<
+    Map<number, number>
+  >(new Map());
+  const markAsReadMutation = trpc.channels.markAsRead.useMutation();
+  const utils = trpc.useUtils();
+
+  // Sync server unread counts into local state
+  useEffect(() => {
+    if (serverUnreadCounts) {
+      setLocalUnreadCounts(prev => {
+        const next = new Map(prev);
+        for (const { channelId, unreadCount } of serverUnreadCounts) {
+          // Only update if local doesn't already have a higher count (from real-time)
+          if ((next.get(channelId) || 0) < unreadCount) {
+            next.set(channelId, unreadCount);
+          }
+        }
+        return next;
+      });
+    }
+  }, [serverUnreadCounts]);
+
+  // Listen for real-time unread updates via Socket
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUnreadUpdate = (data: {
+      channelId: number;
+      unreadCount: number;
+    }) => {
+      // Don't increment if user is currently viewing this channel
+      if (data.channelId === selectedChannelId) return;
+
+      setLocalUnreadCounts(prev => {
+        const next = new Map(prev);
+        next.set(data.channelId, (next.get(data.channelId) || 0) + 1);
+        return next;
+      });
+    };
+
+    socket.on("channel:unread-update", handleUnreadUpdate);
+    return () => {
+      socket.off("channel:unread-update", handleUnreadUpdate);
+    };
+  }, [socket, selectedChannelId]);
+
+  // Mark channel as read when selected
+  useEffect(() => {
+    if (!selectedChannelId || !user) return;
+
+    // Clear local unread count immediately
+    setLocalUnreadCounts(prev => {
+      const next = new Map(prev);
+      next.delete(selectedChannelId);
+      return next;
+    });
+
+    // Tell the server
+    markAsReadMutation.mutate({ channelId: selectedChannelId });
+  }, [selectedChannelId, user]);
+
+  // Total unread count across all channels
+  const totalUnreadCount = Array.from(localUnreadCounts.values()).reduce(
+    (sum, count) => sum + count,
+    0
+  );
 
   const sendMessageMutation = trpc.messages.send.useMutation();
 
@@ -364,6 +439,11 @@ export default function ChatLayout({
                         >
                           <Hash className="h-4 w-4" />
                           <span className="text-sm">{channel.name}</span>
+                          {(localUnreadCounts.get(channel.id) || 0) > 0 && (
+                            <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] text-center">
+                              {localUnreadCounts.get(channel.id)}
+                            </Badge>
+                          )}
                         </button>
                         {isAdminMode && (
                           <Button
@@ -417,6 +497,11 @@ export default function ChatLayout({
                             <Users className="h-4 w-4" />
                           )}
                           <span className="text-sm">{channel.name}</span>
+                          {(localUnreadCounts.get(channel.id) || 0) > 0 && (
+                            <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] text-center">
+                              {localUnreadCounts.get(channel.id)}
+                            </Badge>
+                          )}
                         </button>
                       ))}
                     </div>

@@ -328,10 +328,31 @@ export const appRouter = router({
       return await db.getPublicChannels();
     }),
 
-    // Get user's channels (requires auth)
+    // Get user's channels (requires auth) — includes unread counts
     getMy: protectedProcedure.query(async ({ ctx }) => {
-      return await db.getUserChannels(ctx.user.id);
+      const channels = await db.getUserChannels(ctx.user.id);
+      const unreadCounts = await db.getUnreadCountsForUser(ctx.user.id);
+      const unreadMap = new Map(
+        unreadCounts.map(u => [u.channelId, u.unreadCount])
+      );
+      return channels.map((ch: any) => ({
+        ...ch,
+        unreadCount: unreadMap.get(ch.id) || 0,
+      }));
     }),
+
+    // Get unread message counts for all visible channels
+    getUnreadCounts: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUnreadCountsForUser(ctx.user.id);
+    }),
+
+    // Mark a channel as read
+    markAsRead: protectedProcedure
+      .input(z.object({ channelId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.updateChannelLastRead(ctx.user.id, input.channelId);
+        return { success: true };
+      }),
 
     // Get channel by ID
     getById: protectedProcedure

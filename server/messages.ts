@@ -1,5 +1,5 @@
 import * as db from "./db";
-import { emitMessageToChannel } from "./_core/socket";
+import { emitMessageToChannel, emitUnreadUpdate } from "./_core/socket";
 
 export interface CreateMessageInput {
   channelId: number;
@@ -36,6 +36,15 @@ export async function createMessage(input: CreateMessageInput) {
   if (newMessage) {
     // Emit to all users in the channel via Socket.io
     emitMessageToChannel(channelId, newMessage);
+
+    // Notify all channel members about the new unread message
+    // (so users not currently viewing this channel see the badge)
+    const members = await db.getChannelMembers(channelId);
+    for (const member of members) {
+      if (member.id !== userId) {
+        emitUnreadUpdate(member.id, channelId, 1);
+      }
+    }
   }
 
   return { messageId, message: newMessage };
