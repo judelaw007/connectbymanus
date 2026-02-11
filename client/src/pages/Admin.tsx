@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import MojiSettings from "@/components/MojiSettings";
 import EmailLogs from "@/components/EmailLogs";
 import PlatformSettings from "@/components/PlatformSettings";
+import UserManagement from "@/components/UserManagement";
 import {
   Card,
   CardContent,
@@ -46,6 +47,7 @@ type DashboardSection =
   | "overview"
   | "email-logs"
   | "moji-settings"
+  | "users"
   | "user-moderation"
   | "platform-settings"
   | "chat-analytics";
@@ -238,6 +240,9 @@ export default function Admin() {
           </div>
         );
 
+      case "users":
+        return <UserManagement />;
+
       case "email-logs":
         return <EmailLogs />;
 
@@ -248,39 +253,7 @@ export default function Admin() {
         return <ChatAnalytics />;
 
       case "user-moderation":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>User Moderation</CardTitle>
-              <CardDescription>
-                Suspend users from posting (no expulsion - they remain MojiTax
-                customers)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell
-                      colSpan={4}
-                      className="text-center text-muted-foreground py-8"
-                    >
-                      No users to moderate. Suspended users will appear here.
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        );
+        return <UserManagement moderationMode={true} />;
 
       case "platform-settings":
         return <PlatformSettings />;
@@ -335,6 +308,14 @@ export default function Admin() {
             >
               <BarChart3 className="h-4 w-4 mr-2" />
               Overview
+            </Button>
+            <Button
+              variant={activeSection === "users" ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActiveSection("users")}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Users
             </Button>
             <Button
               variant={activeSection === "email-logs" ? "secondary" : "ghost"}

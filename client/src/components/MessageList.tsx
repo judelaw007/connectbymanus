@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useSocket } from "@/contexts/SocketContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
+import { Loader2 } from "lucide-react";
 
 interface Message {
   id: number;
@@ -36,6 +37,7 @@ export function MessageList({
 }: MessageListProps) {
   const { socket } = useSocket();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [mojiThinking, setMojiThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: initialMessages, isLoading } =
@@ -63,6 +65,19 @@ export function MessageList({
     const handleNewMessage = (message: Message) => {
       if (message.channelId === channelId) {
         setMessages(prev => [...prev, message]);
+
+        // Show thinking indicator when a user message mentions @moji
+        if (
+          message.messageType === "user" &&
+          message.content.toLowerCase().includes("@moji")
+        ) {
+          setMojiThinking(true);
+        }
+
+        // Hide thinking indicator when bot responds
+        if (message.messageType === "bot") {
+          setMojiThinking(false);
+        }
       }
     };
 
@@ -107,6 +122,17 @@ export function MessageList({
           isPublicView={isPublicView}
         />
       ))}
+      {mojiThinking && (
+        <div className="flex gap-3 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">
+          <Avatar className="h-10 w-10 flex-shrink-0">
+            <AvatarFallback>🤖</AvatarFallback>
+          </Avatar>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            @moji is thinking...
+          </div>
+        </div>
+      )}
       <div ref={messagesEndRef} />
     </div>
   );

@@ -86,7 +86,7 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 | `ChatLayout.tsx`       | **Main chat UI** — channel list, message display, input (three-column layout) |
 | `MessageList.tsx`      | Paginated message thread rendering                                            |
 | `MessageInput.tsx`     | Text input with rich formatting                                               |
-| `AIChatBox.tsx`        | AI assistant chat widget (not yet wired to @moji backend — see PLAN.md C3)    |
+| `AIChatBox.tsx`        | Reusable AI chat widget (used in ComponentShowcase; @moji uses MessageInput)  |
 | `CreatePostModal.tsx`  | Modal for creating posts (Events, Announcements, Articles, Newsletters)       |
 | `CreateGroupModal.tsx` | Modal for creating study groups                                               |
 | `SupportInbox.tsx`     | Admin support ticket inbox                                                    |
@@ -97,6 +97,7 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 | `EmailLogs.tsx`        | Admin email log viewer                                                        |
 | `MojiSettings.tsx`     | Admin @moji configuration                                                     |
 | `PlatformSettings.tsx` | Global platform settings UI                                                   |
+| `UserManagement.tsx`   | Admin user list + detail + moderation (suspend/unsuspend)                     |
 | `ErrorBoundary.tsx`    | React error boundary                                                          |
 
 **`client/src/components/ui/`** — 60+ shadcn/ui primitives (button, card, dialog, form, table, etc.). Do not modify directly; regenerate via shadcn CLI.

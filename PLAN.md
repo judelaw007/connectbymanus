@@ -1,7 +1,7 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-11
-> Overall: ~60% complete | Backend core 85% | Frontend core features partial | Admin tools incomplete
+> Overall: ~70% complete | Backend core 90% | Frontend core features partial | Admin tools functional
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
@@ -14,26 +14,23 @@ Estimated effort: 6-8 focused sessions.
 
 ### CRITICAL — Admin cannot function without these
 
-- [ ] C1. Admin user listing & details (#1, #9)
-  - Admin cannot see any users despite existing conversations
-  - Add `getAllUsers()` / `searchUsers()` to db.ts
-  - Add `users` tRPC router with admin-only endpoints (list, getById, search)
-  - Build user list UI in Admin dashboard with search/filter
-  - Build user detail view (profile, channels joined, message count, last active)
+- [x] C1. Admin user listing & details (#1, #9) ✓
+  - `getAllUsers()` / `getUserDetails()` in db.ts with pagination, search, sort
+  - `users` tRPC router (list, getById) with admin-only access
+  - UserManagement component: searchable/sortable user table, detail view with channels/message count/tickets
 
-- [ ] C2. User moderation system (#8)
-  - "Moderate Users" tab is a non-functional placeholder
-  - DB migration: add `is_suspended`, `suspension_reason`, `suspended_at`, `suspended_until` columns to users table
-  - Add db functions: `suspendUser()`, `unsuspendUser()`, `getSuspendedUsers()`
-  - Add tRPC endpoints for suspension/unsuspension
-  - Enforce suspension in message/post-send logic (check before allowing)
-  - Build moderation UI: user list with suspend/unsuspend actions, reason input, duration picker
+- [x] C2. User moderation system (#8) ✓
+  - Migration 010: `is_suspended`, `suspension_reason`, `suspended_at`, `suspended_until`, `suspended_by`
+  - `suspendUser()`, `unsuspendUser()`, `isUserSuspended()` in db.ts (auto-unsuspend on expiry)
+  - tRPC `users.suspend` / `users.unsuspend` endpoints (prevents suspending admins)
+  - Suspension enforced on `messages.send` and `support.create`
+  - Moderation UI: suspend dialog with reason + duration picker, unsuspend from list/detail
 
-- [ ] C3. Wire @moji into chat UI (#4)
-  - Backend exists (chatbot.ts, knowledge base search, escalation) but is never reachable from chat
-  - Connect AIChatBox / @moji trigger in the channel message input
-  - Ensure @moji responds in real-time via Socket.io
-  - Test end-to-end: user types @moji question → gets AI response in chat
+- [x] C3. Wire @moji into chat UI (#4) ✓
+  - Backend was already wired (chatbot.ts → messages.ts → Socket.io)
+  - Added @moji mention autocomplete popup in MessageInput (triggered by typing @)
+  - Updated placeholder to hint "@moji" availability
+  - Added "thinking" indicator in MessageList while bot processes response
 
 ### HIGH — Core feature gaps
 
@@ -93,8 +90,10 @@ Estimated effort: 6-8 focused sessions.
 - [x] Database schema (10 tables with indexes, RLS policies, triggers)
 - [x] Core backend tRPC API endpoints (server/routers.ts — missing: users router, moderation endpoints)
 - [x] Socket.io real-time infrastructure (connections, rooms, typing indicators)
-- [x] @moji AI chatbot backend only (LLM integration, knowledge base search, escalation — NOT wired into chat UI, see C3)
-- [x] Admin dashboard (Support Inbox, Analytics, Settings, Email Logs, KB management — User Moderation is placeholder only, see C1/C2)
+- [x] @moji AI chatbot fully wired end-to-end (backend + chat UI mention autocomplete + thinking indicator)
+- [x] Admin dashboard (Support Inbox, Analytics, Settings, Email Logs, KB management, User Management, User Moderation)
+- [x] User Management: admin user listing with search/filter/sort, user detail view with channels/messages/tickets
+- [x] User Moderation: suspend/unsuspend with reason and duration, enforcement on messaging and ticket creation
 - [x] Create Post modal (Events, Announcements, Articles, Newsletters — posts render as plain text, see H1)
 - [x] Member authentication via email verification codes (tRPC memberAuth router)
 - [x] Chat analytics and CSV export
