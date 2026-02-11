@@ -51,23 +51,33 @@ export default function RichTextEditor({
   minHeight = "200px",
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const isInternalChange = useRef(false);
+  const lastValueRef = useRef(value);
 
-  // Sync external value changes into the editor (only when value differs)
+  // Set initial content on mount
   useEffect(() => {
-    if (isInternalChange.current) {
-      isInternalChange.current = false;
-      return;
-    }
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
+    if (editorRef.current) {
       editorRef.current.innerHTML = value;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync only when value changes externally (e.g. form reset)
+  useEffect(() => {
+    if (
+      editorRef.current &&
+      value !== lastValueRef.current &&
+      editorRef.current.innerHTML !== value
+    ) {
+      editorRef.current.innerHTML = value;
+    }
+    lastValueRef.current = value;
   }, [value]);
 
   const handleInput = useCallback(() => {
     if (editorRef.current) {
-      isInternalChange.current = true;
-      onChange(editorRef.current.innerHTML);
+      const html = editorRef.current.innerHTML;
+      lastValueRef.current = html;
+      onChange(html);
     }
   }, [onChange]);
 
@@ -246,7 +256,6 @@ export default function RichTextEditor({
         style={{ minHeight }}
         data-placeholder={placeholder}
         onInput={handleInput}
-        dangerouslySetInnerHTML={{ __html: value }}
         suppressContentEditableWarning
       />
     </div>
