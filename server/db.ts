@@ -942,7 +942,7 @@ export async function getChannelMessages(
         display_name,
         role
       ),
-      posts (
+      posts!messages_post_id_fkey (
         id,
         post_type,
         title,
@@ -1004,7 +1004,7 @@ export async function getPinnedMessages(channelId: number) {
         display_name,
         role
       ),
-      posts (
+      posts!messages_post_id_fkey (
         id,
         post_type,
         title,
