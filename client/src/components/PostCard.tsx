@@ -119,9 +119,10 @@ export function PostCard({ post, authorName, createdAt }: PostCardProps) {
       </CardHeader>
 
       <CardContent className="pb-3">
-        <p className="text-sm text-foreground/80 whitespace-pre-wrap">
-          {post.content}
-        </p>
+        <div
+          className="text-sm text-foreground/80 prose prose-sm max-w-none"
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
 
         {post.postType === "event" && (
           <div className="mt-3 space-y-1.5">

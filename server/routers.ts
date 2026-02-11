@@ -757,6 +757,7 @@ export const appRouter = router({
                     date: input.eventDate,
                     location: input.eventLocation || undefined,
                     authorName,
+                    postId,
                   });
                 } else if (input.postType === "announcement") {
                   await emailService.sendAnnouncementEmail(
@@ -784,6 +785,7 @@ export const appRouter = router({
                     content: input.content,
                     tags: input.tags || undefined,
                     authorName,
+                    postId,
                   });
                 }
               } catch (emailErr) {
@@ -838,6 +840,7 @@ export const appRouter = router({
             date: input.eventDate,
             location: input.eventLocation || undefined,
             authorName,
+            postId: 0, // test mode, no real post
           });
         } else if (input.postType === "announcement") {
           result = await emailService.sendAnnouncementEmail(
@@ -868,6 +871,7 @@ export const appRouter = router({
               content: input.content,
               tags: input.tags || undefined,
               authorName,
+              postId: 0, // test mode, no real post
             }
           );
         } else {
@@ -924,6 +928,181 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await db.togglePinPost(input.postId, input.isPinned);
         return { success: true };
+      }),
+  }),
+
+  // Event RSVP system
+  events: router({
+    // Public: Submit interest in an event
+    submitInterest: publicProcedure
+      .input(
+        z.object({
+          postId: z.number(),
+          name: z.string().min(1).max(255),
+          email: z.string().email(),
+          phone: z.string().max(50).optional(),
+          company: z.string().max(255).optional(),
+          notes: z.string().max(1000).optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        // Verify the post exists and is an event
+        const post = await db.getPostById(input.postId);
+        if (!post || post.postType !== "event") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
+
+        // Check for existing RSVP
+        const existing = await db.getEventRsvpByEmail(
+          input.postId,
+          input.email
+        );
+        if (existing) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "You have already indicated interest in this event. We will be in touch!",
+          });
+        }
+
+        const rsvpId = await db.createEventRsvp({
+          postId: input.postId,
+          name: input.name,
+          email: input.email.toLowerCase(),
+          phone: input.phone || null,
+          company: input.company || null,
+          notes: input.notes || null,
+        });
+
+        return { rsvpId, success: true };
+      }),
+
+    // Public: Get event details for the interest form
+    getPublicEvent: publicProcedure
+      .input(z.object({ postId: z.number() }))
+      .query(async ({ input }) => {
+        const post = await db.getPostById(input.postId);
+        if (!post || post.postType !== "event") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
+        return {
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          eventDate: post.eventDate,
+          eventLocation: post.eventLocation,
+          authorName: post.authorName,
+        };
+      }),
+
+    // Admin: Get all RSVPs for an event
+    getInvitees: adminProcedure
+      .input(z.object({ postId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getEventRsvps(input.postId);
+      }),
+
+    // Admin: Send confirmation to all interested invitees
+    sendConfirmation: adminProcedure
+      .input(
+        z.object({
+          postId: z.number(),
+          eventLink: z.string().optional(),
+          additionalInfo: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const post = await db.getPostById(input.postId);
+        if (!post || post.postType !== "event") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
+
+        const rsvps = await db.getEventRsvps(input.postId);
+        const interested = rsvps.filter(r => r.status === "interested");
+        let sentCount = 0;
+
+        for (const rsvp of interested) {
+          try {
+            await emailService.sendEventConfirmation(rsvp.email, rsvp.name, {
+              title: post.title,
+              content: post.content,
+              date: new Date(post.eventDate!),
+              location: post.eventLocation || undefined,
+              eventLink: input.eventLink || undefined,
+              additionalInfo: input.additionalInfo || undefined,
+            });
+            await db.updateEventRsvp(rsvp.id, {
+              status: "confirmed",
+              confirmationSentAt: new Date(),
+            });
+            sentCount++;
+          } catch (err) {
+            console.error(
+              `[Events] Failed to send confirmation to ${rsvp.email}:`,
+              err
+            );
+          }
+        }
+
+        return { sentCount, success: true };
+      }),
+
+    // Admin: Send reminder to confirmed invitees
+    sendReminder: adminProcedure
+      .input(
+        z.object({
+          postId: z.number(),
+          eventLink: z.string().optional(),
+          reminderMessage: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const post = await db.getPostById(input.postId);
+        if (!post || post.postType !== "event") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
+
+        const rsvps = await db.getEventRsvps(input.postId);
+        const confirmed = rsvps.filter(
+          r => r.status === "confirmed" || r.status === "interested"
+        );
+        let sentCount = 0;
+
+        for (const rsvp of confirmed) {
+          try {
+            await emailService.sendEventReminder(rsvp.email, rsvp.name, {
+              title: post.title,
+              content: post.content,
+              date: new Date(post.eventDate!),
+              location: post.eventLocation || undefined,
+              eventLink: input.eventLink || undefined,
+              reminderMessage: input.reminderMessage || undefined,
+            });
+            await db.updateEventRsvp(rsvp.id, {
+              reminderSentAt: new Date(),
+            });
+            sentCount++;
+          } catch (err) {
+            console.error(
+              `[Events] Failed to send reminder to ${rsvp.email}:`,
+              err
+            );
+          }
+        }
+
+        return { sentCount, success: true };
       }),
   }),
 

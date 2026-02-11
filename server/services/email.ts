@@ -15,6 +15,8 @@ export type EmailTemplateType =
   | "verification_code"
   | "announcement"
   | "event"
+  | "event_confirmation"
+  | "event_reminder"
   | "article"
   | "reply_notification"
   | "mention_notification"
@@ -46,6 +48,8 @@ function templateToEmailType(templateType: EmailTemplateType): string {
     verification_code: "ticket",
     announcement: "announcement",
     event: "announcement",
+    event_confirmation: "announcement",
+    event_reminder: "announcement",
     article: "announcement",
     reply_notification: "reply",
     mention_notification: "mention",
@@ -277,6 +281,64 @@ export async function sendEventEmail(
     date: Date;
     location?: string;
     authorName?: string;
+    postId?: number;
+  }
+): Promise<EmailResult> {
+  const dateStr = event.date.toLocaleDateString("en-GB", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const interestUrl = event.postId
+    ? `https://connect.mojitax.co.uk/events/${event.postId}/interest`
+    : "https://connect.mojitax.co.uk";
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #1a1a1a;">You're Invited!</h2>
+      <p>Hi ${name || "there"},</p>
+      <p>You're invited to an upcoming MojiTax event:</p>
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin: 0 0 10px 0; color: #1a1a1a;">${event.title}</h3>
+        <p style="color: #6b7280; margin: 5px 0;"><strong>Date:</strong> ${dateStr}</p>
+        ${event.location ? `<p style="color: #6b7280; margin: 5px 0;"><strong>Location:</strong> ${event.location}</p>` : ""}
+        <div style="color: #374151; margin-top: 15px;">${event.content}</div>
+        ${event.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 15px;">Posted by ${event.authorName}</p>` : ""}
+      </div>
+      <p style="color: #374151; margin-bottom: 15px;">Interested in attending? Click below to let us know and we'll send you the full event details and reminders.</p>
+      <a href="${interestUrl}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Indicate Interest</a>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+    </div>
+  `;
+
+  return sendEmail({
+    to: email,
+    toName: name || undefined,
+    subject: `[Event Invitation] ${event.title} - ${dateStr}`,
+    html,
+    templateType: "event",
+  });
+}
+
+/**
+ * Send event confirmation email (with actual event link/details)
+ */
+export async function sendEventConfirmation(
+  email: string,
+  name: string | null,
+  event: {
+    title: string;
+    content: string;
+    date: Date;
+    location?: string;
+    authorName?: string;
+    eventLink?: string;
+    additionalInfo?: string;
   }
 ): Promise<EmailResult> {
   const dateStr = event.date.toLocaleDateString("en-GB", {
@@ -290,17 +352,17 @@ export async function sendEventEmail(
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #1a1a1a;">New Event</h2>
+      <h2 style="color: #1a1a1a;">Event Confirmed!</h2>
       <p>Hi ${name || "there"},</p>
-      <p>You're invited to a new event on MojiTax Connect:</p>
-      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <p>Great news! Your interest in the following event has been confirmed:</p>
+      <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
         <h3 style="margin: 0 0 10px 0; color: #1a1a1a;">${event.title}</h3>
         <p style="color: #6b7280; margin: 5px 0;"><strong>Date:</strong> ${dateStr}</p>
         ${event.location ? `<p style="color: #6b7280; margin: 5px 0;"><strong>Location:</strong> ${event.location}</p>` : ""}
         <div style="color: #374151; margin-top: 15px;">${event.content}</div>
-        ${event.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 15px;">Posted by ${event.authorName}</p>` : ""}
+        ${event.additionalInfo ? `<div style="color: #374151; margin-top: 10px; padding-top: 10px; border-top: 1px solid #d1fae5;">${event.additionalInfo}</div>` : ""}
       </div>
-      <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">View Event</a>
+      ${event.eventLink ? `<a href="${event.eventLink}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Join Event</a>` : ""}
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
       <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
     </div>
@@ -309,9 +371,59 @@ export async function sendEventEmail(
   return sendEmail({
     to: email,
     toName: name || undefined,
-    subject: `[Event] ${event.title} - ${dateStr}`,
+    subject: `[Event Confirmed] ${event.title} - ${dateStr}`,
     html,
-    templateType: "event",
+    templateType: "event_confirmation",
+  });
+}
+
+/**
+ * Send event reminder email
+ */
+export async function sendEventReminder(
+  email: string,
+  name: string | null,
+  event: {
+    title: string;
+    content: string;
+    date: Date;
+    location?: string;
+    eventLink?: string;
+    reminderMessage?: string;
+  }
+): Promise<EmailResult> {
+  const dateStr = event.date.toLocaleDateString("en-GB", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #1a1a1a;">Event Reminder</h2>
+      <p>Hi ${name || "there"},</p>
+      <p>This is a reminder about an upcoming event you expressed interest in:</p>
+      <div style="background: #fefce8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #eab308;">
+        <h3 style="margin: 0 0 10px 0; color: #1a1a1a;">${event.title}</h3>
+        <p style="color: #6b7280; margin: 5px 0;"><strong>Date:</strong> ${dateStr}</p>
+        ${event.location ? `<p style="color: #6b7280; margin: 5px 0;"><strong>Location:</strong> ${event.location}</p>` : ""}
+        ${event.reminderMessage ? `<div style="color: #374151; margin-top: 15px;">${event.reminderMessage}</div>` : ""}
+      </div>
+      ${event.eventLink ? `<a href="${event.eventLink}" style="display: inline-block; background: #eab308; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Join Event</a>` : ""}
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+    </div>
+  `;
+
+  return sendEmail({
+    to: email,
+    toName: name || undefined,
+    subject: `[Reminder] ${event.title} - ${dateStr}`,
+    html,
+    templateType: "event_reminder",
   });
 }
 
@@ -359,8 +471,18 @@ export async function sendArticleEmail(
     content: string;
     tags?: string;
     authorName?: string;
+    postId?: number;
   }
 ): Promise<EmailResult> {
+  // Strip HTML tags for summary, then truncate
+  const plainText = article.content.replace(/<[^>]*>/g, "");
+  const summary =
+    plainText.length > 200 ? plainText.substring(0, 200) + "..." : plainText;
+
+  const articleUrl = article.postId
+    ? `https://connect.mojitax.co.uk/articles/${article.postId}`
+    : "https://connect.mojitax.co.uk";
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1a1a1a;">New Article Published</h2>
@@ -368,11 +490,11 @@ export async function sendArticleEmail(
       <p>A new article has been posted on MojiTax Connect:</p>
       <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
         <h3 style="margin: 0 0 10px 0; color: #1a1a1a;">${article.title}</h3>
-        <div style="color: #374151;">${article.content}</div>
+        <p style="color: #374151;">${summary}</p>
         ${article.tags ? `<p style="color: #6b7280; font-size: 14px; margin-top: 15px;">Tags: ${article.tags}</p>` : ""}
         ${article.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Written by ${article.authorName}</p>` : ""}
       </div>
-      <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">Read Article</a>
+      <a href="${articleUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Read Full Article</a>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
       <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
     </div>

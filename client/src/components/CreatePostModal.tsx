@@ -8,8 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import RichTextEditor from "@/components/RichTextEditor";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -299,14 +299,12 @@ export default function CreatePostModal({
             </div>
 
             <div>
-              <Label htmlFor="content">Content *</Label>
-              <Textarea
-                id="content"
+              <Label>Content *</Label>
+              <RichTextEditor
                 value={content}
-                onChange={e => setContent(e.target.value)}
-                placeholder="Enter post content"
-                rows={6}
-                required
+                onChange={setContent}
+                placeholder="Enter post content — use the toolbar to format with bold, headings, bullet points, etc."
+                minHeight="180px"
               />
             </div>
           </div>
