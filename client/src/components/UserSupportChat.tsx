@@ -1,32 +1,30 @@
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Send,
   X,
   Headset,
   Bot,
-  MessageSquare,
   Plus,
   ArrowLeft,
   Clock,
-  CheckCircle2,
-  AlertCircle,
+  Loader2,
+  UserRound,
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useSocket } from "@/contexts/SocketContext";
+
+interface MojiChatMessage {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+}
 
 interface UserSupportChatProps {
   onClose: () => void;
@@ -37,9 +35,11 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
   const { socket } = useSocket();
   const utils = trpc.useUtils();
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
-  const [showNewTicket, setShowNewTicket] = useState(false);
-  const [newSubject, setNewSubject] = useState("");
-  const [newMessage, setNewMessage] = useState("");
+  const [showMojiChat, setShowMojiChat] = useState(false);
+  const [mojiMessages, setMojiMessages] = useState<MojiChatMessage[]>([]);
+  const [mojiInput, setMojiInput] = useState("");
+  const [mojiLoading, setMojiLoading] = useState(false);
+  const [showEscalateHint, setShowEscalateHint] = useState(false);
   const [replyMessage, setReplyMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -56,12 +56,14 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
       { enabled: !!activeTicketId }
     );
 
+  const mojiChatMutation = trpc.support.chatWithMoji.useMutation();
+
   const createTicketMutation = trpc.support.create.useMutation({
     onSuccess: data => {
       setActiveTicketId(data.ticketId);
-      setShowNewTicket(false);
-      setNewSubject("");
-      setNewMessage("");
+      setShowMojiChat(false);
+      setMojiMessages([]);
+      setShowEscalateHint(false);
       refetchTickets();
     },
   });
@@ -76,7 +78,7 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [ticketDetails?.messages]);
+  }, [ticketDetails?.messages, mojiMessages]);
 
   // Join/leave support ticket socket room for real-time messages
   useEffect(() => {
@@ -113,11 +115,71 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
     };
   }, [socket, activeTicketId, refetchDetails, refetchTickets]);
 
-  const handleCreateTicket = async () => {
-    if (!newSubject.trim() || !newMessage.trim()) return;
+  const handleMojiSend = async () => {
+    const text = mojiInput.trim();
+    if (!text || mojiLoading) return;
+
+    const userMsg: MojiChatMessage = {
+      id: Date.now(),
+      role: "user",
+      content: text,
+    };
+    setMojiMessages(prev => [...prev, userMsg]);
+    setMojiInput("");
+    setMojiLoading(true);
+
+    try {
+      const history = mojiMessages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const result = await mojiChatMutation.mutateAsync({
+        message: text,
+        conversationHistory: history,
+      });
+
+      const botMsg: MojiChatMessage = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: result.content,
+      };
+      setMojiMessages(prev => [...prev, botMsg]);
+
+      if (result.shouldEscalate) {
+        setShowEscalateHint(true);
+      }
+    } catch {
+      const errMsg: MojiChatMessage = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content:
+          "Sorry, I'm having trouble responding right now. You can connect with Team MojiTax below.",
+      };
+      setMojiMessages(prev => [...prev, errMsg]);
+      setShowEscalateHint(true);
+    } finally {
+      setMojiLoading(false);
+    }
+  };
+
+  const handleEscalateToHuman = async () => {
+    // Build a summary from the first user message
+    const firstUserMsg = mojiMessages.find(m => m.role === "user");
+    const subject = firstUserMsg
+      ? firstUserMsg.content.slice(0, 80)
+      : "Support request";
+
+    // Combine conversation as the initial message for context
+    const conversationSummary = mojiMessages
+      .map(m =>
+        m.role === "user" ? `User: ${m.content}` : `@moji: ${m.content}`
+      )
+      .join("\n\n");
+
     await createTicketMutation.mutateAsync({
-      subject: newSubject,
-      initialMessage: newMessage,
+      subject,
+      initialMessage: conversationSummary,
     });
   };
 
@@ -174,69 +236,170 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
     });
   };
 
-  // New ticket form
-  if (showNewTicket) {
+  // @moji chat phase (before ticket creation)
+  if (showMojiChat) {
     return (
       <div className="flex-1 flex flex-col">
-        <div className="border-b p-4 flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowNewTicket(false)}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h2 className="font-semibold">New Support Request</h2>
-            <p className="text-sm text-muted-foreground">
-              Get help from Team MojiTax
-            </p>
+        {/* Header */}
+        <div className="border-b p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setShowMojiChat(false);
+                setMojiMessages([]);
+                setShowEscalateHint(false);
+              }}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  <Bot className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="font-semibold">Chat with @moji</h2>
+                <p className="text-xs text-muted-foreground">AI assistant</p>
+              </div>
+            </div>
           </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
-        <div className="flex-1 p-6 max-w-2xl mx-auto w-full">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-primary" />
-                Chat with @moji first
-              </CardTitle>
-              <CardDescription>
-                Our AI assistant @moji can help with many questions instantly.
-                If @moji can't help, your message will be sent to the team.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Subject</label>
-                <Input
-                  placeholder="Brief description of your question"
-                  value={newSubject}
-                  onChange={e => setNewSubject(e.target.value)}
-                />
+        {/* Chat Messages */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4 max-w-3xl mx-auto">
+            {/* Initial @moji greeting */}
+            <div className="flex gap-3 justify-start">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  <Bot className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="max-w-[70%] rounded-lg p-3 bg-muted">
+                <p className="text-sm whitespace-pre-wrap">
+                  Hi! I'm @moji, your MojiTax AI assistant. How can I help you
+                  today? Ask me anything about international tax, VAT, ADIT
+                  exams, or your account.
+                </p>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Your Message</label>
-                <Textarea
-                  placeholder="Describe your question or issue in detail..."
-                  rows={5}
-                  value={newMessage}
-                  onChange={e => setNewMessage(e.target.value)}
-                />
-              </div>
-              <Button
-                className="w-full"
-                onClick={handleCreateTicket}
-                disabled={
-                  !newSubject.trim() ||
-                  !newMessage.trim() ||
-                  createTicketMutation.isPending
-                }
+            </div>
+
+            {/* Conversation messages */}
+            {mojiMessages.map(msg => (
+              <div
+                key={msg.id}
+                className={`flex gap-3 ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                }`}
               >
-                {createTicketMutation.isPending ? "Sending..." : "Send Message"}
+                {msg.role === "assistant" && (
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      <Bot className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <div
+                  className={`max-w-[70%] rounded-lg p-3 ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                </div>
+                {msg.role === "user" && (
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>You</AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            ))}
+
+            {/* Loading indicator */}
+            {mojiLoading && (
+              <div className="flex gap-3 justify-start">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    <Bot className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="rounded-lg p-3 bg-muted">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {/* Escalation hint */}
+            {showEscalateHint && (
+              <div className="flex justify-center">
+                <Card className="bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800 max-w-md">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Would you like to speak with a human team member?
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={handleEscalateToHuman}
+                      disabled={createTicketMutation.isPending}
+                    >
+                      <UserRound className="h-4 w-4 mr-1" />
+                      {createTicketMutation.isPending
+                        ? "Connecting..."
+                        : "Connect with Team MojiTax"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+
+        {/* Input + escalation button */}
+        <div className="border-t p-4">
+          <div className="flex gap-2 max-w-3xl mx-auto">
+            <Textarea
+              placeholder="Type your message..."
+              value={mojiInput}
+              onChange={e => setMojiInput(e.target.value)}
+              className="flex-1 min-h-[44px] max-h-32"
+              rows={1}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleMojiSend();
+                }
+              }}
+            />
+            <Button
+              onClick={handleMojiSend}
+              disabled={!mojiInput.trim() || mojiLoading}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+          {mojiMessages.length > 0 && (
+            <div className="flex justify-center mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={handleEscalateToHuman}
+                disabled={createTicketMutation.isPending}
+              >
+                <UserRound className="h-3 w-3 mr-1" />
+                Talk to a human instead
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -355,7 +518,7 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
               <Button
                 variant="link"
                 className="p-0 h-auto ml-1"
-                onClick={() => setShowNewTicket(true)}
+                onClick={() => setShowMojiChat(true)}
               >
                 Start a new conversation
               </Button>
@@ -413,7 +576,7 @@ export default function UserSupportChat({ onClose }: UserSupportChatProps) {
           <Button
             className="w-full"
             size="lg"
-            onClick={() => setShowNewTicket(true)}
+            onClick={() => setShowMojiChat(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
             Start New Conversation

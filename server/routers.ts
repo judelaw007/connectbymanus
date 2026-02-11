@@ -769,6 +769,34 @@ export const appRouter = router({
   }),
 
   support: router({
+    // Chat with @moji (before creating a ticket)
+    chatWithMoji: protectedProcedure
+      .input(
+        z.object({
+          message: z.string().min(1),
+          conversationHistory: z.array(
+            z.object({
+              role: z.enum(["user", "assistant"]),
+              content: z.string(),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const response = await chatbot.generateChatbotResponse(
+          input.message,
+          0, // no channel — this is a support pre-chat
+          ctx.user.id,
+          input.conversationHistory
+        );
+
+        return {
+          content: response.content,
+          shouldEscalate: response.shouldEscalate,
+          confidence: response.confidence,
+        };
+      }),
+
     // Create a support ticket
     create: protectedProcedure
       .input(z.object({ subject: z.string(), initialMessage: z.string() }))
