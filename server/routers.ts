@@ -673,9 +673,9 @@ export const appRouter = router({
           });
         }
 
-        // Check if user has access
+        // Check if user has access (admins can send to any channel)
         const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
-        if (!isMember) {
+        if (!isMember && ctx.user.role !== "admin") {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Must be a channel member to send messages",
