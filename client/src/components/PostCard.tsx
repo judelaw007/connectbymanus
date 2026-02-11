@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import DOMPurify from "dompurify";
 import {
   Calendar,
   MapPin,
@@ -122,7 +123,7 @@ export function PostCard({ post, authorName, createdAt }: PostCardProps) {
       <CardContent className="pb-3">
         <div
           className="text-sm text-foreground/80 prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
         />
 
         {post.postType === "event" && (
