@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DOMPurify from "dompurify";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -117,7 +118,9 @@ export default function EventInterest() {
             )}
             <div
               className="text-foreground/80 mt-4 prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: event.content }}
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(event.content),
+              }}
             />
           </CardContent>
         </Card>

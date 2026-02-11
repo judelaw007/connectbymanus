@@ -208,3 +208,109 @@ export async function getUserTags(email: string): Promise<string[]> {
     return [];
   }
 }
+
+// ============= Catalog API (Courses, Bundles, Subscriptions) =============
+
+interface LearnworldsCourse {
+  id: string;
+  title: string;
+  description?: string;
+  is_draft: boolean;
+}
+
+interface LearnworldsBundle {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+interface LearnworldsSubscription {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+/**
+ * Get all published courses from Learnworlds
+ */
+export async function getCourses(): Promise<{ id: string; title: string }[]> {
+  const status = getLearnworldsStatus();
+  if (!status.isConfigured) return [];
+
+  try {
+    const response =
+      await learnworldsRequest<LearnworldsApiResponse<LearnworldsCourse[]>>(
+        "/courses"
+      );
+    return (response.data || [])
+      .filter(c => !c.is_draft)
+      .map(c => ({ id: c.id, title: c.title }));
+  } catch (error: any) {
+    console.error("[Learnworlds] Error fetching courses:", error.message);
+    return [];
+  }
+}
+
+/**
+ * Get all bundles from Learnworlds
+ */
+export async function getBundles(): Promise<{ id: string; title: string }[]> {
+  const status = getLearnworldsStatus();
+  if (!status.isConfigured) return [];
+
+  try {
+    const response =
+      await learnworldsRequest<LearnworldsApiResponse<LearnworldsBundle[]>>(
+        "/bundles"
+      );
+    return (response.data || []).map(b => ({ id: b.id, title: b.title }));
+  } catch (error: any) {
+    console.error("[Learnworlds] Error fetching bundles:", error.message);
+    return [];
+  }
+}
+
+/**
+ * Get all subscriptions from Learnworlds
+ */
+export async function getSubscriptions(): Promise<
+  { id: string; title: string }[]
+> {
+  const status = getLearnworldsStatus();
+  if (!status.isConfigured) return [];
+
+  try {
+    const response =
+      await learnworldsRequest<
+        LearnworldsApiResponse<LearnworldsSubscription[]>
+      >("/subscriptions");
+    return (response.data || []).map(s => ({
+      id: s.id,
+      title: s.name || s.id,
+    }));
+  } catch (error: any) {
+    console.error("[Learnworlds] Error fetching subscriptions:", error.message);
+    return [];
+  }
+}
+
+/**
+ * Get a user's enrolled courses by email
+ */
+export async function getUserCourses(email: string): Promise<string[]> {
+  const status = getLearnworldsStatus();
+  if (!status.isConfigured) return [];
+
+  try {
+    const user = await getUserByEmail(email);
+    if (!user) return [];
+
+    const response = await learnworldsRequest<
+      LearnworldsApiResponse<{ id: string }[]>
+    >(`/users/${user.id}/courses`);
+    return (response.data || []).map(c => c.id);
+  } catch (error: any) {
+    console.error("[Learnworlds] Error fetching user courses:", error.message);
+    return [];
+  }
+}

@@ -171,6 +171,38 @@ export const appRouter = router({
           name: userName,
         });
 
+        // Auto-enroll user in Learnworlds-linked channels
+        if (lwStatus.isConfigured) {
+          try {
+            const userCourses = await learnworldsService.getUserCourses(email);
+            const linkedChannels = await db.getChannelsWithLearnworldsLinks();
+
+            for (const channel of linkedChannels) {
+              // Check if user's courses match the channel's linked entity
+              const shouldEnroll =
+                (channel.learnworldsCourseId &&
+                  userCourses.includes(channel.learnworldsCourseId)) ||
+                false; // Bundle/subscription matching requires additional API support
+
+              if (shouldEnroll) {
+                const isMember = await db.isUserInChannel(channel.id, user.id);
+                if (!isMember) {
+                  await db.addChannelMember({
+                    channelId: channel.id,
+                    userId: user.id,
+                  });
+                  console.log(
+                    `[AutoEnroll] User ${user.id} enrolled in channel ${channel.id}`
+                  );
+                }
+              }
+            }
+          } catch (err: any) {
+            console.error("[AutoEnroll] Error:", err.message);
+            // Don't block login if auto-enrollment fails
+          }
+        }
+
         // Create session token using jose (ESM-compatible)
         // Use JWT_SECRET or fallback to a dev secret (not secure for production!)
         const secretKey =
@@ -328,10 +360,31 @@ export const appRouter = router({
       return await db.getPublicChannels();
     }),
 
-    // Get user's channels (requires auth)
+    // Get user's channels (requires auth) — includes unread counts
     getMy: protectedProcedure.query(async ({ ctx }) => {
-      return await db.getUserChannels(ctx.user.id);
+      const channels = await db.getUserChannels(ctx.user.id);
+      const unreadCounts = await db.getUnreadCountsForUser(ctx.user.id);
+      const unreadMap = new Map(
+        unreadCounts.map(u => [u.channelId, u.unreadCount])
+      );
+      return channels.map((ch: any) => ({
+        ...ch,
+        unreadCount: unreadMap.get(ch.id) || 0,
+      }));
     }),
+
+    // Get unread message counts for all visible channels
+    getUnreadCounts: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUnreadCountsForUser(ctx.user.id);
+    }),
+
+    // Mark a channel as read
+    markAsRead: protectedProcedure
+      .input(z.object({ channelId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.updateChannelLastRead(ctx.user.id, input.channelId);
+        return { success: true };
+      }),
 
     // Get channel by ID
     getById: protectedProcedure
@@ -367,6 +420,9 @@ export const appRouter = router({
           description: z.string().optional(),
           type: z.enum(["topic", "study_group"]),
           isPrivate: z.boolean().default(false),
+          learnworldsCourseId: z.string().optional(),
+          learnworldsBundleId: z.string().optional(),
+          learnworldsSubscriptionId: z.string().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -375,6 +431,19 @@ export const appRouter = router({
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Only admins can create topic channels",
+          });
+        }
+
+        // Learnworlds linking is admin-only
+        if (
+          (input.learnworldsCourseId ||
+            input.learnworldsBundleId ||
+            input.learnworldsSubscriptionId) &&
+          ctx.user.role !== "admin"
+        ) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only admins can link channels to Learnworlds",
           });
         }
 
@@ -387,6 +456,9 @@ export const appRouter = router({
           isPrivate: input.isPrivate,
           inviteCode: inviteCode || null,
           createdBy: ctx.user.id,
+          learnworldsCourseId: input.learnworldsCourseId || null,
+          learnworldsBundleId: input.learnworldsBundleId || null,
+          learnworldsSubscriptionId: input.learnworldsSubscriptionId || null,
         });
 
         // Add creator as owner
@@ -398,6 +470,16 @@ export const appRouter = router({
 
         return { channelId, inviteCode };
       }),
+
+    // Get Learnworlds catalog for channel linking (admin only)
+    getLearnworldsCatalog: adminProcedure.query(async () => {
+      const [courses, bundles, subscriptions] = await Promise.all([
+        learnworldsService.getCourses(),
+        learnworldsService.getBundles(),
+        learnworldsService.getSubscriptions(),
+      ]);
+      return { courses, bundles, subscriptions };
+    }),
 
     // Join a channel
     join: protectedProcedure

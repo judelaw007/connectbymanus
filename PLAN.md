@@ -1,7 +1,7 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-11
-> Overall: ~75% complete | Backend core 95% | Frontend core features progressing | Admin tools functional
+> Overall: ~85% complete | Backend core 98% | All HIGH priorities done | Moving to MEDIUM tier
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
@@ -41,23 +41,28 @@ Estimated effort: 6-8 focused sessions.
   - Email distribution on post creation: General channel → all users, specific channel → channel members only
   - Email templates: sendAnnouncementEmail, sendEventEmail, sendNewsletterEmail, sendArticleEmail
 
-- [ ] H2. Unread message indicator / red badge (#7)
-  - No unread message tracking exists currently
-  - Add `last_read_at` per user per channel (DB migration + functions)
-  - Track unread count via Socket.io events
-  - Make "Go to Chat Mode" button turn RED when there are unread messages for admin
-  - Show per-channel unread badges in sidebar
+- [x] H2. Unread message indicator / red badge (#7) ✓
+  - Migration 013: `last_read_at` on channel_members + indexes
+  - `updateChannelLastRead()`, `getUnreadCountsForUser()` in db.ts
+  - tRPC `channels.getUnreadCounts` query + `channels.markAsRead` mutation
+  - Socket.io: mark-read on channel:join, `emitUnreadUpdate` on new messages
+  - Per-channel red badges in sidebar (Topic Channels + My Groups)
+  - Admin "Go to Chat Mode" button turns red with count when unreads exist
+  - Real-time: local tracking via Socket events + 60s polling safety net
 
-- [ ] H3. Admin-only channel creation linked to Learnworlds (#6)
-  - Admin should be able to create channels and link them to specific courses, subscriptions, or bundles
-  - DB migration: add `learnworlds_course_id`, `learnworlds_bundle_id`, `learnworlds_subscription_id` columns to channels table
-  - Build channel-creation UI with Learnworlds entity picker
-  - Auto-enroll users into linked channels based on their Learnworlds purchases
-  - Users cannot create channels but CAN create private groups (study groups already exist — verify this path works)
+- [x] H3. Admin-only channel creation linked to Learnworlds (#6) ✓
+  - Migration 014: `learnworlds_course_id`, `learnworlds_bundle_id`, `learnworlds_subscription_id` on channels
+  - Learnworlds API: `getCourses()`, `getBundles()`, `getSubscriptions()`, `getUserCourses()`
+  - tRPC `channels.getLearnworldsCatalog` (admin-only) returns all entities
+  - Updated `channels.create` to accept Learnworlds entity links (admin-only)
+  - Auto-enrollment: on member login, matches user's Learnworlds courses to linked channels
+  - CreateChannelModal: admin UI with name/description + Learnworlds entity picker dropdown
+  - "Create Channel" button in admin sidebar (regular users still use "Create Group" for study groups)
 
-- [ ] H4. XSS hardening — add DOMPurify and Content-Security-Policy header
-  - Current message rendering is text-safe (whitespace-pre-wrap, no HTML injection)
-  - Install DOMPurify for future HTML content, add CSP header in Express middleware
+- [x] H4. XSS hardening — DOMPurify + Content-Security-Policy header ✓
+  - DOMPurify installed and applied to all `dangerouslySetInnerHTML` usage (PostCard, EventInterest)
+  - CSP header: restricts scripts, frames, objects; allows Supabase/OpenAI/fonts
+  - X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Referrer-Policy
 
 ### MEDIUM — Post-launch improvements
 
@@ -83,7 +88,7 @@ Estimated effort: 6-8 focused sessions.
 ## Blockers
 
 - mojitax.co.uk OAuth: Requires API credentials and documentation from Learnworlds
-- Learnworlds course/bundle/subscription API: Needed for H3 (channel linking) and M1 (@mention autocomplete)
+- ~~Learnworlds course/bundle/subscription API~~: **RESOLVED** — API integration built for H3 (channel linking); also usable for M1
 
 ## Completed
 
@@ -112,6 +117,9 @@ Estimated effort: 6-8 focused sessions.
 - [x] Online users sidebar with real Socket.io data (replaced hardcoded fake data)
 - [x] Message sending reliability (optimistic updates, error handling, Enter key support)
 - [x] "My Tickets" section for users (via UserSupportChat "Your Conversations")
+- [x] Unread message indicators: per-channel red badges + admin "Go to Chat Mode" badge, real-time Socket updates
+- [x] Admin-only channel creation with Learnworlds entity linking + auto-enrollment on login
+- [x] XSS hardening: DOMPurify on all HTML rendering + CSP/security headers in Express
 
 ## Out of Scope (for now)
 

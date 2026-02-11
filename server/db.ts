@@ -38,6 +38,9 @@ export interface Channel {
   inviteCode: string | null;
   createdBy: number | null;
   createdAt: Date;
+  learnworldsCourseId: string | null;
+  learnworldsBundleId: string | null;
+  learnworldsSubscriptionId: string | null;
 }
 
 export interface Message {
@@ -663,6 +666,26 @@ export async function getPublicChannels() {
   return (data || []).map(snakeToCamel);
 }
 
+export async function getChannelsWithLearnworldsLinks() {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("channels")
+    .select("*")
+    .eq("is_closed", false)
+    .or(
+      "learnworlds_course_id.not.is.null,learnworlds_bundle_id.not.is.null,learnworlds_subscription_id.not.is.null"
+    );
+
+  if (error) {
+    console.error("[Database] Error getting LW-linked channels:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel) as Channel[];
+}
+
 export async function getUserChannels(userId: number) {
   const supabase = getSupabase();
   if (!supabase) return [];
@@ -792,6 +815,97 @@ export async function isUserInChannel(channelId: number, userId: number) {
   }
 
   return (data?.length ?? 0) > 0;
+}
+
+// ============= Unread Tracking Functions =============
+
+export async function updateChannelLastRead(
+  userId: number,
+  channelId: number,
+  timestamp: Date = new Date()
+) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("channel_members")
+    .update({ last_read_at: timestamp.toISOString() })
+    .eq("user_id", userId)
+    .eq("channel_id", channelId);
+
+  if (error) {
+    console.error("[Database] Error updating last_read_at:", error);
+  }
+}
+
+export async function getUnreadCountsForUser(
+  userId: number
+): Promise<{ channelId: number; unreadCount: number }[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  // Get all channels the user is a member of, with their last_read_at
+  const { data: memberships, error: memberError } = await supabase
+    .from("channel_members")
+    .select("channel_id, last_read_at")
+    .eq("user_id", userId);
+
+  if (memberError || !memberships) {
+    console.error("[Database] Error getting memberships:", memberError);
+    return [];
+  }
+
+  // Also include public channels the user may not be a member of
+  const { data: publicChannels, error: pubError } = await supabase
+    .from("channels")
+    .select("id")
+    .eq("is_private", false)
+    .eq("is_closed", false);
+
+  if (pubError) {
+    console.error("[Database] Error getting public channels:", pubError);
+  }
+
+  // Build a map of channelId → lastReadAt
+  const readMap = new Map<number, string>();
+  for (const m of memberships) {
+    readMap.set(m.channel_id, m.last_read_at);
+  }
+
+  // Collect all channel IDs (member channels + public channels)
+  const allChannelIds = new Set<number>();
+  for (const m of memberships) allChannelIds.add(m.channel_id);
+  if (publicChannels) {
+    for (const c of publicChannels) allChannelIds.add(c.id);
+  }
+
+  const results: { channelId: number; unreadCount: number }[] = [];
+
+  for (const channelId of Array.from(allChannelIds)) {
+    const lastRead = readMap.get(channelId);
+
+    let query = supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("channel_id", channelId);
+
+    if (lastRead) {
+      query = query.gt("created_at", lastRead);
+    }
+    // If no lastRead (public channel, user not a member), count all messages
+    // But to avoid showing huge counts, only count messages from last 24h
+    if (!lastRead) {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      query = query.gt("created_at", oneDayAgo.toISOString());
+    }
+
+    const { count, error } = await query;
+    if (!error && count && count > 0) {
+      results.push({ channelId, unreadCount: count });
+    }
+  }
+
+  return results;
 }
 
 // ============= Message Functions =============

@@ -22,7 +22,7 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 - **`client/`** — React 19 frontend built with Vite. Uses Wouter for routing, shadcn/ui (Radix UI + TailwindCSS v4) for components, React Query for server state.
 - **`server/`** — Express backend with tRPC for type-safe API (mounted at `/api/trpc`) and Socket.io for real-time messaging/presence. Entry point: `server/_core/index.ts`.
 - **`shared/`** — Types, constants, and error classes shared between client and server.
-- **`supabase/migrations/`** — SQL migration files for the Supabase (PostgreSQL) database (currently 9 migrations, 001–009).
+- **`supabase/migrations/`** — SQL migration files for the Supabase (PostgreSQL) database (currently 14 migrations, 001–014).
 
 **Path aliases:** `@/*` → `client/src/*`, `@shared/*` → `shared/*`
 
@@ -57,10 +57,10 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 
 **`server/services/`** — External service integrations:
 
-| File             | Purpose                                                                            |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| `email.ts`       | SendGrid email service (supports TEST_MODE to redirect all mail to test recipient) |
-| `learnworlds.ts` | Learnworlds API integration for member authentication verification                 |
+| File             | Purpose                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| `email.ts`       | SendGrid email service (supports TEST_MODE to redirect all mail to test recipient)  |
+| `learnworlds.ts` | Learnworlds API: member auth verification + catalog (courses/bundles/subscriptions) |
 
 **Test files:** `server/*.test.ts` (7 test files: analytics, auth.logout, channels, chatbot, messages, posts, support)
 
@@ -81,24 +81,25 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 
 **`client/src/components/`** — Feature components:
 
-| File                   | Purpose                                                                       |
-| ---------------------- | ----------------------------------------------------------------------------- |
-| `ChatLayout.tsx`       | **Main chat UI** — channel list, message display, input (three-column layout) |
-| `MessageList.tsx`      | Paginated message thread rendering                                            |
-| `MessageInput.tsx`     | Text input with rich formatting                                               |
-| `AIChatBox.tsx`        | Reusable AI chat widget (used in ComponentShowcase; @moji uses MessageInput)  |
-| `CreatePostModal.tsx`  | Modal for creating posts (Events, Announcements, Articles, Newsletters)       |
-| `CreateGroupModal.tsx` | Modal for creating study groups                                               |
-| `SupportInbox.tsx`     | Admin support ticket inbox                                                    |
-| `UserSupportChat.tsx`  | User-facing support chat interface                                            |
-| `ChatAnalytics.tsx`    | Channel analytics dashboard                                                   |
-| `AdminAuthGuard.tsx`   | Route guard — redirects non-admins                                            |
-| `DashboardLayout.tsx`  | Admin dashboard wrapper layout                                                |
-| `EmailLogs.tsx`        | Admin email log viewer                                                        |
-| `MojiSettings.tsx`     | Admin @moji configuration                                                     |
-| `PlatformSettings.tsx` | Global platform settings UI                                                   |
-| `UserManagement.tsx`   | Admin user list + detail + moderation (suspend/unsuspend)                     |
-| `ErrorBoundary.tsx`    | React error boundary                                                          |
+| File                     | Purpose                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `ChatLayout.tsx`         | **Main chat UI** — channel list, message display, input (three-column layout) |
+| `MessageList.tsx`        | Paginated message thread rendering                                            |
+| `MessageInput.tsx`       | Text input with rich formatting                                               |
+| `AIChatBox.tsx`          | Reusable AI chat widget (used in ComponentShowcase; @moji uses MessageInput)  |
+| `CreatePostModal.tsx`    | Modal for creating posts (Events, Announcements, Articles, Newsletters)       |
+| `CreateGroupModal.tsx`   | Modal for creating study groups                                               |
+| `CreateChannelModal.tsx` | Admin modal for creating topic channels with Learnworlds entity linking       |
+| `SupportInbox.tsx`       | Admin support ticket inbox                                                    |
+| `UserSupportChat.tsx`    | User-facing support chat interface                                            |
+| `ChatAnalytics.tsx`      | Channel analytics dashboard                                                   |
+| `AdminAuthGuard.tsx`     | Route guard — redirects non-admins                                            |
+| `DashboardLayout.tsx`    | Admin dashboard wrapper layout                                                |
+| `EmailLogs.tsx`          | Admin email log viewer                                                        |
+| `MojiSettings.tsx`       | Admin @moji configuration                                                     |
+| `PlatformSettings.tsx`   | Global platform settings UI                                                   |
+| `UserManagement.tsx`     | Admin user list + detail + moderation (suspend/unsuspend)                     |
+| `ErrorBoundary.tsx`      | React error boundary                                                          |
 
 **`client/src/components/ui/`** — 60+ shadcn/ui primitives (button, card, dialog, form, table, etc.). Do not modify directly; regenerate via shadcn CLI.
 
