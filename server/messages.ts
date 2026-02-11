@@ -37,14 +37,24 @@ export async function createMessage(input: CreateMessageInput) {
     // Emit to all users in the channel via Socket.io
     emitMessageToChannel(channelId, newMessage);
 
-    // Notify all channel members about the new unread message
+    // Update sender's last_read_at so their own message doesn't appear as unread
+    await db.updateChannelLastRead(userId, channelId);
+
+    // Notify all other channel members about the new unread message
     // (so users not currently viewing this channel see the badge)
     const members = await db.getChannelMembers(channelId);
-    for (const member of members) {
-      if (member.id !== userId) {
-        emitUnreadUpdate(member.id, channelId, 1);
-      }
-    }
+    const updates = members
+      .filter(member => member.id !== userId)
+      .map(async member => {
+        const count = await db.getUnreadCountForUserChannel(
+          member.id,
+          channelId
+        );
+        if (count > 0) {
+          emitUnreadUpdate(member.id, channelId, count);
+        }
+      });
+    await Promise.all(updates);
   }
 
   return { messageId, message: newMessage };
