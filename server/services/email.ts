@@ -36,18 +36,21 @@ export interface EmailResult {
   redirectedTo?: string; // Set when TEST_MODE redirects email
 }
 
-// Map templateType to the email_type DB enum
+// Map templateType to the email_type DB enum.
+// IMPORTANT: only return values that exist in the original Postgres enum:
+//   announcement, reply, mention, ticket, group_notification, newsletter
+// The more specific name is preserved in the template_type VARCHAR column.
 function templateToEmailType(templateType: EmailTemplateType): string {
   const map: Record<EmailTemplateType, string> = {
-    verification_code: "verification_code",
+    verification_code: "ticket",
     announcement: "announcement",
-    event: "event",
+    event: "announcement",
     reply_notification: "reply",
     mention_notification: "mention",
-    support_update: "support_update",
+    support_update: "ticket",
     newsletter: "newsletter",
   };
-  return map[templateType] || "general";
+  return map[templateType] || "ticket";
 }
 
 /**
