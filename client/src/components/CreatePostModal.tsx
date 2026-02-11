@@ -150,7 +150,7 @@ export default function CreatePostModal({
     if (postType === "event") {
       postData.eventDate = eventDate ? new Date(eventDate) : undefined;
       postData.eventLocation = eventLocation;
-      if (reminderHours) {
+      if (reminderHours && reminderHours !== "none") {
         postData.reminderHours = Number(reminderHours);
       }
     } else if (postType === "article") {
@@ -358,7 +358,9 @@ export default function CreatePostModal({
                       <SelectValue placeholder="No automatic reminder" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No automatic reminder</SelectItem>
+                      <SelectItem value="none">
+                        No automatic reminder
+                      </SelectItem>
                       <SelectItem value="1">1 hour before event</SelectItem>
                       <SelectItem value="2">2 hours before event</SelectItem>
                       <SelectItem value="4">4 hours before event</SelectItem>
