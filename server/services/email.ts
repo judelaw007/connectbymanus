@@ -97,12 +97,18 @@ export async function sendEmail(
       recipientEmail: originalRecipient,
       recipientName: toName || null,
       subject: options.subject, // Log original subject
+      content: html, // Include HTML content for log readability
       emailType: templateToEmailType(templateType),
       templateType,
       status: "pending",
     });
-  } catch (err) {
-    console.error("[Email] Failed to create email log:", err);
+  } catch (err: any) {
+    console.error(
+      "[Email] Failed to create email log:",
+      err?.message || err,
+      "| Data:",
+      { to: originalRecipient, subject: options.subject, templateType }
+    );
   }
 
   // Check if SendGrid is configured
