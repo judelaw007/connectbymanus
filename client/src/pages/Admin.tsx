@@ -4,6 +4,7 @@ import MojiSettings from "@/components/MojiSettings";
 import EmailLogs from "@/components/EmailLogs";
 import PlatformSettings from "@/components/PlatformSettings";
 import UserManagement from "@/components/UserManagement";
+import EventInvitees from "@/components/EventInvitees";
 import {
   Card,
   CardContent,
@@ -36,6 +37,7 @@ import {
   LayoutDashboard,
   MessagesSquare,
   Save,
+  CalendarCheck,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import ChatLayout from "@/components/ChatLayout";
@@ -50,7 +52,8 @@ type DashboardSection =
   | "users"
   | "user-moderation"
   | "platform-settings"
-  | "chat-analytics";
+  | "chat-analytics"
+  | "event-invitees";
 
 export default function Admin() {
   const [, setLocation] = useLocation();
@@ -258,6 +261,9 @@ export default function Admin() {
       case "platform-settings":
         return <PlatformSettings />;
 
+      case "event-invitees":
+        return <EventInvitees />;
+
       default:
         return null;
     }
@@ -364,6 +370,16 @@ export default function Admin() {
             >
               <Settings className="h-4 w-4 mr-2" />
               Platform Settings
+            </Button>
+            <Button
+              variant={
+                activeSection === "event-invitees" ? "secondary" : "ghost"
+              }
+              className="w-full justify-start"
+              onClick={() => setActiveSection("event-invitees")}
+            >
+              <CalendarCheck className="h-4 w-4 mr-2" />
+              Event Invitees
             </Button>
           </nav>
 

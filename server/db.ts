@@ -159,6 +159,20 @@ export interface VerificationCode {
   createdAt: Date;
 }
 
+export interface EventRsvp {
+  id: number;
+  postId: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  notes: string | null;
+  status: "interested" | "confirmed" | "declined" | "cancelled";
+  confirmationSentAt: Date | null;
+  reminderSentAt: Date | null;
+  createdAt: Date;
+}
+
 // Insert types
 export type InsertUser = Partial<User> & { openId: string };
 export type InsertChannel = Partial<Channel> & { name: string };
@@ -205,6 +219,14 @@ export type InsertVerificationCode = {
   email: string;
   code: string;
   expiresAt: Date;
+};
+export type InsertEventRsvp = {
+  postId: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  company?: string | null;
+  notes?: string | null;
 };
 
 // Supabase client singleton
@@ -2096,4 +2118,87 @@ export async function getEmailsSentThisWeekCount(): Promise<number> {
     return 0;
   }
   return count ?? 0;
+}
+
+// ============= Event RSVP Functions =============
+
+export async function createEventRsvp(rsvp: InsertEventRsvp) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { data, error } = await supabase
+    .from("event_rsvps")
+    .insert(camelToSnake(rsvp))
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+export async function getEventRsvps(postId: number) {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("event_rsvps")
+    .select("*")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[Database] Error getting event RSVPs:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel) as EventRsvp[];
+}
+
+export async function getEventRsvpByEmail(postId: number, email: string) {
+  const supabase = getSupabase();
+  if (!supabase) return undefined;
+
+  const { data, error } = await supabase
+    .from("event_rsvps")
+    .select("*")
+    .eq("post_id", postId)
+    .eq("email", email.toLowerCase())
+    .limit(1)
+    .single();
+
+  if (error && error.code !== "PGRST116") {
+    console.error("[Database] Error getting event RSVP:", error);
+  }
+
+  return data ? (snakeToCamel(data) as EventRsvp) : undefined;
+}
+
+export async function updateEventRsvp(
+  rsvpId: number,
+  updates: Partial<EventRsvp>
+) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("event_rsvps")
+    .update(camelToSnake(updates))
+    .eq("id", rsvpId);
+
+  if (error) throw error;
+}
+
+export async function updateEventRsvpsByPost(
+  postId: number,
+  updates: Partial<EventRsvp>
+) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("event_rsvps")
+    .update(camelToSnake(updates))
+    .eq("post_id", postId);
+
+  if (error) throw error;
 }

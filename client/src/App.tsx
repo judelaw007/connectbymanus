@@ -11,6 +11,7 @@ import MemberLogin from "./pages/MemberLogin";
 import Admin from "./pages/Admin";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import EventInterest from "./pages/EventInterest";
 import AdminAuthGuard from "./components/AdminAuthGuard";
 
 function Router() {
@@ -25,6 +26,7 @@ function Router() {
           <Admin />
         </AdminAuthGuard>
       </Route>
+      <Route path="/events/:id/interest" component={EventInterest} />
       <Route path="/terms" component={TermsOfService} />
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path={"/404"} component={NotFound} />
