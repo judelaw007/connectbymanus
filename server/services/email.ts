@@ -15,6 +15,7 @@ export type EmailTemplateType =
   | "verification_code"
   | "announcement"
   | "event"
+  | "article"
   | "reply_notification"
   | "mention_notification"
   | "support_update"
@@ -45,6 +46,7 @@ function templateToEmailType(templateType: EmailTemplateType): string {
     verification_code: "ticket",
     announcement: "announcement",
     event: "announcement",
+    article: "announcement",
     reply_notification: "reply",
     mention_notification: "mention",
     support_update: "ticket",
@@ -310,6 +312,78 @@ export async function sendEventEmail(
     subject: `[Event] ${event.title} - ${dateStr}`,
     html,
     templateType: "event",
+  });
+}
+
+/**
+ * Send newsletter notification email
+ */
+export async function sendNewsletterEmail(
+  email: string,
+  name: string | null,
+  newsletter: { title: string; content: string; authorName?: string }
+): Promise<EmailResult> {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #1a1a1a;">MojiTax Newsletter</h2>
+      <p>Hi ${name || "there"},</p>
+      <p>A new newsletter has been published on MojiTax Connect:</p>
+      <div style="background: #f5f3ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8b5cf6;">
+        <h3 style="margin: 0 0 10px 0; color: #1a1a1a;">${newsletter.title}</h3>
+        <div style="color: #374151;">${newsletter.content}</div>
+        ${newsletter.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 15px;">Published by ${newsletter.authorName}</p>` : ""}
+      </div>
+      <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #8b5cf6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">Read on Connect</a>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+    </div>
+  `;
+
+  return sendEmail({
+    to: email,
+    toName: name || undefined,
+    subject: `[Newsletter] ${newsletter.title}`,
+    html,
+    templateType: "newsletter",
+  });
+}
+
+/**
+ * Send article notification email
+ */
+export async function sendArticleEmail(
+  email: string,
+  name: string | null,
+  article: {
+    title: string;
+    content: string;
+    tags?: string;
+    authorName?: string;
+  }
+): Promise<EmailResult> {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #1a1a1a;">New Article Published</h2>
+      <p>Hi ${name || "there"},</p>
+      <p>A new article has been posted on MojiTax Connect:</p>
+      <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+        <h3 style="margin: 0 0 10px 0; color: #1a1a1a;">${article.title}</h3>
+        <div style="color: #374151;">${article.content}</div>
+        ${article.tags ? `<p style="color: #6b7280; font-size: 14px; margin-top: 15px;">Tags: ${article.tags}</p>` : ""}
+        ${article.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Written by ${article.authorName}</p>` : ""}
+      </div>
+      <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">Read Article</a>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+    </div>
+  `;
+
+  return sendEmail({
+    to: email,
+    toName: name || undefined,
+    subject: `[Article] ${article.title}`,
+    html,
+    templateType: "article",
   });
 }
 

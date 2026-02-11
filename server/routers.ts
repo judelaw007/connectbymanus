@@ -726,7 +726,81 @@ export const appRouter = router({
         // Update the post with the messageId
         await db.updatePost(postId, { messageId });
 
-        // TODO: Handle email distribution for newsletters and announcements
+        // Email distribution: notify channel members (or all users for General)
+        // Run in background so the API responds immediately
+        (async () => {
+          try {
+            let recipients: Array<{
+              email: string | null;
+              name: string | null;
+            }>;
+
+            if (targetChannelId === 1) {
+              // General channel → email all users
+              const { users } = await db.getAllUsers({ limit: 10000 });
+              recipients = users;
+            } else {
+              // Specific channel → email only channel members
+              recipients = await db.getChannelMembers(targetChannelId);
+            }
+
+            const authorName = ctx.user.name || "Admin";
+
+            for (const user of recipients) {
+              if (!user.email) continue;
+
+              try {
+                if (input.postType === "event" && input.eventDate) {
+                  await emailService.sendEventEmail(user.email, user.name, {
+                    title: input.title,
+                    content: input.content,
+                    date: input.eventDate,
+                    location: input.eventLocation || undefined,
+                    authorName,
+                  });
+                } else if (input.postType === "announcement") {
+                  await emailService.sendAnnouncementEmail(
+                    user.email,
+                    user.name,
+                    {
+                      title: input.title,
+                      content: input.content,
+                      authorName,
+                    }
+                  );
+                } else if (input.postType === "newsletter") {
+                  await emailService.sendNewsletterEmail(
+                    user.email,
+                    user.name,
+                    {
+                      title: input.title,
+                      content: input.content,
+                      authorName,
+                    }
+                  );
+                } else if (input.postType === "article") {
+                  await emailService.sendArticleEmail(user.email, user.name, {
+                    title: input.title,
+                    content: input.content,
+                    tags: input.tags || undefined,
+                    authorName,
+                  });
+                }
+              } catch (emailErr) {
+                console.error(
+                  `[Posts] Failed to send email to ${user.email}:`,
+                  emailErr
+                );
+              }
+            }
+
+            console.log(
+              `[Posts] Email distribution complete for ${input.postType} "${input.title}" — ${recipients.filter(u => u.email).length} recipients`
+            );
+          } catch (err) {
+            console.error("[Posts] Email distribution failed:", err);
+          }
+        })();
 
         return { postId, messageId, success: true };
       }),
