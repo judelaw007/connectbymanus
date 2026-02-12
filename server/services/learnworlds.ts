@@ -31,16 +31,72 @@ let accessToken: string | null = null;
 let tokenExpiresAt: number = 0;
 
 /**
+ * Resolve the school base URL from available env vars.
+ * Supports: LEARNWORLDS_API_URL, LEARNWORLDS_SCHOOL_URL, or LEARNWORLDS_SCHOOL_ID.
+ * Returns e.g. "https://mojitax.learnworlds.com"
+ */
+function getSchoolBaseUrl(): string | null {
+  // LEARNWORLDS_API_URL is the most explicit (e.g. https://mojitax.learnworlds.com/admin/api/v2)
+  if (ENV.learnworldsApiUrl) {
+    // Strip any path suffix to get the origin
+    try {
+      const url = new URL(ENV.learnworldsApiUrl);
+      return url.origin;
+    } catch {
+      // If it's not a valid URL, try using it as-is after stripping trailing paths
+      return ENV.learnworldsApiUrl
+        .replace(/\/admin\/api.*$/, "")
+        .replace(/\/+$/, "");
+    }
+  }
+
+  // LEARNWORLDS_SCHOOL_URL (e.g. https://mojitax.learnworlds.com or mojitax.learnworlds.com)
+  if (ENV.learnworldsSchoolUrl) {
+    const val = ENV.learnworldsSchoolUrl.replace(/\/+$/, "");
+    if (val.startsWith("http")) return val;
+    return `https://${val}`;
+  }
+
+  // LEARNWORLDS_SCHOOL_ID (e.g. mojitax)
+  if (ENV.learnworldsSchoolId) {
+    return `https://${ENV.learnworldsSchoolId}.learnworlds.com`;
+  }
+
+  return null;
+}
+
+/**
+ * Resolve the API v2 base URL.
+ * If LEARNWORLDS_API_URL is set and already includes /admin/api/v2, use it directly.
+ * Otherwise construct from school base URL.
+ */
+function getApiBaseUrl(): string | null {
+  // If LEARNWORLDS_API_URL looks like a full API URL, use it directly
+  if (ENV.learnworldsApiUrl) {
+    const val = ENV.learnworldsApiUrl.replace(/\/+$/, "");
+    if (val.includes("/admin/api/v2")) return val;
+    if (val.includes("/api/v2")) return val;
+    // Append the standard path
+    const base = getSchoolBaseUrl();
+    return base ? `${base}/admin/api/v2` : null;
+  }
+
+  const base = getSchoolBaseUrl();
+  return base ? `${base}/admin/api/v2` : null;
+}
+
+/**
  * Get Learnworlds API status (for debugging)
  */
 export function getLearnworldsStatus() {
+  const baseUrl = getSchoolBaseUrl();
   return {
     isConfigured: !!(
       ENV.learnworldsClientId &&
       ENV.learnworldsClientSecret &&
-      ENV.learnworldsSchoolId
+      baseUrl
     ),
-    schoolId: ENV.learnworldsSchoolId || null,
+    schoolBaseUrl: baseUrl,
     hasClientId: !!ENV.learnworldsClientId,
     hasClientSecret: !!ENV.learnworldsClientSecret,
   };
@@ -59,8 +115,13 @@ async function getAccessToken(): Promise<string> {
     throw new Error("Learnworlds credentials not configured");
   }
 
-  const schoolId = ENV.learnworldsSchoolId || "mojitax";
-  const tokenUrl = `https://${schoolId}.learnworlds.com/admin/api/oauth2/access_token`;
+  const schoolBase = getSchoolBaseUrl();
+  if (!schoolBase) {
+    throw new Error(
+      "Learnworlds school URL not configured. Set LEARNWORLDS_SCHOOL_URL, LEARNWORLDS_API_URL, or LEARNWORLDS_SCHOOL_ID."
+    );
+  }
+  const tokenUrl = `${schoolBase}/admin/api/oauth2/access_token`;
 
   try {
     const response = await fetch(tokenUrl, {
@@ -113,8 +174,10 @@ async function learnworldsRequest<T>(
   _retried = false
 ): Promise<T> {
   const token = await getAccessToken();
-  const schoolId = ENV.learnworldsSchoolId || "mojitax";
-  const baseUrl = `https://${schoolId}.learnworlds.com/admin/api/v2`;
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) {
+    throw new Error("Learnworlds API URL could not be resolved");
+  }
 
   const url = `${baseUrl}${endpoint}`;
   const response = await fetch(url, {
