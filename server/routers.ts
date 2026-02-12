@@ -76,41 +76,43 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const email = input.email.toLowerCase().trim();
 
-        // Check if Learnworlds is configured
+        // Verify Learnworlds is configured — refuse login if not
         const lwStatus = learnworldsService.getLearnworldsStatus();
         if (!lwStatus.isConfigured) {
-          // For development/testing without Learnworlds, allow any email
-          console.log(
-            "[MemberAuth] Learnworlds not configured, allowing any email for testing"
+          console.error(
+            "[MemberAuth] Learnworlds not configured — blocking login. Set LEARNWORLDS_CLIENT_ID, LEARNWORLDS_CLIENT_SECRET, and LEARNWORLDS_SCHOOL_ID."
           );
-        } else {
-          // Verify the user exists in Learnworlds
-          const lwUser = await learnworldsService.getUserByEmail(email);
-          if (!lwUser) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message:
-                "This email is not registered as a MojiTax member. Please use your Learnworlds account email.",
-            });
-          }
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "Member authentication is not available. Please contact support.",
+          });
+        }
 
-          if (!lwUser.is_active) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message:
-                "Your MojiTax account is inactive. Please contact support.",
-            });
-          }
+        // Verify the user exists in Learnworlds
+        const lwUser = await learnworldsService.getUserByEmail(email);
+        if (!lwUser) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message:
+              "This email is not registered as a MojiTax member. Please use your Learnworlds account email.",
+          });
+        }
+
+        if (!lwUser.is_active) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "Your MojiTax account is inactive. Please contact support.",
+          });
         }
 
         // Generate and store verification code
         const code = await db.createVerificationCode(email);
 
-        // Get user's name from Learnworlds (if configured)
+        // Get user's name from Learnworlds
         let userName: string | null = null;
-        if (lwStatus.isConfigured) {
-          userName = await learnworldsService.getUserName(email);
-        }
+        userName = await learnworldsService.getUserName(email);
 
         // Send verification email
         const emailResult = await emailService.sendVerificationCode(
@@ -179,11 +181,7 @@ export const appRouter = router({
         }
 
         // Get or create the member user
-        let userName: string | null = null;
-        const lwStatus = learnworldsService.getLearnworldsStatus();
-        if (lwStatus.isConfigured) {
-          userName = await learnworldsService.getUserName(email);
-        }
+        const userName = await learnworldsService.getUserName(email);
 
         const user = await db.upsertMemberUser({
           email,
@@ -191,37 +189,35 @@ export const appRouter = router({
         });
 
         // Auto-enroll user in Learnworlds-linked channels (supports multi-entity links)
-        if (lwStatus.isConfigured) {
-          try {
-            const userCourses = await learnworldsService.getUserCourses(email);
-            const channelsWithLinks = await db.getChannelsWithLinks();
+        try {
+          const userCourses = await learnworldsService.getUserCourses(email);
+          const channelsWithLinks = await db.getChannelsWithLinks();
 
-            for (const { channelId, links } of channelsWithLinks) {
-              // Check if any of the channel's linked courses match the user's enrolled courses
-              const shouldEnroll = links.some(
-                link =>
-                  link.entityType === "course" &&
-                  userCourses.includes(link.entityId)
-              );
-              // Bundle/subscription matching requires additional API support
+          for (const { channelId, links } of channelsWithLinks) {
+            // Check if any of the channel's linked courses match the user's enrolled courses
+            const shouldEnroll = links.some(
+              link =>
+                link.entityType === "course" &&
+                userCourses.includes(link.entityId)
+            );
+            // Bundle/subscription matching requires additional API support
 
-              if (shouldEnroll) {
-                const isMember = await db.isUserInChannel(channelId, user.id);
-                if (!isMember) {
-                  await db.addChannelMember({
-                    channelId,
-                    userId: user.id,
-                  });
-                  console.log(
-                    `[AutoEnroll] User ${user.id} enrolled in channel ${channelId}`
-                  );
-                }
+            if (shouldEnroll) {
+              const isMember = await db.isUserInChannel(channelId, user.id);
+              if (!isMember) {
+                await db.addChannelMember({
+                  channelId,
+                  userId: user.id,
+                });
+                console.log(
+                  `[AutoEnroll] User ${user.id} enrolled in channel ${channelId}`
+                );
               }
             }
-          } catch (err: any) {
-            console.error("[AutoEnroll] Error:", err.message);
-            // Don't block login if auto-enrollment fails
           }
+        } catch (err: any) {
+          console.error("[AutoEnroll] Error:", err.message);
+          // Don't block login if auto-enrollment fails
         }
 
         // Create session token using jose (ESM-compatible)
