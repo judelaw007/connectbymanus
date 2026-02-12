@@ -1,7 +1,7 @@
 # MojiTax Connect — Development Plan
 
-> Last updated: 2026-02-11
-> Overall: ~88% complete | Backend core 98% | All CRITICAL + HIGH done | Bug-fix round complete | Moving to MEDIUM tier
+> Last updated: 2026-02-12
+> Overall: ~90% complete | Backend core 100% | All CRITICAL + HIGH done | M6 (rate limiting) done | Moving through MEDIUM tier
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
@@ -70,9 +70,14 @@ Estimated effort: 4-6 focused sessions.
 
 ### MEDIUM — Post-launch improvements (recommended order)
 
-- [ ] **M6. Rate limiting middleware** ⬅️ START HERE (security, quick win)
-  - Add express-rate-limit to auth endpoints (login, verify), message send, and support ticket creation
-  - Prevents brute-force and abuse before launch
+- [x] **M6. Rate limiting middleware** ✓
+  - `express-rate-limit` v8.2.1 installed
+  - `server/_core/rateLimit.ts`: procedure-aware middleware that routes to 4 tiers:
+    - Auth (login/verify): 10 req / 15 min per IP
+    - Messages (send): 60 req / min per IP
+    - Support (create): 5 req / 15 min per IP
+    - General API: 200 req / min per IP
+  - Wired in `server/_core/index.ts` before tRPC middleware on `/api/trpc`
 
 - [ ] **M5. Search functionality across messages and posts** (high user value)
   - Full-text search using Supabase `to_tsvector` / `ts_rank`
@@ -140,6 +145,7 @@ Estimated effort: 4-6 focused sessions.
 - [x] Bug fix: Admin chat mode layout overflowing — switched from h-screen to h-full
 - [x] Bug fix: DOMPurify import failing in Vite dev server — added explicit resolve alias
 - [x] Bug fix: Unread badges unreliable — 3 rounds of fixes (see H2 details above)
+- [x] Rate limiting middleware: 4-tier express-rate-limit on all tRPC endpoints (auth, messages, support, general)
 
 ## Recent Bug-Fix Summary (2026-02-11 evening)
 
