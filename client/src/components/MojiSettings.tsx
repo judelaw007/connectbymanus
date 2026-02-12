@@ -21,7 +21,15 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Upload, Save, Search, Edit, Trash2, Plus } from "lucide-react";
+import {
+  Upload,
+  Save,
+  Search,
+  Edit,
+  Trash2,
+  Plus,
+  Download,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +56,20 @@ export default function MojiSettings() {
   const updateMutation = trpc.mojiKnowledge.update.useMutation();
   const deleteMutation = trpc.mojiKnowledge.delete.useMutation();
   const bulkUploadMutation = trpc.mojiKnowledge.bulkUpload.useMutation();
+
+  const handleDownloadTemplate = () => {
+    const csvContent = `"question","answer","category","tags"
+"What is ADIT?","ADIT stands for Advanced Diploma in International Taxation, offered by the Chartered Institute of Taxation (CIOT). It is the leading international tax qualification.","Exams","ADIT,qualification,CIOT"
+"What services does MojiTax offer?","MojiTax provides ADIT exam preparation courses, study materials, and a community platform for tax professionals. Visit mojitax.learnworlds.com for details.","Services","MojiTax,courses,services"
+"How do I contact support?","You can chat with @moji for quick help, or use the 'Chat with Team MojiTax' feature to create a support ticket for human assistance.","Platform Help","support,help,contact"`;
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "moji_knowledge_base_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const filteredKnowledge = knowledgeBase?.filter(
     entry =>
@@ -195,10 +217,25 @@ export default function MojiSettings() {
               <Plus className="h-4 w-4 mr-2" />
               Add Entry
             </Button>
+            <Button variant="outline" onClick={handleDownloadTemplate}>
+              <Download className="h-4 w-4 mr-2" />
+              Download CSV Template
+            </Button>
           </div>
 
-          <div className="text-sm text-muted-foreground">
-            CSV format: question, answer, category, tags (one entry per line)
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p>
+              <strong>CSV format:</strong> question, answer, category, tags (one
+              entry per line, quoted strings)
+            </p>
+            <p>
+              <strong>Categories:</strong> Services, Platform Help, Exams, VAT,
+              Transfer Pricing, International Tax
+            </p>
+            <p>
+              Add service info, subscription details, and boundary rules here.
+              @moji uses this knowledge base to answer member questions.
+            </p>
           </div>
 
           {/* Search */}

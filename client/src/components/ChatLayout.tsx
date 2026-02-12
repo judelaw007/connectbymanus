@@ -73,6 +73,8 @@ export default function ChatLayout({
   >(null);
   const [topicChannelsExpanded, setTopicChannelsExpanded] = useState(true);
   const [myGroupsExpanded, setMyGroupsExpanded] = useState(true);
+  const [displayNameInput, setDisplayNameInput] = useState("");
+  const [showDisplayNameBanner, setShowDisplayNameBanner] = useState(true);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -102,6 +104,22 @@ export default function ChatLayout({
     postType: "newsletter",
     limit: 10,
   });
+
+  // Admin availability status
+  const { data: adminAvailability } =
+    trpc.settings.getAdminAvailability.useQuery(undefined, {
+      refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    });
+
+  // Display name update mutation
+  const updateDisplayNameMutation =
+    trpc.memberAuth.updateDisplayName.useMutation({
+      onSuccess: () => {
+        setShowDisplayNameBanner(false);
+        // Refresh user data
+        window.location.reload();
+      },
+    });
 
   // Support ticket counts for badge
   const { data: allTickets } = trpc.support.getAll.useQuery(undefined, {
@@ -398,6 +416,18 @@ export default function ChatLayout({
                     </Badge>
                   )}
                 </button>
+                {!isAdminMode && adminAvailability && (
+                  <div className="flex items-center gap-1.5 px-3 py-1">
+                    <div
+                      className={`h-2 w-2 rounded-full ${adminAvailability.available ? "bg-green-500" : "bg-gray-400"}`}
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      {adminAvailability.available
+                        ? `Online — ~${adminAvailability.avgResponseMinutes}min response`
+                        : `Offline — ${adminAvailability.hours} (${adminAvailability.timezone})`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Topic Channels - Collapsible */}
@@ -554,6 +584,53 @@ export default function ChatLayout({
 
         {/* Main Chat Area */}
         <main className="flex-1 flex flex-col bg-background">
+          {/* Display name setup banner for new members */}
+          {user &&
+            user.role !== "admin" &&
+            !user.displayName &&
+            showDisplayNameBanner && (
+              <div className="bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800 px-4 py-3">
+                <div className="flex items-center gap-3 max-w-lg">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Set your display name
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      Choose a name others will see (your email stays private)
+                    </p>
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        value={displayNameInput}
+                        onChange={e => setDisplayNameInput(e.target.value)}
+                        placeholder="e.g. TaxPro_Jane, StudyBuddy42"
+                        className="h-8 text-sm max-w-xs"
+                      />
+                      <Button
+                        size="sm"
+                        disabled={
+                          displayNameInput.length < 2 ||
+                          updateDisplayNameMutation.isPending
+                        }
+                        onClick={() =>
+                          updateDisplayNameMutation.mutate({
+                            displayName: displayNameInput.trim(),
+                          })
+                        }
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowDisplayNameBanner(false)}
+                      >
+                        Skip
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           {showSupportInbox ? (
             <SupportInbox onClose={() => setShowSupportInbox(false)} />
           ) : showUserSupportChat ? (
@@ -615,7 +692,13 @@ export default function ChatLayout({
                   </Badge>
                 </h3>
                 <div className="space-y-2">
-                  {onlineUsers.length > 0 ? (
+                  {isPublicView ? (
+                    <p className="text-sm text-muted-foreground">
+                      {onlineUsers.length > 0
+                        ? `${onlineUsers.length} member${onlineUsers.length !== 1 ? "s" : ""} online`
+                        : "No users online"}
+                    </p>
+                  ) : onlineUsers.length > 0 ? (
                     onlineUsers.slice(0, 10).map(u => (
                       <div key={u.userId} className="flex items-center gap-2">
                         <div className="status-online"></div>
@@ -634,7 +717,7 @@ export default function ChatLayout({
                       No users online
                     </p>
                   )}
-                  {onlineUsers.length > 10 && (
+                  {!isPublicView && onlineUsers.length > 10 && (
                     <p className="text-xs text-muted-foreground">
                       +{onlineUsers.length - 10} more online
                     </p>
