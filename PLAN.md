@@ -1,7 +1,7 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-12
-> Overall: ~90% complete | Backend core 100% | All CRITICAL + HIGH done | M6 (rate limiting) done | Moving through MEDIUM tier
+> Overall: ~92% complete | Backend core 100% | All CRITICAL + HIGH done | M5 + M6 done | Moving through MEDIUM tier
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
@@ -79,10 +79,11 @@ Estimated effort: 4-6 focused sessions.
     - General API: 200 req / min per IP
   - Wired in `server/_core/index.ts` before tRPC middleware on `/api/trpc`
 
-- [ ] **M5. Search functionality across messages and posts** (high user value)
-  - Full-text search using Supabase `to_tsvector` / `ts_rank`
-  - Search bar in chat layout header, results grouped by channel
-  - Consider: search posts (title + content), messages (content), users (display name)
+- [x] **M5. Search functionality across messages and posts** ✓
+  - `searchMessages()` and `searchPosts()` in db.ts using `ilike` pattern matching
+  - tRPC `search.messages` (protected, filters private channels) + `search.posts` (protected, optional postType filter)
+  - SearchDialog component: tabbed Messages/Posts UI, debounced input, result highlighting, click-to-navigate
+  - Wired to existing search icon button in ChatLayout header
 
 - [ ] **M4. Category library pages (Articles, Events, Announcements, Newsletters)**
   - Dedicated browse pages per post type with filtering/sorting
@@ -146,6 +147,7 @@ Estimated effort: 4-6 focused sessions.
 - [x] Bug fix: DOMPurify import failing in Vite dev server — added explicit resolve alias
 - [x] Bug fix: Unread badges unreliable — 3 rounds of fixes (see H2 details above)
 - [x] Rate limiting middleware: 4-tier express-rate-limit on all tRPC endpoints (auth, messages, support, general)
+- [x] Search: message and post search with tabbed dialog UI, debounced input, result highlighting, click-to-navigate
 
 ## Recent Bug-Fix Summary (2026-02-11 evening)
 
