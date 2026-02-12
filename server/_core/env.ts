@@ -29,4 +29,7 @@ export const ENV = {
   learnworldsClientId: process.env.LEARNWORLDS_CLIENT_ID ?? "",
   learnworldsClientSecret: process.env.LEARNWORLDS_CLIENT_SECRET ?? "",
   learnworldsSchoolId: process.env.LEARNWORLDS_SCHOOL_ID ?? "",
+  // Replit may use these alternative secret names
+  learnworldsSchoolUrl: process.env.LEARNWORLDS_SCHOOL_URL ?? "",
+  learnworldsApiUrl: process.env.LEARNWORLDS_API_URL ?? "",
 };
