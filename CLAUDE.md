@@ -44,6 +44,7 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 | `systemRouter.ts` | System-level tRPC routes (health checks)                                                      |
 | `llm.ts`          | LLM integration for @moji chatbot                                                             |
 | `notification.ts` | In-app notification system                                                                    |
+| `rateLimit.ts`    | Per-procedure rate limiting middleware (auth, messages, support, general)                     |
 
 **`server/`** — Top-level business logic:
 
