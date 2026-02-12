@@ -673,6 +673,7 @@ export const appRouter = router({
       }),
 
     // Search channel members for @mention autocomplete
+    // Only returns members who have set a display name (connect name) to protect privacy
     searchMembers: protectedProcedure
       .input(
         z.object({
@@ -687,16 +688,21 @@ export const appRouter = router({
         }
 
         const members = await db.getChannelMembers(input.channelId);
+
+        // Only include members who have explicitly set a display name (connect name).
+        // This protects users who haven't opted in — their real name / email won't
+        // appear in the mention dropdown.
+        const mentionable = members.filter(
+          (m: any) => m.displayName && m.displayName.trim().length > 0
+        );
+
         const q = input.query.toLowerCase();
 
         const filtered = q
-          ? members.filter(
-              (m: any) =>
-                (m.name && m.name.toLowerCase().includes(q)) ||
-                (m.displayName && m.displayName.toLowerCase().includes(q)) ||
-                (m.email && m.email.toLowerCase().includes(q))
+          ? mentionable.filter((m: any) =>
+              m.displayName.toLowerCase().includes(q)
             )
-          : members;
+          : mentionable;
 
         // Return top 10 results, excluding the current user
         return filtered
@@ -704,7 +710,7 @@ export const appRouter = router({
           .slice(0, 10)
           .map((m: any) => ({
             id: m.id,
-            name: m.displayName || m.name || m.email || "Unknown",
+            name: m.displayName,
           }));
       }),
 
