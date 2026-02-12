@@ -34,6 +34,7 @@ import SupportInbox from "@/components/SupportInbox";
 import UserSupportChat from "@/components/UserSupportChat";
 import { MessageList } from "@/components/MessageList";
 import { MessageInput } from "@/components/MessageInput";
+import SearchDialog from "@/components/SearchDialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useSocket } from "@/contexts/SocketContext";
@@ -62,6 +63,7 @@ export default function ChatLayout({
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<
     number | null
   >(null);
@@ -302,6 +304,7 @@ export default function ChatLayout({
             variant="ghost"
             size="icon"
             className="text-primary-foreground hover:bg-primary-foreground/10"
+            onClick={() => setShowSearch(true)}
           >
             <Search className="h-5 w-5" />
           </Button>
@@ -783,6 +786,14 @@ export default function ChatLayout({
       <CreateChannelModal
         open={showCreateChannel}
         onOpenChange={setShowCreateChannel}
+      />
+      <SearchDialog
+        open={showSearch}
+        onOpenChange={setShowSearch}
+        onNavigateToMessage={(channelId, messageId) => {
+          setSelectedChannelId(channelId);
+          setHighlightedMessageId(messageId);
+        }}
       />
     </div>
   );

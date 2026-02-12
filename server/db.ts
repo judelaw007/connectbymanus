@@ -2354,3 +2354,131 @@ export async function updateEventRsvpsByPost(
 
   if (error) throw error;
 }
+
+// ─── Search ──────────────────────────────────────────────────────────
+
+export async function searchMessages(
+  query: string,
+  options: { userId?: number; limit?: number; offset?: number } = {}
+) {
+  const supabase = getSupabase();
+  if (!supabase) return { results: [], total: 0 };
+
+  const limit = options.limit || 30;
+  const offset = options.offset || 0;
+  const pattern = `%${query}%`;
+
+  // Build query — join users and channels for context
+  let q = supabase
+    .from("messages")
+    .select(
+      `
+      id,
+      channel_id,
+      content,
+      message_type,
+      created_at,
+      users (
+        name,
+        display_name,
+        role
+      ),
+      channels!messages_channel_id_fkey (
+        id,
+        name,
+        type,
+        is_private
+      )
+    `,
+      { count: "exact" }
+    )
+    .ilike("content", pattern)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  // If non-admin user, exclude private channels they don't belong to
+  // (handled at tRPC layer by filtering results)
+
+  const { data, error, count } = await q;
+
+  if (error) {
+    console.error("[Database] Error searching messages:", error);
+    return { results: [], total: 0 };
+  }
+
+  const results = (data || []).map((row: any) => ({
+    id: row.id,
+    channelId: row.channel_id,
+    content: row.content,
+    messageType: row.message_type,
+    createdAt: row.created_at,
+    userName: row.users?.display_name || row.users?.name || "Unknown",
+    channelName: row.channels?.name || "Unknown",
+    channelType: row.channels?.type,
+    isPrivate: row.channels?.is_private,
+  }));
+
+  return { results, total: count || 0 };
+}
+
+export async function searchPosts(
+  query: string,
+  options: { postType?: string; limit?: number; offset?: number } = {}
+) {
+  const supabase = getSupabase();
+  if (!supabase) return { results: [], total: 0 };
+
+  const limit = options.limit || 20;
+  const offset = options.offset || 0;
+  const pattern = `%${query}%`;
+
+  let q = supabase
+    .from("posts")
+    .select(
+      `
+      id,
+      post_type,
+      title,
+      content,
+      event_date,
+      event_location,
+      tags,
+      article_author,
+      created_at,
+      users!posts_author_id_fkey (
+        name,
+        display_name
+      )
+    `,
+      { count: "exact" }
+    )
+    .or(`title.ilike.${pattern},content.ilike.${pattern},tags.ilike.${pattern}`)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (options.postType) {
+    q = q.eq("post_type", options.postType);
+  }
+
+  const { data, error, count } = await q;
+
+  if (error) {
+    console.error("[Database] Error searching posts:", error);
+    return { results: [], total: 0 };
+  }
+
+  const results = (data || []).map((row: any) => ({
+    id: row.id,
+    postType: row.post_type,
+    title: row.title,
+    content: row.content,
+    eventDate: row.event_date,
+    eventLocation: row.event_location,
+    tags: row.tags,
+    articleAuthor: row.article_author,
+    createdAt: row.created_at,
+    authorName: row.users?.display_name || row.users?.name || "Unknown",
+  }));
+
+  return { results, total: count || 0 };
+}

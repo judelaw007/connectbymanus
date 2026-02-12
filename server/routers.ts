@@ -1890,6 +1890,61 @@ export const appRouter = router({
       }),
   }),
 
+  // Search across messages and posts
+  search: router({
+    messages: protectedProcedure
+      .input(
+        z.object({
+          query: z.string().min(1).max(200),
+          limit: z.number().min(1).max(100).default(30),
+          offset: z.number().min(0).default(0),
+        })
+      )
+      .query(async ({ input, ctx }) => {
+        const { results, total } = await db.searchMessages(input.query, {
+          userId: ctx.user.id,
+          limit: input.limit,
+          offset: input.offset,
+        });
+
+        // Filter out private channels the user isn't a member of (unless admin)
+        const filtered =
+          ctx.user.role === "admin"
+            ? results
+            : await Promise.all(
+                results.map(async (r: any) => {
+                  if (!r.isPrivate) return r;
+                  const isMember = await db.isUserInChannel(
+                    r.channelId,
+                    ctx.user.id
+                  );
+                  return isMember ? r : null;
+                })
+              ).then(arr => arr.filter(Boolean));
+
+        return { results: filtered, total };
+      }),
+
+    posts: protectedProcedure
+      .input(
+        z.object({
+          query: z.string().min(1).max(200),
+          postType: z
+            .enum(["event", "announcement", "article", "newsletter"])
+            .optional(),
+          limit: z.number().min(1).max(100).default(20),
+          offset: z.number().min(0).default(0),
+        })
+      )
+      .query(async ({ input }) => {
+        return await db.searchPosts(input.query, {
+          postType: input.postType,
+          limit: input.limit,
+          offset: input.offset,
+        });
+      }),
+  }),
+
   // Admin user management
   users: router({
     // List all users with pagination, search, and role filter
