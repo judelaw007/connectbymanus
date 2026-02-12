@@ -172,3 +172,33 @@ Prettier only (no ESLint). Key settings: double quotes, semicolons, 2-space inde
 - **`.claude/settings.json`** — Hook configuration that auto-loads context on session start, auto-logs progress on stop, and auto-formats files after edits.
 - **`.claude/progress.log`** — Auto-generated session activity log (not committed to git).
 - If you change architectural files (`server/_core/`, `routers.ts`, `db.ts`, `App.tsx`, `package.json`), update this file to reflect structural changes.
+
+## LearnWorlds API Reference
+
+The LearnWorlds developer docs at `learnworlds.dev` are **not accessible** from this sandbox (blocked by egress proxy). To research the API, use the **Pipedream open-source integration** on GitHub as a reliable secondary source:
+
+- **Repo:** `PipedreamHQ/pipedream` → `components/learnworlds/`
+- **App definition:** `learnworlds.app.mjs` — contains base URL construction, auth headers, and API method wrappers
+- **Actions:** `components/learnworlds/actions/` — individual endpoint implementations with paths and params
+- **Constants:** `components/learnworlds/common/constants.mjs` — enums like product types
+
+**How to fetch:** Use the GitHub API (`api.github.com`) or raw content URL (`raw.githubusercontent.com`) to read these files directly via `curl` or `WebFetch`. Example:
+
+```
+curl -s "https://api.github.com/repos/PipedreamHQ/pipedream/contents/components/learnworlds"
+```
+
+### Confirmed API v2 Endpoints
+
+Base URL: `https://{schoolId}.learnworlds.com/admin/api/v2`
+
+| Method | Path                         | Description                                 |
+| ------ | ---------------------------- | ------------------------------------------- |
+| `POST` | `/oauth2/access_token`       | Get OAuth token (client_credentials grant)  |
+| `GET`  | `/users/{email}`             | Get user by email (email is the path param) |
+| `GET`  | `/courses`                   | List all courses                            |
+| `GET`  | `/bundles`                   | List all bundles                            |
+| `GET`  | `/subscription-plans`        | List all subscription plans                 |
+| `POST` | `/users/{userId}/enrollment` | Enroll user to product                      |
+
+**Headers:** `Authorization: Bearer {token}`, `Lw-Client: {client_id}`, `Content-Type: application/json`
