@@ -22,62 +22,12 @@ BEGIN
     -- CREATE DEFAULT CHANNELS
     -- ============================================
 
-    -- 1. General Channel (for all users)
+    -- General Channel (the only default channel — admins create topic channels as needed)
     INSERT INTO channels (name, description, type, is_private, created_by)
     VALUES (
         'General',
         'Welcome to MojiTax Connect! Introduce yourself and connect with fellow tax professionals.',
         'general',
-        false,
-        admin_id
-    );
-
-    -- 2. VAT Channel
-    INSERT INTO channels (name, description, type, is_private, created_by)
-    VALUES (
-        'VAT Discussions',
-        'Discuss VAT regulations, compliance, and best practices across jurisdictions.',
-        'topic',
-        false,
-        admin_id
-    );
-
-    -- 3. Transfer Pricing Channel
-    INSERT INTO channels (name, description, type, is_private, created_by)
-    VALUES (
-        'Transfer Pricing',
-        'Exchange insights on transfer pricing documentation, benchmarking, and BEPS guidelines.',
-        'topic',
-        false,
-        admin_id
-    );
-
-    -- 4. ADIT Exam Prep Channel
-    INSERT INTO channels (name, description, type, is_private, created_by)
-    VALUES (
-        'ADIT Exam Prep',
-        'Study tips, exam strategies, and resources for ADIT qualification candidates.',
-        'topic',
-        false,
-        admin_id
-    );
-
-    -- 5. International Tax Updates Channel
-    INSERT INTO channels (name, description, type, is_private, created_by)
-    VALUES (
-        'International Tax Updates',
-        'Latest news and developments in international taxation, treaties, and regulations.',
-        'topic',
-        false,
-        admin_id
-    );
-
-    -- 6. Career & Networking Channel
-    INSERT INTO channels (name, description, type, is_private, created_by)
-    VALUES (
-        'Career & Networking',
-        'Job opportunities, career advice, and professional networking for tax specialists.',
-        'topic',
         false,
         admin_id
     );

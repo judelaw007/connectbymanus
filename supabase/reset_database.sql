@@ -608,15 +608,10 @@ DECLARE
 BEGIN
     SELECT id INTO admin_id FROM users WHERE open_id = 'admin-mojitax';
 
-    -- Default channels
+    -- Default channel (only #General — admins create topic channels as needed)
     INSERT INTO channels (name, description, type, is_private, created_by)
     VALUES
-        ('General', 'Welcome to MojiTax Connect! Introduce yourself and connect with fellow tax professionals.', 'general', false, admin_id),
-        ('VAT Discussions', 'Discuss VAT regulations, compliance, and best practices across jurisdictions.', 'topic', false, admin_id),
-        ('Transfer Pricing', 'Exchange insights on transfer pricing documentation, benchmarking, and BEPS guidelines.', 'topic', false, admin_id),
-        ('ADIT Exam Prep', 'Study tips, exam strategies, and resources for ADIT qualification candidates.', 'topic', false, admin_id),
-        ('International Tax Updates', 'Latest news and developments in international taxation, treaties, and regulations.', 'topic', false, admin_id),
-        ('Career & Networking', 'Job opportunities, career advice, and professional networking for tax specialists.', 'topic', false, admin_id);
+        ('General', 'Welcome to MojiTax Connect! Introduce yourself and connect with fellow tax professionals.', 'general', false, admin_id);
 
     -- Add admin as owner of all channels
     INSERT INTO channel_members (channel_id, user_id, role)
