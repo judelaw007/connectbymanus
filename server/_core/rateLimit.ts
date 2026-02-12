@@ -48,6 +48,20 @@ const supportCreateLimiter = rateLimit({
   keyGenerator: req => req.ip || req.socket.remoteAddress || "unknown",
 });
 
+// Content creation: prevent spam of posts, groups, channel joins
+// 10 creations per 15 minutes per IP
+const contentCreateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error:
+      "You are creating content too quickly. Please wait before trying again.",
+  },
+  keyGenerator: req => req.ip || req.socket.remoteAddress || "unknown",
+});
+
 // General API limiter: broad protection for all endpoints
 // 200 requests per minute per IP
 const generalApiLimiter = rateLimit({
@@ -71,6 +85,12 @@ const AUTH_PROCEDURES = [
 const MESSAGE_PROCEDURES = ["messages.send"];
 
 const SUPPORT_CREATE_PROCEDURES = ["support.create"];
+
+const CONTENT_CREATE_PROCEDURES = [
+  "posts.create",
+  "studyGroups.create",
+  "studyGroups.join",
+];
 
 /**
  * Extract the tRPC procedure name from the request URL.
@@ -106,6 +126,10 @@ export function trpcRateLimiter(
 
   if (SUPPORT_CREATE_PROCEDURES.includes(procedure)) {
     return supportCreateLimiter(req, res, next);
+  }
+
+  if (CONTENT_CREATE_PROCEDURES.includes(procedure)) {
+    return contentCreateLimiter(req, res, next);
   }
 
   // All other API calls get general limiting

@@ -309,6 +309,12 @@ function camelToSnake(obj: any): any {
   return converted;
 }
 
+// Escape special characters in search input for PostgREST .or() filter syntax.
+// Prevents % and _ from acting as LIKE wildcards and avoids breaking filter parsing.
+function escapeSearchInput(input: string): string {
+  return input.replace(/[%_\\(),.*]/g, char => `\\${char}`);
+}
+
 // Debug function to test database connection
 export async function testDatabaseConnection() {
   const supabase = getSupabase();
@@ -457,8 +463,9 @@ export async function getAllUsers(options?: {
     .select("*", { count: "exact", head: true });
   if (role) countQuery = countQuery.eq("role", role);
   if (search) {
+    const escaped = escapeSearchInput(search);
     countQuery = countQuery.or(
-      `name.ilike.%${search}%,email.ilike.%${search}%`
+      `name.ilike.%${escaped}%,email.ilike.%${escaped}%`
     );
   }
   const { count } = await countQuery;
@@ -467,7 +474,8 @@ export async function getAllUsers(options?: {
   let query = supabase.from("users").select("*");
   if (role) query = query.eq("role", role);
   if (search) {
-    query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+    const escaped = escapeSearchInput(search);
+    query = query.or(`name.ilike.%${escaped}%,email.ilike.%${escaped}%`);
   }
   query = query
     .order(sortBy, { ascending: sortOrder === "asc" })
@@ -1286,7 +1294,8 @@ export async function browsePostsByType(
     .eq("post_type", postType);
 
   if (options.search) {
-    const pattern = `%${options.search}%`;
+    const escaped = escapeSearchInput(options.search);
+    const pattern = `%${escaped}%`;
     q = q.or(
       `title.ilike.${pattern},content.ilike.${pattern},tags.ilike.${pattern}`
     );
@@ -1677,7 +1686,7 @@ export async function searchKnowledgeBase(searchTerm: string) {
     .select("*")
     .eq("is_active", true)
     .or(
-      `question.ilike.%${searchTerm}%,answer.ilike.%${searchTerm}%,tags.ilike.%${searchTerm}%`
+      `question.ilike.%${escapeSearchInput(searchTerm)}%,answer.ilike.%${escapeSearchInput(searchTerm)}%,tags.ilike.%${escapeSearchInput(searchTerm)}%`
     );
 
   if (error) {
@@ -2090,9 +2099,8 @@ export async function getSupportAnalytics(filters: AnalyticsFilters) {
     query = query.eq("status", filters.status);
   }
   if (filters.searchQuery) {
-    query = query.or(
-      `subject.ilike.%${filters.searchQuery}%,tags.ilike.%${filters.searchQuery}%`
-    );
+    const escaped = escapeSearchInput(filters.searchQuery);
+    query = query.or(`subject.ilike.%${escaped}%,tags.ilike.%${escaped}%`);
   }
 
   query = query
@@ -2637,7 +2645,7 @@ export async function searchMessages(
 
   const limit = options.limit || 30;
   const offset = options.offset || 0;
-  const pattern = `%${query}%`;
+  const pattern = `%${escapeSearchInput(query)}%`;
 
   // Build query — join users and channels for context
   let q = supabase
@@ -2701,7 +2709,7 @@ export async function searchPosts(
 
   const limit = options.limit || 20;
   const offset = options.offset || 0;
-  const pattern = `%${query}%`;
+  const pattern = `%${escapeSearchInput(query)}%`;
 
   let q = supabase
     .from("posts")
