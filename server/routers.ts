@@ -138,6 +138,25 @@ export const appRouter = router({
         };
       }),
 
+    // Update member display name (self-service)
+    updateDisplayName: protectedProcedure
+      .input(
+        z.object({
+          displayName: z
+            .string()
+            .min(2, "Display name must be at least 2 characters")
+            .max(30, "Display name must be 30 characters or less")
+            .regex(
+              /^[a-zA-Z0-9_\- ]+$/,
+              "Only letters, numbers, spaces, hyphens, and underscores allowed"
+            ),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await db.updateUserDisplayName(ctx.user.id, input.displayName.trim());
+        return { success: true };
+      }),
+
     // Verify code and log in
     verifyCode: publicProcedure
       .input(
@@ -447,6 +466,20 @@ export const appRouter = router({
           });
         }
 
+        // Topic channels (except General) must be linked to a Learnworlds entity
+        if (
+          input.type === "topic" &&
+          !input.learnworldsCourseId &&
+          !input.learnworldsBundleId &&
+          !input.learnworldsSubscriptionId
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Topic channels must be linked to a course, bundle, or subscription. Only the General channel can exist without a link.",
+          });
+        }
+
         const inviteCode = input.isPrivate ? nanoid(16) : undefined;
 
         const channelId = await db.createChannel({
@@ -606,15 +639,28 @@ export const appRouter = router({
           });
         }
 
+        // Check if group is suspended
+        if (channel.isSuspended) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "This group has been suspended by an administrator. Contact support for details.",
+          });
+        }
+
         if (channel.isPrivate) {
           const isMember = await db.isUserInChannel(
             input.channelId,
             ctx.user.id
           );
+          // Study groups are private — admin cannot read messages unless they are a member
           if (!isMember) {
             throw new TRPCError({
               code: "FORBIDDEN",
-              message: "Access denied",
+              message:
+                channel.type === "study_group"
+                  ? "Study groups are private. Admin does not have access to group conversations."
+                  : "Access denied",
             });
           }
         }
@@ -643,6 +689,7 @@ export const appRouter = router({
             input.channelId,
             ctx.user.id
           );
+          // Study groups: admin cannot access unless member
           if (!isMember) {
             throw new TRPCError({
               code: "FORBIDDEN",
@@ -673,12 +720,24 @@ export const appRouter = router({
           });
         }
 
-        // Check if user has access (admins can send to any channel)
-        const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
-        if (!isMember && ctx.user.role !== "admin") {
+        // Check if group is suspended
+        const sendChannel = await db.getChannelById(input.channelId);
+        if (sendChannel?.isSuspended) {
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: "Must be a channel member to send messages",
+            message: "This group has been suspended. Messages cannot be sent.",
+          });
+        }
+
+        // Check membership — admins can send to topic channels but NOT to study groups
+        const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
+        const isStudyGroup = sendChannel?.type === "study_group";
+        if (!isMember && !(ctx.user.role === "admin" && !isStudyGroup)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: isStudyGroup
+              ? "Study groups are private. Only members can send messages."
+              : "Must be a channel member to send messages",
           });
         }
 
@@ -1685,6 +1744,41 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // Suspend a study group (admin only — triggered by user complaint)
+    suspend: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          reason: z.string().min(1, "Suspension reason is required"),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const group = await db.getStudyGroupById(input.id);
+        if (!group) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Study group not found",
+          });
+        }
+        if (group.type !== "study_group") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Only study groups can be suspended via this endpoint",
+          });
+        }
+
+        await db.suspendGroup(input.id, input.reason, ctx.user.id);
+        return { success: true };
+      }),
+
+    // Unsuspend a study group (admin only)
+    unsuspend: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.unsuspendGroup(input.id);
+        return { success: true };
+      }),
+
     // Join a study group
     join: protectedProcedure
       .input(z.object({ id: z.number() }))
@@ -2102,6 +2196,93 @@ export const appRouter = router({
         await db.updateUserDisplayName(input.userId, input.displayName);
         return { success: true };
       }),
+
+    // Update admin hours settings
+    updateAdminHours: adminProcedure
+      .input(
+        z.object({
+          enabled: z.boolean(),
+          timezone: z.string().min(1),
+          startTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
+          endTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
+          days: z.string().min(1),
+          avgResponseMinutes: z.number().min(1).max(1440),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const settings: Record<string, string> = {
+          admin_hours_enabled: input.enabled ? "true" : "false",
+          admin_hours_timezone: input.timezone,
+          admin_hours_start: input.startTime,
+          admin_hours_end: input.endTime,
+          admin_hours_days: input.days,
+          admin_avg_response_minutes: String(input.avgResponseMinutes),
+        };
+        await db.updatePlatformSettings(settings, ctx.user.id);
+        return { success: true };
+      }),
+
+    // Public endpoint: get admin availability status (for members to see)
+    getAdminAvailability: publicProcedure.query(async () => {
+      const settings = await db.getPlatformSettings();
+      const enabled = settings.admin_hours_enabled === "true";
+      if (!enabled) {
+        return { available: true, message: "Team MojiTax is available" };
+      }
+
+      const timezone = settings.admin_hours_timezone || "Europe/London";
+      const startTime = settings.admin_hours_start || "09:00";
+      const endTime = settings.admin_hours_end || "17:00";
+      const days = (settings.admin_hours_days || "mon,tue,wed,thu,fri").split(
+        ","
+      );
+      const avgMins = parseInt(settings.admin_avg_response_minutes || "60", 10);
+
+      // Calculate current time in admin timezone
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(now);
+      const weekday = parts
+        .find(p => p.type === "weekday")
+        ?.value?.toLowerCase()
+        .slice(0, 3);
+      const hour = parseInt(
+        parts.find(p => p.type === "hour")?.value || "0",
+        10
+      );
+      const minute = parseInt(
+        parts.find(p => p.type === "minute")?.value || "0",
+        10
+      );
+      const currentMinutes = hour * 60 + minute;
+
+      const [startH, startM] = startTime.split(":").map(Number);
+      const [endH, endM] = endTime.split(":").map(Number);
+      const startMinutes = startH * 60 + startM;
+      const endMinutes = endH * 60 + endM;
+
+      const isWorkDay = days.includes(weekday || "");
+      const isWorkHours =
+        currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      const available = isWorkDay && isWorkHours;
+
+      return {
+        available,
+        message: available
+          ? `Team MojiTax is online. Average response time: ~${avgMins} minutes.`
+          : `Team MojiTax is currently offline. Hours: ${startTime}-${endTime} (${timezone}). Average response time: ~${avgMins} minutes.`,
+        avgResponseMinutes: avgMins,
+        hours: `${startTime}-${endTime}`,
+        timezone,
+        days: days.join(", "),
+      };
+    }),
   }),
 });
 

@@ -1,14 +1,14 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-12
-> Overall: ~96% complete | Backend core 100% | All CRITICAL + HIGH done | M1 + M4 + M5 + M6 done | Moving through MEDIUM tier
+> Overall: ~98% complete | Backend core 100% | All CRITICAL + HIGH done | Sprint 5 platform hardening complete
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
 
-Sprint 4: Polish, MEDIUM Priorities & Launch Prep
-Goal: Address remaining MEDIUM items, harden for production, prepare for launch.
-Estimated effort: 4-6 focused sessions.
+Sprint 5: Platform Governance & Launch Hardening
+Goal: Implement the 6 governance requirements — @moji boundaries, username privacy, group privacy, channel linking rules, admin hours, and public access controls.
+Status: COMPLETE.
 
 ## Priorities
 
@@ -98,6 +98,53 @@ Estimated effort: 4-6 focused sessions.
   - Mentions inserted as `@[Course: Title]` format, rendered as styled inline badges in MessageList
   - Color-coded by type: emerald (Course), purple (Bundle), amber (Subscription)
 
+### SPRINT 5 — Platform Governance (6 requirements)
+
+- [x] **S5.1. @moji boundaries & KB management** ✓
+  - Expanded system prompt with clear CAN/CANNOT sections
+  - @moji will not give individual tax advice, course-specific answers, or access accounts
+  - Politely declines out-of-scope topics
+  - KB admin: CSV template download with example entries + better help text
+  - **Manual task for admin:** Populate KB with MojiTax service info, subscription links, pricing
+
+- [x] **S5.2. @moji role clarity** ✓
+  - System prompt now defines @moji as "first point of contact" for members
+  - Clear escalation path: @moji → Team MojiTax support ticket
+  - KB entry explains how to use @moji
+
+- [x] **S5.3. Admin availability hours & response time** ✓
+  - Migration 015: admin*hours*\* platform settings
+  - Admin UI: PlatformSettings → "Admin Availability Hours" card
+  - Settings: timezone, start/end time, working days, average response minutes
+  - Public API: `settings.getAdminAvailability` calculates live online/offline status
+  - Member UI: green/gray dot under "Chat with Team MojiTax" with response time estimate
+  - Refreshes every 5 minutes
+
+- [x] **S5.4. Groups private, channels purpose-linked** ✓
+  - **Group privacy:** Admin CANNOT read study group messages (even as admin)
+  - Admin CANNOT send messages to study groups unless member
+  - Admin CAN still view group member list (for complaint handling)
+  - Admin CAN suspend/unsuspend groups via `studyGroups.suspend` / `studyGroups.unsuspend`
+  - Suspended groups: messages blocked, "group suspended" error shown
+  - **Channel linking:** Topic channels now REQUIRE a Learnworlds course/bundle/subscription link
+  - General channel is the only standalone topic channel allowed
+
+- [x] **S5.5. Username privacy — display name self-service** ✓
+  - Members can set their own display name (2-30 chars, alphanumeric + spaces/hyphens)
+  - Display name banner shown at top of chat for new members without one
+  - `memberAuth.updateDisplayName` endpoint with validation
+  - Public view: shows "Admin"/"Member" only (no real names, no emails)
+  - Online users list: hidden from unauthenticated visitors (shows count only)
+  - Emails never exposed to other members in messages or online list
+
+- [x] **S5.6. Non-logged-in access tightened** ✓
+  - Public users see "Member"/"Admin" labels only (no real names)
+  - Online users sidebar: shows member count instead of name list
+  - Posts, events, channels browsable for SEO traction
+  - Cannot send messages, create groups, or see private content
+
+### MEDIUM — Remaining post-launch improvements
+
 - [ ] **M2. Email templates in SendGrid (#3)**
   - Current templates are inline HTML strings in code (server/services/email.ts)
   - Migrate all 7+ email types to SendGrid dynamic templates
@@ -152,6 +199,7 @@ Estimated effort: 4-6 focused sessions.
 - [x] Search: message and post search with tabbed dialog UI, debounced input, result highlighting, click-to-navigate
 - [x] Category library: browse dialogs for Articles/Events/Announcements/Newsletters with search, sort, pagination
 - [x] @mention autocomplete: unified dropdown with @moji + catalog items (courses/bundles/subscriptions), arrow-key nav, styled inline badges in messages
+- [x] Sprint 5: Platform governance — @moji boundaries, admin hours, group privacy, channel linking, username privacy, public access controls
 
 ## Recent Bug-Fix Summary (2026-02-11 evening)
 

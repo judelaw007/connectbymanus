@@ -41,6 +41,10 @@ export interface Channel {
   learnworldsCourseId: string | null;
   learnworldsBundleId: string | null;
   learnworldsSubscriptionId: string | null;
+  isSuspended: boolean;
+  suspensionReason: string | null;
+  suspendedAt: Date | null;
+  suspendedBy: number | null;
 }
 
 export interface Message {
@@ -2548,4 +2552,57 @@ export async function searchPosts(
   }));
 
   return { results, total: count || 0 };
+}
+
+// ============= Group Suspension Functions =============
+
+export async function suspendGroup(
+  channelId: number,
+  reason: string,
+  suspendedBy: number
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("channels")
+    .update({
+      is_suspended: true,
+      suspension_reason: reason,
+      suspended_at: new Date().toISOString(),
+      suspended_by: suspendedBy,
+    })
+    .eq("id", channelId);
+
+  if (error) throw error;
+}
+
+export async function unsuspendGroup(channelId: number): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("channels")
+    .update({
+      is_suspended: false,
+      suspension_reason: null,
+      suspended_at: null,
+      suspended_by: null,
+    })
+    .eq("id", channelId);
+
+  if (error) throw error;
+}
+
+export async function isGroupSuspended(channelId: number): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  const { data } = await supabase
+    .from("channels")
+    .select("is_suspended")
+    .eq("id", channelId)
+    .single();
+
+  return data?.is_suspended === true;
 }
