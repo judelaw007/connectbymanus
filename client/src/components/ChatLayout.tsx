@@ -25,8 +25,31 @@ import {
   ChevronDown,
   ChevronRight,
   Settings,
+  MoreVertical,
+  DoorOpen,
+  Archive,
+  UserMinus,
+  Eye,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import GroupMembersModal from "@/components/GroupMembersModal";
 import CreatePostModal from "@/components/CreatePostModal";
 import CreateGroupModal from "@/components/CreateGroupModal";
 import CreateChannelModal from "@/components/CreateChannelModal";
@@ -75,6 +98,11 @@ export default function ChatLayout({
   const [myGroupsExpanded, setMyGroupsExpanded] = useState(true);
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [showDisplayNameBanner, setShowDisplayNameBanner] = useState(true);
+  const [leaveGroupId, setLeaveGroupId] = useState<number | null>(null);
+  const [closeGroupId, setCloseGroupId] = useState<number | null>(null);
+  const [membersGroupId, setMembersGroupId] = useState<number | null>(null);
+  const [membersGroupName, setMembersGroupName] = useState("");
+  const [membersGroupRole, setMembersGroupRole] = useState<string | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -120,6 +148,24 @@ export default function ChatLayout({
         window.location.reload();
       },
     });
+
+  // Group management mutations
+  const leaveGroupMutation = trpc.studyGroups.leave.useMutation({
+    onSuccess: () => {
+      setLeaveGroupId(null);
+      if (selectedChannelId === leaveGroupId) setSelectedChannelId(null);
+      utils.channels.getMy.invalidate();
+    },
+  });
+
+  const archiveGroupMutation = trpc.studyGroups.archive.useMutation({
+    onSuccess: () => {
+      setCloseGroupId(null);
+      if (selectedChannelId === closeGroupId) setSelectedChannelId(null);
+      utils.channels.getMy.invalidate();
+      utils.channels.getPublic.invalidate();
+    },
+  });
 
   // Support ticket counts for badge
   const { data: allTickets } = trpc.support.getAll.useQuery(undefined, {
@@ -505,28 +551,78 @@ export default function ChatLayout({
                   {myGroupsExpanded && (
                     <div className="space-y-1">
                       {myChannels.map(channel => (
-                        <button
+                        <div
                           key={channel.id}
-                          onClick={() => {
-                            setSelectedChannelId(channel.id);
-                            setIsSidebarOpen(false);
-                          }}
-                          className={`channel-item w-full ${
-                            selectedChannelId === channel.id ? "active" : ""
-                          }`}
+                          className="flex items-center gap-1 group"
                         >
-                          {channel.isPrivate ? (
-                            <Lock className="h-4 w-4" />
-                          ) : (
-                            <Users className="h-4 w-4" />
-                          )}
-                          <span className="text-sm">{channel.name}</span>
-                          {(localUnreadCounts.get(channel.id) || 0) > 0 && (
-                            <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] text-center">
-                              {localUnreadCounts.get(channel.id)}
-                            </Badge>
-                          )}
-                        </button>
+                          <button
+                            onClick={() => {
+                              setSelectedChannelId(channel.id);
+                              setIsSidebarOpen(false);
+                            }}
+                            className={`channel-item flex-1 ${
+                              selectedChannelId === channel.id ? "active" : ""
+                            }`}
+                          >
+                            {channel.isPrivate ? (
+                              <Lock className="h-4 w-4" />
+                            ) : (
+                              <Users className="h-4 w-4" />
+                            )}
+                            <span className="text-sm truncate">
+                              {channel.name}
+                            </span>
+                            {(localUnreadCounts.get(channel.id) || 0) > 0 && (
+                              <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] text-center">
+                                {localUnreadCounts.get(channel.id)}
+                              </Badge>
+                            )}
+                          </button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-white/60 hover:text-white hover:bg-white/10 shrink-0"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <MoreVertical className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" side="right">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setMembersGroupId(channel.id);
+                                  setMembersGroupName(channel.name);
+                                  setMembersGroupRole(
+                                    (channel as any).memberRole || null
+                                  );
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                                View Members
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {(channel as any).memberRole === "owner" ? (
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setCloseGroupId(channel.id)}
+                                >
+                                  <Archive className="h-4 w-4" />
+                                  Close Group
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setLeaveGroupId(channel.id)}
+                                >
+                                  <DoorOpen className="h-4 w-4" />
+                                  Leave Group
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -845,6 +941,85 @@ export default function ChatLayout({
           postType={libraryPostType}
         />
       )}
+
+      {/* Group Members Modal */}
+      {membersGroupId && (
+        <GroupMembersModal
+          open={!!membersGroupId}
+          onOpenChange={open => {
+            if (!open) {
+              setMembersGroupId(null);
+              setMembersGroupName("");
+              setMembersGroupRole(null);
+            }
+          }}
+          groupId={membersGroupId}
+          groupName={membersGroupName}
+          currentUserRole={membersGroupRole}
+          isAdmin={isAdminMode || user?.role === "admin"}
+        />
+      )}
+
+      {/* Leave Group Confirmation */}
+      <AlertDialog
+        open={leaveGroupId !== null}
+        onOpenChange={open => {
+          if (!open) setLeaveGroupId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to leave this group? You will need to rejoin
+              or be re-invited to access it again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (leaveGroupId)
+                  leaveGroupMutation.mutate({ id: leaveGroupId });
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {leaveGroupMutation.isPending ? "Leaving..." : "Leave Group"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Close/Archive Group Confirmation */}
+      <AlertDialog
+        open={closeGroupId !== null}
+        onOpenChange={open => {
+          if (!open) setCloseGroupId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to close this group? All members will lose
+              access and the group will be archived. This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (closeGroupId)
+                  archiveGroupMutation.mutate({ id: closeGroupId });
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {archiveGroupMutation.isPending ? "Closing..." : "Close Group"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

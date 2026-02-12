@@ -3,7 +3,13 @@ import { trpc } from "@/lib/trpc";
 import { useSocket } from "@/contexts/SocketContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
-import { Loader2, GraduationCap, Package, CreditCard } from "lucide-react";
+import {
+  Loader2,
+  GraduationCap,
+  Package,
+  CreditCard,
+  AtSign,
+} from "lucide-react";
 import { PostCard, type PostData } from "@/components/PostCard";
 
 interface Message {
@@ -151,7 +157,8 @@ interface MessageItemProps {
 
 const POST_TYPES = ["event", "announcement", "article", "newsletter"] as const;
 
-const CATALOG_MENTION_REGEX = /@\[(Course|Bundle|Subscription):\s*([^\]]+)\]/g;
+const CATALOG_MENTION_REGEX =
+  /@\[(Course|Bundle|Subscription|User):\s*([^\]]+)\]/g;
 
 const MENTION_BADGE_STYLES: Record<
   string,
@@ -172,6 +179,10 @@ const MENTION_BADGE_STYLES: Record<
     className:
       "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   },
+  User: {
+    icon: AtSign,
+    className: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
+  },
 };
 
 function renderMessageContent(content: string): ReactNode {
@@ -186,7 +197,7 @@ function renderMessageContent(content: string): ReactNode {
       parts.push(content.slice(lastIndex, match.index));
     }
 
-    const type = match[1]; // Course, Bundle, or Subscription
+    const type = match[1]; // Course, Bundle, Subscription, or User
     const title = match[2].trim();
     const style = MENTION_BADGE_STYLES[type];
 
@@ -198,7 +209,7 @@ function renderMessageContent(content: string): ReactNode {
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${style.className}`}
         >
           <Icon className="h-3 w-3" />
-          {title}
+          {type === "User" ? `@${title}` : title}
         </span>
       );
     } else {
