@@ -1766,6 +1766,11 @@ export const appRouter = router({
       return await db.getStudyGroups();
     }),
 
+    // Admin: list all study groups including suspended/closed
+    listAll: adminProcedure.query(async () => {
+      return await db.getAllStudyGroupsAdmin();
+    }),
+
     // Get user's study groups
     getMy: protectedProcedure.query(async ({ ctx }) => {
       return await db.getUserStudyGroups(ctx.user.id);

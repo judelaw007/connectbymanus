@@ -1849,6 +1849,43 @@ export async function getStudyGroups() {
   }));
 }
 
+export async function getAllStudyGroupsAdmin() {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("channels")
+    .select(
+      `
+      *,
+      users:created_by (
+        name
+      )
+    `
+    )
+    .eq("type", "study_group")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[Database] Error getting all study groups (admin):", error);
+    return [];
+  }
+
+  // Also get member counts for each group
+  const groups = (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    creatorName: row.users?.name,
+    users: undefined,
+  }));
+
+  // Batch member counts
+  for (const group of groups) {
+    group.memberCount = await getStudyGroupMemberCount(group.id);
+  }
+
+  return groups;
+}
+
 export async function getUserStudyGroups(userId: number) {
   const supabase = getSupabase();
   if (!supabase) return [];

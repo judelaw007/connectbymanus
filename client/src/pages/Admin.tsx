@@ -39,10 +39,12 @@ import {
   MessagesSquare,
   Save,
   CalendarCheck,
+  UsersRound,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import ChatLayout from "@/components/ChatLayout";
 import ChatAnalytics from "@/components/ChatAnalytics";
+import GroupModeration from "@/components/GroupModeration";
 import { trpc } from "@/lib/trpc";
 import { signOutAdmin } from "@/lib/supabase";
 
@@ -52,6 +54,7 @@ type DashboardSection =
   | "moji-settings"
   | "users"
   | "user-moderation"
+  | "group-moderation"
   | "platform-settings"
   | "chat-analytics"
   | "event-invitees";
@@ -246,6 +249,14 @@ export default function Admin() {
                     <UserX className="h-4 w-4 mr-2" />
                     Moderate Users
                   </Button>
+                  <Button
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => setActiveSection("group-moderation")}
+                  >
+                    <UsersRound className="h-4 w-4 mr-2" />
+                    Manage Groups
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -266,6 +277,9 @@ export default function Admin() {
 
       case "user-moderation":
         return <UserManagement moderationMode={true} />;
+
+      case "group-moderation":
+        return <GroupModeration />;
 
       case "platform-settings":
         return <PlatformSettings />;
@@ -369,6 +383,16 @@ export default function Admin() {
             >
               <UserX className="h-4 w-4 mr-2" />
               User Moderation
+            </Button>
+            <Button
+              variant={
+                activeSection === "group-moderation" ? "secondary" : "ghost"
+              }
+              className="w-full justify-start"
+              onClick={() => setActiveSection("group-moderation")}
+            >
+              <UsersRound className="h-4 w-4 mr-2" />
+              Group Moderation
             </Button>
             <Button
               variant={
