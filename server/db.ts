@@ -2432,6 +2432,25 @@ export async function updatePlatformSettings(
   }
 }
 
+// Update user role
+export async function updateUserRole(
+  userId: number,
+  role: "user" | "admin" | "moderator"
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("users")
+    .update({ role })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("[Database] Error updating user role:", error);
+    throw error;
+  }
+}
+
 // Update admin display name
 export async function updateUserDisplayName(
   userId: number,

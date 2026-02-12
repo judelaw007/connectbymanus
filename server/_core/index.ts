@@ -10,6 +10,7 @@ import { serveStatic, setupVite } from "./vite";
 import { initializeSocket } from "./socket";
 import { startReminderScheduler } from "../services/eventReminders";
 import { trpcRateLimiter } from "./rateLimit";
+import { cleanupExpiredCodes } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -89,6 +90,18 @@ async function startServer() {
 
   // Start auto-reminder scheduler for events
   startReminderScheduler();
+
+  // Clean up expired verification codes on start and every hour
+  cleanupExpiredCodes().catch(err =>
+    console.error("[Startup] Failed to cleanup expired codes:", err)
+  );
+  setInterval(
+    () =>
+      cleanupExpiredCodes().catch(err =>
+        console.error("[Scheduler] Failed to cleanup expired codes:", err)
+      ),
+    60 * 60 * 1000
+  );
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${port}/`);
