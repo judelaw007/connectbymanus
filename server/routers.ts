@@ -33,15 +33,15 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 export const appRouter = router({
   system: systemRouter,
 
-  // Debug endpoints
+  // Debug endpoints (admin only — prevent exposing system internals)
   debug: router({
-    testDb: publicProcedure.query(async () => {
+    testDb: adminProcedure.query(async () => {
       return await db.testDatabaseConnection();
     }),
-    emailStatus: publicProcedure.query(() => {
+    emailStatus: adminProcedure.query(() => {
       return emailService.getEmailServiceStatus();
     }),
-    learnworldsStatus: publicProcedure.query(() => {
+    learnworldsStatus: adminProcedure.query(() => {
       return learnworldsService.getLearnworldsStatus();
     }),
     // Test email send (admin only, respects TEST_MODE)
@@ -2247,6 +2247,54 @@ export const appRouter = router({
       .input(z.object({ userId: z.number() }))
       .mutation(async ({ input }) => {
         await db.unsuspendUser(input.userId);
+        return { success: true };
+      }),
+
+    // Promote a user to admin
+    promoteToAdmin: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input }) => {
+        const target = await db.getUserById(input.userId);
+        if (!target) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found",
+          });
+        }
+        if (target.role === "admin") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "User is already an admin",
+          });
+        }
+        await db.updateUserRole(input.userId, "admin");
+        return { success: true };
+      }),
+
+    // Demote an admin to regular user
+    demoteToUser: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.userId === ctx.user.id) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "You cannot demote yourself",
+          });
+        }
+        const target = await db.getUserById(input.userId);
+        if (!target) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "User not found",
+          });
+        }
+        if (target.role !== "admin") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "User is not an admin",
+          });
+        }
+        await db.updateUserRole(input.userId, "user");
         return { success: true };
       }),
   }),

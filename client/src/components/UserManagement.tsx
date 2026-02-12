@@ -48,6 +48,7 @@ import {
   Calendar,
   ShieldBan,
   ShieldCheck,
+  ShieldAlert,
   AlertTriangle,
 } from "lucide-react";
 
@@ -127,6 +128,22 @@ export default function UserManagement({ moderationMode = false }: Props) {
   });
 
   const unsuspendMutation = trpc.users.unsuspend.useMutation({
+    onSuccess: () => {
+      utils.users.list.invalidate();
+      if (selectedUserId)
+        utils.users.getById.invalidate({ userId: selectedUserId });
+    },
+  });
+
+  const promoteMutation = trpc.users.promoteToAdmin.useMutation({
+    onSuccess: () => {
+      utils.users.list.invalidate();
+      if (selectedUserId)
+        utils.users.getById.invalidate({ userId: selectedUserId });
+    },
+  });
+
+  const demoteMutation = trpc.users.demoteToUser.useMutation({
     onSuccess: () => {
       utils.users.list.invalidate();
       if (selectedUserId)
@@ -317,6 +334,36 @@ export default function UserManagement({ moderationMode = false }: Props) {
                   </div>
                   <div className="flex items-center gap-2">
                     {roleBadge(userDetail.role)}
+                    {userDetail.role !== "admin" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          promoteMutation.mutate({ userId: userDetail.id })
+                        }
+                        disabled={promoteMutation.isPending}
+                      >
+                        <ShieldAlert className="h-4 w-4 mr-2" />
+                        {promoteMutation.isPending
+                          ? "Promoting..."
+                          : "Promote to Admin"}
+                      </Button>
+                    )}
+                    {userDetail.role === "admin" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          demoteMutation.mutate({ userId: userDetail.id })
+                        }
+                        disabled={demoteMutation.isPending}
+                      >
+                        <ShieldBan className="h-4 w-4 mr-2" />
+                        {demoteMutation.isPending
+                          ? "Demoting..."
+                          : "Demote to User"}
+                      </Button>
+                    )}
                     {userDetail.role !== "admin" && !userDetail.isSuspended && (
                       <Button
                         variant="destructive"
