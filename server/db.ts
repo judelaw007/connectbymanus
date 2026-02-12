@@ -90,6 +90,15 @@ export interface Post {
   createdAt: Date;
 }
 
+export interface ChannelLearnworldsLink {
+  id: number;
+  channelId: number;
+  entityType: "course" | "bundle" | "subscription";
+  entityId: string;
+  entityTitle: string | null;
+  createdAt: Date;
+}
+
 export interface SupportTicket {
   id: number;
   userId: number;
@@ -690,6 +699,139 @@ export async function getChannelsWithLearnworldsLinks() {
   return (data || []).map(snakeToCamel) as Channel[];
 }
 
+// ============= Channel LearnWorlds Links (multi-entity) =============
+
+export async function getChannelLinks(
+  channelId: number
+): Promise<ChannelLearnworldsLink[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("channel_learnworlds_links")
+    .select("*")
+    .eq("channel_id", channelId)
+    .order("created_at");
+
+  if (error) {
+    // Table may not exist yet (migration not run) — fall back to old columns
+    if (error.code === "42P01") return [];
+    console.error("[Database] Error getting channel links:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel) as ChannelLearnworldsLink[];
+}
+
+export async function getAllChannelLinks(): Promise<ChannelLearnworldsLink[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("channel_learnworlds_links")
+    .select("*")
+    .order("channel_id");
+
+  if (error) {
+    if (error.code === "42P01") return [];
+    console.error("[Database] Error getting all channel links:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel) as ChannelLearnworldsLink[];
+}
+
+export async function setChannelLinks(
+  channelId: number,
+  links: { entityType: string; entityId: string; entityTitle?: string }[]
+) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  // Delete existing links for this channel
+  await supabase
+    .from("channel_learnworlds_links")
+    .delete()
+    .eq("channel_id", channelId);
+
+  if (links.length === 0) return;
+
+  // Insert new links
+  const rows = links.map(l => ({
+    channel_id: channelId,
+    entity_type: l.entityType,
+    entity_id: l.entityId,
+    entity_title: l.entityTitle || null,
+  }));
+
+  const { error } = await supabase
+    .from("channel_learnworlds_links")
+    .insert(rows);
+
+  if (error) throw error;
+}
+
+/**
+ * Get all channels that have any LearnWorlds links (new junction table).
+ * Falls back to old single-column approach if the junction table doesn't exist.
+ */
+export async function getChannelsWithLinks(): Promise<
+  { channelId: number; links: ChannelLearnworldsLink[] }[]
+> {
+  const allLinks = await getAllChannelLinks();
+
+  if (allLinks.length > 0) {
+    // Group links by channel
+    const byChannel = new Map<number, ChannelLearnworldsLink[]>();
+    for (const link of allLinks) {
+      const arr = byChannel.get(link.channelId) || [];
+      arr.push(link);
+      byChannel.set(link.channelId, arr);
+    }
+    return Array.from(byChannel.entries()).map(([channelId, links]) => ({
+      channelId,
+      links,
+    }));
+  }
+
+  // Fallback: read from old single-column fields
+  const oldChannels = await getChannelsWithLearnworldsLinks();
+  return oldChannels.map(ch => {
+    const links: ChannelLearnworldsLink[] = [];
+    if (ch.learnworldsCourseId) {
+      links.push({
+        id: 0,
+        channelId: ch.id,
+        entityType: "course",
+        entityId: ch.learnworldsCourseId,
+        entityTitle: null,
+        createdAt: new Date(),
+      });
+    }
+    if (ch.learnworldsBundleId) {
+      links.push({
+        id: 0,
+        channelId: ch.id,
+        entityType: "bundle",
+        entityId: ch.learnworldsBundleId,
+        entityTitle: null,
+        createdAt: new Date(),
+      });
+    }
+    if (ch.learnworldsSubscriptionId) {
+      links.push({
+        id: 0,
+        channelId: ch.id,
+        entityType: "subscription",
+        entityId: ch.learnworldsSubscriptionId,
+        entityTitle: null,
+        createdAt: new Date(),
+      });
+    }
+    return { channelId: ch.id, links };
+  });
+}
+
 export async function getUserChannels(userId: number) {
   const supabase = getSupabase();
   if (!supabase) return [];
@@ -783,6 +925,7 @@ export async function getChannelMembers(channelId: number) {
       users (
         id,
         name,
+        display_name,
         email,
         role
       )
@@ -797,6 +940,7 @@ export async function getChannelMembers(channelId: number) {
 
   return (data || []).map((row: any) => ({
     ...snakeToCamel(row.users),
+    displayName: row.users?.display_name || null,
     memberRole: row.role,
     joinedAt: row.joined_at,
   }));

@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Package,
   CreditCard,
+  User,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -22,7 +23,7 @@ interface MessageInputProps {
 }
 
 type MentionItem = {
-  type: "moji" | "course" | "bundle" | "subscription";
+  type: "moji" | "course" | "bundle" | "subscription" | "user";
   id: string;
   title: string;
   label: string;
@@ -33,6 +34,7 @@ const MENTION_ICONS = {
   course: GraduationCap,
   bundle: Package,
   subscription: CreditCard,
+  user: User,
 };
 
 const MENTION_COLORS = {
@@ -40,6 +42,7 @@ const MENTION_COLORS = {
   course: "text-emerald-500",
   bundle: "text-purple-500",
   subscription: "text-amber-500",
+  user: "text-sky-500",
 };
 
 export function MessageInput({
@@ -65,6 +68,15 @@ export function MessageInput({
   const { data: catalog } = trpc.channels.getLearnworldsCatalog.useQuery(
     undefined,
     { enabled: isAdmin, staleTime: 5 * 60 * 1000 }
+  );
+
+  // Fetch channel members for @user mention autocomplete
+  const { data: memberResults } = trpc.channels.searchMembers.useQuery(
+    { channelId, query: mentionQuery || "" },
+    {
+      enabled: mentionQuery !== null && !!user,
+      staleTime: 30 * 1000,
+    }
   );
 
   const sendMessageMutation = trpc.messages.send.useMutation({
@@ -94,7 +106,7 @@ export function MessageInput({
     }
   }, [isTyping, channelId, socket, isPublicView]);
 
-  // Build mention items from catalog
+  // Build mention items from catalog + members
   const mentionItems = useMemo<MentionItem[]>(() => {
     const items: MentionItem[] = [
       {
@@ -104,6 +116,18 @@ export function MessageInput({
         label: "Ask the AI assistant",
       },
     ];
+
+    // Add channel members as mention options
+    if (memberResults) {
+      for (const m of memberResults) {
+        items.push({
+          type: "user",
+          id: String(m.id),
+          title: m.name,
+          label: "Member",
+        });
+      }
+    }
 
     if (isAdmin && catalog) {
       for (const c of catalog.courses) {
@@ -132,7 +156,7 @@ export function MessageInput({
       }
     }
     return items;
-  }, [isAdmin, catalog]);
+  }, [isAdmin, catalog, memberResults]);
 
   // Filter mentions based on query
   const filteredMentions = useMemo(() => {
@@ -167,8 +191,8 @@ export function MessageInput({
       const atMatch = textBeforeCursor.match(/(^|\s)@([^\s]*)$/);
       if (atMatch) {
         const query = atMatch[2];
-        // For non-admin, only show @moji
-        if (!isAdmin && query.length <= 4) {
+        // Show mentions for all users now (not just admin)
+        if (!isAdmin && query.length <= 20) {
           setMentionQuery(query);
         } else if (isAdmin) {
           setMentionQuery(query);
@@ -194,6 +218,9 @@ export function MessageInput({
       let insertText: string;
       if (item.type === "moji") {
         insertText = "@moji ";
+      } else if (item.type === "user") {
+        // Insert as @[User: DisplayName] format for user mentions
+        insertText = `@[User: ${item.title}] `;
       } else {
         // Insert as @[Type: Title] format for catalog mentions
         insertText = `@[${item.label}: ${item.title}] `;
@@ -346,11 +373,7 @@ export function MessageInput({
           value={message}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder={
-            isAdmin
-              ? "Type a message... (use @ to mention courses, bundles, or @moji)"
-              : "Type a message... (use @moji to ask AI)"
-          }
+          placeholder="Type a message... (use @ to mention people or @moji for AI)"
           className="min-h-[44px] max-h-[200px] resize-none"
           rows={1}
         />

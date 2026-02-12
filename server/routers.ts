@@ -190,28 +190,30 @@ export const appRouter = router({
           name: userName,
         });
 
-        // Auto-enroll user in Learnworlds-linked channels
+        // Auto-enroll user in Learnworlds-linked channels (supports multi-entity links)
         if (lwStatus.isConfigured) {
           try {
             const userCourses = await learnworldsService.getUserCourses(email);
-            const linkedChannels = await db.getChannelsWithLearnworldsLinks();
+            const channelsWithLinks = await db.getChannelsWithLinks();
 
-            for (const channel of linkedChannels) {
-              // Check if user's courses match the channel's linked entity
-              const shouldEnroll =
-                (channel.learnworldsCourseId &&
-                  userCourses.includes(channel.learnworldsCourseId)) ||
-                false; // Bundle/subscription matching requires additional API support
+            for (const { channelId, links } of channelsWithLinks) {
+              // Check if any of the channel's linked courses match the user's enrolled courses
+              const shouldEnroll = links.some(
+                link =>
+                  link.entityType === "course" &&
+                  userCourses.includes(link.entityId)
+              );
+              // Bundle/subscription matching requires additional API support
 
               if (shouldEnroll) {
-                const isMember = await db.isUserInChannel(channel.id, user.id);
+                const isMember = await db.isUserInChannel(channelId, user.id);
                 if (!isMember) {
                   await db.addChannelMember({
-                    channelId: channel.id,
+                    channelId,
                     userId: user.id,
                   });
                   console.log(
-                    `[AutoEnroll] User ${user.id} enrolled in channel ${channel.id}`
+                    `[AutoEnroll] User ${user.id} enrolled in channel ${channelId}`
                   );
                 }
               }
@@ -439,9 +441,20 @@ export const appRouter = router({
           description: z.string().optional(),
           type: z.enum(["topic", "study_group"]),
           isPrivate: z.boolean().default(false),
+          // Legacy single-entity fields (still accepted for backwards compat)
           learnworldsCourseId: z.string().optional(),
           learnworldsBundleId: z.string().optional(),
           learnworldsSubscriptionId: z.string().optional(),
+          // New multi-entity links
+          learnworldsLinks: z
+            .array(
+              z.object({
+                entityType: z.enum(["course", "bundle", "subscription"]),
+                entityId: z.string(),
+                entityTitle: z.string().optional(),
+              })
+            )
+            .optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -453,13 +466,14 @@ export const appRouter = router({
           });
         }
 
+        const hasLinks =
+          (input.learnworldsLinks && input.learnworldsLinks.length > 0) ||
+          input.learnworldsCourseId ||
+          input.learnworldsBundleId ||
+          input.learnworldsSubscriptionId;
+
         // Learnworlds linking is admin-only
-        if (
-          (input.learnworldsCourseId ||
-            input.learnworldsBundleId ||
-            input.learnworldsSubscriptionId) &&
-          ctx.user.role !== "admin"
-        ) {
+        if (hasLinks && ctx.user.role !== "admin") {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Only admins can link channels to Learnworlds",
@@ -467,12 +481,7 @@ export const appRouter = router({
         }
 
         // Topic channels (except General) must be linked to a Learnworlds entity
-        if (
-          input.type === "topic" &&
-          !input.learnworldsCourseId &&
-          !input.learnworldsBundleId &&
-          !input.learnworldsSubscriptionId
-        ) {
+        if (input.type === "topic" && !hasLinks) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
@@ -482,6 +491,23 @@ export const appRouter = router({
 
         const inviteCode = input.isPrivate ? nanoid(16) : undefined;
 
+        // For backwards compat, set the first course/bundle/subscription on the channel row
+        const firstCourse =
+          input.learnworldsLinks?.find(l => l.entityType === "course")
+            ?.entityId ||
+          input.learnworldsCourseId ||
+          null;
+        const firstBundle =
+          input.learnworldsLinks?.find(l => l.entityType === "bundle")
+            ?.entityId ||
+          input.learnworldsBundleId ||
+          null;
+        const firstSub =
+          input.learnworldsLinks?.find(l => l.entityType === "subscription")
+            ?.entityId ||
+          input.learnworldsSubscriptionId ||
+          null;
+
         const channelId = await db.createChannel({
           name: input.name,
           description: input.description || null,
@@ -489,10 +515,49 @@ export const appRouter = router({
           isPrivate: input.isPrivate,
           inviteCode: inviteCode || null,
           createdBy: ctx.user.id,
-          learnworldsCourseId: input.learnworldsCourseId || null,
-          learnworldsBundleId: input.learnworldsBundleId || null,
-          learnworldsSubscriptionId: input.learnworldsSubscriptionId || null,
+          learnworldsCourseId: firstCourse,
+          learnworldsBundleId: firstBundle,
+          learnworldsSubscriptionId: firstSub,
         });
+
+        // Save all links to the junction table
+        const allLinks: {
+          entityType: string;
+          entityId: string;
+          entityTitle?: string;
+        }[] = [];
+        if (input.learnworldsLinks && input.learnworldsLinks.length > 0) {
+          allLinks.push(...input.learnworldsLinks);
+        } else {
+          // Build from legacy single-entity fields
+          if (input.learnworldsCourseId)
+            allLinks.push({
+              entityType: "course",
+              entityId: input.learnworldsCourseId,
+            });
+          if (input.learnworldsBundleId)
+            allLinks.push({
+              entityType: "bundle",
+              entityId: input.learnworldsBundleId,
+            });
+          if (input.learnworldsSubscriptionId)
+            allLinks.push({
+              entityType: "subscription",
+              entityId: input.learnworldsSubscriptionId,
+            });
+        }
+
+        if (allLinks.length > 0) {
+          try {
+            await db.setChannelLinks(channelId, allLinks);
+          } catch (err: any) {
+            // Junction table may not exist yet — that's okay, old columns are set
+            console.warn(
+              "[Channels] Could not save to junction table:",
+              err.message
+            );
+          }
+        }
 
         // Add creator as owner
         await db.addChannelMember({
@@ -502,6 +567,13 @@ export const appRouter = router({
         });
 
         return { channelId, inviteCode };
+      }),
+
+    // Get links for a specific channel (admin only)
+    getChannelLinks: adminProcedure
+      .input(z.object({ channelId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getChannelLinks(input.channelId);
       }),
 
     // Get Learnworlds catalog for channel linking (admin only)
@@ -598,6 +670,42 @@ export const appRouter = router({
         }
 
         return await db.getChannelMembers(input.channelId);
+      }),
+
+    // Search channel members for @mention autocomplete
+    searchMembers: protectedProcedure
+      .input(
+        z.object({
+          channelId: z.number(),
+          query: z.string().max(100).default(""),
+        })
+      )
+      .query(async ({ input, ctx }) => {
+        const isMember = await db.isUserInChannel(input.channelId, ctx.user.id);
+        if (!isMember && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+        }
+
+        const members = await db.getChannelMembers(input.channelId);
+        const q = input.query.toLowerCase();
+
+        const filtered = q
+          ? members.filter(
+              (m: any) =>
+                (m.name && m.name.toLowerCase().includes(q)) ||
+                (m.displayName && m.displayName.toLowerCase().includes(q)) ||
+                (m.email && m.email.toLowerCase().includes(q))
+            )
+          : members;
+
+        // Return top 10 results, excluding the current user
+        return filtered
+          .filter((m: any) => m.id !== ctx.user.id)
+          .slice(0, 10)
+          .map((m: any) => ({
+            id: m.id,
+            name: m.displayName || m.name || m.email || "Unknown",
+          }));
       }),
 
     // Close a channel (owner only)
