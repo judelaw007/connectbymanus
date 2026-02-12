@@ -1,7 +1,7 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-12
-> Overall: ~92% complete | Backend core 100% | All CRITICAL + HIGH done | M5 + M6 done | Moving through MEDIUM tier
+> Overall: ~94% complete | Backend core 100% | All CRITICAL + HIGH done | M4 + M5 + M6 done | Moving through MEDIUM tier
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
@@ -85,9 +85,11 @@ Estimated effort: 4-6 focused sessions.
   - SearchDialog component: tabbed Messages/Posts UI, debounced input, result highlighting, click-to-navigate
   - Wired to existing search icon button in ChatLayout header
 
-- [ ] **M4. Category library pages (Articles, Events, Announcements, Newsletters)**
-  - Dedicated browse pages per post type with filtering/sorting
-  - Accessible from sidebar or navigation
+- [x] **M4. Category library pages (Articles, Events, Announcements, Newsletters)** ✓
+  - `browsePostsByType()` in db.ts with pagination, sort (newest/oldest/pinned), and text search
+  - `posts.browse` tRPC endpoint with full filtering support
+  - CategoryLibrary dialog: search, sort dropdown, PostCard rendering, pagination
+  - Sidebar "View All" links on each category header open the library dialog
 
 - [ ] **M1. @course/@bundle/@subscription mention autocomplete (#2)**
   - For Learnworlds users, admin types @ to see courses, bundles, subscriptions in a dropdown
@@ -148,6 +150,7 @@ Estimated effort: 4-6 focused sessions.
 - [x] Bug fix: Unread badges unreliable — 3 rounds of fixes (see H2 details above)
 - [x] Rate limiting middleware: 4-tier express-rate-limit on all tRPC endpoints (auth, messages, support, general)
 - [x] Search: message and post search with tabbed dialog UI, debounced input, result highlighting, click-to-navigate
+- [x] Category library: browse dialogs for Articles/Events/Announcements/Newsletters with search, sort, pagination
 
 ## Recent Bug-Fix Summary (2026-02-11 evening)
 
