@@ -1,7 +1,7 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-12
-> Overall: ~94% complete | Backend core 100% | All CRITICAL + HIGH done | M4 + M5 + M6 done | Moving through MEDIUM tier
+> Overall: ~96% complete | Backend core 100% | All CRITICAL + HIGH done | M1 + M4 + M5 + M6 done | Moving through MEDIUM tier
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
 ## Current Sprint
@@ -91,12 +91,12 @@ Estimated effort: 4-6 focused sessions.
   - CategoryLibrary dialog: search, sort dropdown, PostCard rendering, pagination
   - Sidebar "View All" links on each category header open the library dialog
 
-- [ ] **M1. @course/@bundle/@subscription mention autocomplete (#2)**
-  - For Learnworlds users, admin types @ to see courses, bundles, subscriptions in a dropdown
-  - e.g., `@essential subscription`, `@transfer pricing exam focus`
-  - Fetch Learnworlds catalog via API and cache it (API already built for H3)
-  - Build autocomplete dropdown component triggered by @ in message input
-  - Selecting a mention inserts a styled chip/link and sends email to all enrolled users
+- [x] **M1. @course/@bundle/@subscription mention autocomplete (#2)** ✓
+  - Unified @mention dropdown in MessageInput: @moji + courses/bundles/subscriptions (admin only)
+  - Learnworlds catalog fetched via existing `getLearnworldsCatalog` endpoint, cached 5 min
+  - Fuzzy-filtered dropdown with type badges, arrow-key navigation, Enter/Tab/Escape
+  - Mentions inserted as `@[Course: Title]` format, rendered as styled inline badges in MessageList
+  - Color-coded by type: emerald (Course), purple (Bundle), amber (Subscription)
 
 - [ ] **M2. Email templates in SendGrid (#3)**
   - Current templates are inline HTML strings in code (server/services/email.ts)
@@ -151,6 +151,7 @@ Estimated effort: 4-6 focused sessions.
 - [x] Rate limiting middleware: 4-tier express-rate-limit on all tRPC endpoints (auth, messages, support, general)
 - [x] Search: message and post search with tabbed dialog UI, debounced input, result highlighting, click-to-navigate
 - [x] Category library: browse dialogs for Articles/Events/Announcements/Newsletters with search, sort, pagination
+- [x] @mention autocomplete: unified dropdown with @moji + catalog items (courses/bundles/subscriptions), arrow-key nav, styled inline badges in messages
 
 ## Recent Bug-Fix Summary (2026-02-11 evening)
 

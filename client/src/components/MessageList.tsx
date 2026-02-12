@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
 import { useSocket } from "@/contexts/SocketContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, GraduationCap, Package, CreditCard } from "lucide-react";
 import { PostCard, type PostData } from "@/components/PostCard";
 
 interface Message {
@@ -151,6 +151,71 @@ interface MessageItemProps {
 
 const POST_TYPES = ["event", "announcement", "article", "newsletter"] as const;
 
+const CATALOG_MENTION_REGEX = /@\[(Course|Bundle|Subscription):\s*([^\]]+)\]/g;
+
+const MENTION_BADGE_STYLES: Record<
+  string,
+  { icon: typeof GraduationCap; className: string }
+> = {
+  Course: {
+    icon: GraduationCap,
+    className:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  },
+  Bundle: {
+    icon: Package,
+    className:
+      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  },
+  Subscription: {
+    icon: CreditCard,
+    className:
+      "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  },
+};
+
+function renderMessageContent(content: string): ReactNode {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(CATALOG_MENTION_REGEX);
+
+  while ((match = regex.exec(content)) !== null) {
+    // Add text before the mention
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+
+    const type = match[1]; // Course, Bundle, or Subscription
+    const title = match[2].trim();
+    const style = MENTION_BADGE_STYLES[type];
+
+    if (style) {
+      const Icon = style.icon;
+      parts.push(
+        <span
+          key={match.index}
+          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${style.className}`}
+        >
+          <Icon className="h-3 w-3" />
+          {title}
+        </span>
+      );
+    } else {
+      parts.push(match[0]);
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : content;
+}
+
 function MessageItem({ message, isPublicView = false }: MessageItemProps) {
   const isBot = message.messageType === "bot";
   const isSystem = message.messageType === "system";
@@ -241,7 +306,7 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
         </div>
 
         <div className="text-sm mt-1 whitespace-pre-wrap break-words">
-          {message.content}
+          {renderMessageContent(message.content)}
         </div>
       </div>
     </div>

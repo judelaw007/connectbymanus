@@ -1,9 +1,18 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useSocket } from "@/contexts/SocketContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, LogIn, Bot } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Send,
+  LogIn,
+  Bot,
+  GraduationCap,
+  Package,
+  CreditCard,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -12,20 +21,51 @@ interface MessageInputProps {
   isPublicView?: boolean; // When true, show sign-in prompt instead of input
 }
 
+type MentionItem = {
+  type: "moji" | "course" | "bundle" | "subscription";
+  id: string;
+  title: string;
+  label: string;
+};
+
+const MENTION_ICONS = {
+  moji: Bot,
+  course: GraduationCap,
+  bundle: Package,
+  subscription: CreditCard,
+};
+
+const MENTION_COLORS = {
+  moji: "text-blue-500",
+  course: "text-emerald-500",
+  bundle: "text-purple-500",
+  subscription: "text-amber-500",
+};
+
 export function MessageInput({
   channelId,
   isPublicView = false,
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [showMojiHint, setShowMojiHint] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
   );
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const { socket } = useSocket();
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  // Fetch catalog for admin users (cached by React Query)
+  const { data: catalog } = trpc.channels.getLearnworldsCatalog.useQuery(
+    undefined,
+    { enabled: isAdmin, staleTime: 5 * 60 * 1000 }
+  );
 
   const sendMessageMutation = trpc.messages.send.useMutation({
     onSuccess: () => {
@@ -54,6 +94,128 @@ export function MessageInput({
     }
   }, [isTyping, channelId, socket, isPublicView]);
 
+  // Build mention items from catalog
+  const mentionItems = useMemo<MentionItem[]>(() => {
+    const items: MentionItem[] = [
+      {
+        type: "moji",
+        id: "moji",
+        title: "@moji",
+        label: "Ask the AI assistant",
+      },
+    ];
+
+    if (isAdmin && catalog) {
+      for (const c of catalog.courses) {
+        items.push({
+          type: "course",
+          id: c.id,
+          title: c.title,
+          label: "Course",
+        });
+      }
+      for (const b of catalog.bundles) {
+        items.push({
+          type: "bundle",
+          id: b.id,
+          title: b.title,
+          label: "Bundle",
+        });
+      }
+      for (const s of catalog.subscriptions) {
+        items.push({
+          type: "subscription",
+          id: s.id,
+          title: s.title,
+          label: "Subscription",
+        });
+      }
+    }
+    return items;
+  }, [isAdmin, catalog]);
+
+  // Filter mentions based on query
+  const filteredMentions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    if (mentionQuery === "") return mentionItems.slice(0, 8);
+    const q = mentionQuery.toLowerCase();
+    return mentionItems
+      .filter(
+        item =>
+          item.title.toLowerCase().includes(q) ||
+          item.type.toLowerCase().includes(q) ||
+          item.label.toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [mentionQuery, mentionItems]);
+
+  // Reset selected index when results change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [filteredMentions.length]);
+
+  // Scroll selected item into view
+  useEffect(() => {
+    if (!dropdownRef.current) return;
+    const items = dropdownRef.current.querySelectorAll("[data-mention-item]");
+    items[selectedIndex]?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
+
+  const detectMention = useCallback(
+    (value: string, cursorPos: number) => {
+      const textBeforeCursor = value.slice(0, cursorPos);
+      const atMatch = textBeforeCursor.match(/(^|\s)@([^\s]*)$/);
+      if (atMatch) {
+        const query = atMatch[2];
+        // For non-admin, only show @moji
+        if (!isAdmin && query.length <= 4) {
+          setMentionQuery(query);
+        } else if (isAdmin) {
+          setMentionQuery(query);
+        } else {
+          setMentionQuery(null);
+        }
+      } else {
+        setMentionQuery(null);
+      }
+    },
+    [isAdmin]
+  );
+
+  const insertMention = useCallback(
+    (item: MentionItem) => {
+      if (!textareaRef.current) return;
+      const cursorPos = textareaRef.current.selectionStart;
+      const text = message;
+      const beforeCursor = text.slice(0, cursorPos);
+      const atIndex = beforeCursor.lastIndexOf("@");
+      if (atIndex === -1) return;
+
+      let insertText: string;
+      if (item.type === "moji") {
+        insertText = "@moji ";
+      } else {
+        // Insert as @[Type: Title] format for catalog mentions
+        insertText = `@[${item.label}: ${item.title}] `;
+      }
+
+      const newMessage =
+        text.slice(0, atIndex) + insertText + text.slice(cursorPos);
+      setMessage(newMessage);
+      setMentionQuery(null);
+
+      // Focus and set cursor after the inserted text
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const newPos = atIndex + insertText.length;
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(newPos, newPos);
+        }
+      }, 0);
+    },
+    [message]
+  );
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setMessage(value);
@@ -62,13 +224,9 @@ export function MessageInput({
     e.target.style.height = "auto";
     e.target.style.height = `${e.target.scrollHeight}px`;
 
-    // Show @moji autocomplete hint when user types "@" at word boundary
+    // Detect @mention
     const cursorPos = e.target.selectionStart;
-    const textBeforeCursor = value.slice(0, cursorPos);
-    const atMatch = textBeforeCursor.match(/(^|\s)@(\w{0,4})$/);
-    setShowMojiHint(
-      !!atMatch && !textBeforeCursor.toLowerCase().includes("@moji")
-    );
+    detectMention(value, cursorPos);
 
     // Typing indicator logic
     if (!isTyping) {
@@ -86,22 +244,6 @@ export function MessageInput({
     }, 2000);
   };
 
-  const insertMojiMention = () => {
-    if (!textareaRef.current) return;
-    const cursorPos = textareaRef.current.selectionStart;
-    const text = message;
-    // Find the @ that triggered the hint
-    const beforeCursor = text.slice(0, cursorPos);
-    const atIndex = beforeCursor.lastIndexOf("@");
-    if (atIndex === -1) return;
-
-    const newMessage =
-      text.slice(0, atIndex) + "@moji " + text.slice(cursorPos);
-    setMessage(newMessage);
-    setShowMojiHint(false);
-    textareaRef.current.focus();
-  };
-
   const handleSend = () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
@@ -113,6 +255,30 @@ export function MessageInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle mention dropdown navigation
+    if (mentionQuery !== null && filteredMentions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex(i => (i < filteredMentions.length - 1 ? i + 1 : 0));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex(i => (i > 0 ? i - 1 : filteredMentions.length - 1));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        insertMention(filteredMentions[selectedIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionQuery(null);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -142,16 +308,37 @@ export function MessageInput({
 
   return (
     <div className="border-t bg-background p-4">
-      {/* @moji mention autocomplete hint */}
-      {showMojiHint && (
-        <button
-          onClick={insertMojiMention}
-          className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg border bg-card hover:bg-accent text-sm transition-colors w-fit"
+      {/* @mention autocomplete dropdown */}
+      {mentionQuery !== null && filteredMentions.length > 0 && (
+        <div
+          ref={dropdownRef}
+          className="mb-2 max-h-[240px] overflow-y-auto rounded-lg border bg-card shadow-md"
         >
-          <Bot className="h-4 w-4 text-blue-500" />
-          <span className="font-medium">@moji</span>
-          <span className="text-muted-foreground">— Ask the AI assistant</span>
-        </button>
+          {filteredMentions.map((item, idx) => {
+            const Icon = MENTION_ICONS[item.type];
+            return (
+              <button
+                key={`${item.type}-${item.id}`}
+                data-mention-item
+                onClick={() => insertMention(item)}
+                className={`flex items-center gap-3 w-full text-left px-3 py-2 text-sm transition-colors ${
+                  idx === selectedIndex ? "bg-accent" : "hover:bg-accent/50"
+                }`}
+              >
+                <Icon
+                  className={`h-4 w-4 flex-shrink-0 ${MENTION_COLORS[item.type]}`}
+                />
+                <span className="font-medium truncate">{item.title}</span>
+                <Badge
+                  variant="secondary"
+                  className="ml-auto text-xs flex-shrink-0"
+                >
+                  {item.label}
+                </Badge>
+              </button>
+            );
+          })}
+        </div>
       )}
       <div className="flex gap-2 items-end">
         <Textarea
@@ -159,7 +346,11 @@ export function MessageInput({
           value={message}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message... (use @moji to ask AI)"
+          placeholder={
+            isAdmin
+              ? "Type a message... (use @ to mention courses, bundles, or @moji)"
+              : "Type a message... (use @moji to ask AI)"
+          }
           className="min-h-[44px] max-h-[200px] resize-none"
           rows={1}
         />
