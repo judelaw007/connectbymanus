@@ -146,14 +146,13 @@ export async function getUserByEmail(
   }
 
   try {
-    // URL encode the email for the query
+    // LearnWorlds uses email as a path parameter to get a single user
     const encodedEmail = encodeURIComponent(email);
-    const response = await learnworldsRequest<
-      LearnworldsApiResponse<LearnworldsUser[]>
-    >(`/users?email=${encodedEmail}`);
+    const user = await learnworldsRequest<LearnworldsUser>(
+      `/users/${encodedEmail}`
+    );
 
-    if (response.data && response.data.length > 0) {
-      const user = response.data[0];
+    if (user && user.email) {
       console.log(`[Learnworlds] Found user: ${user.email} (id: ${user.id})`);
       return user;
     }
@@ -280,10 +279,9 @@ export async function getSubscriptions(): Promise<
   if (!status.isConfigured) return [];
 
   try {
-    const response =
-      await learnworldsRequest<
-        LearnworldsApiResponse<LearnworldsSubscription[]>
-      >("/subscriptions");
+    const response = await learnworldsRequest<
+      LearnworldsApiResponse<LearnworldsSubscription[]>
+    >("/subscription-plans");
     return (response.data || []).map(s => ({
       id: s.id,
       title: s.name || s.id,
