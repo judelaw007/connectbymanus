@@ -1108,6 +1108,73 @@ export async function getPostsByType(
   }));
 }
 
+export async function browsePostsByType(
+  postType: "event" | "announcement" | "article" | "newsletter",
+  options: {
+    limit?: number;
+    offset?: number;
+    sortBy?: "newest" | "oldest" | "pinned";
+    search?: string;
+  } = {}
+) {
+  const supabase = getSupabase();
+  if (!supabase) return { results: [], total: 0 };
+
+  const limit = options.limit || 20;
+  const offset = options.offset || 0;
+
+  let q = supabase
+    .from("posts")
+    .select(
+      `
+      *,
+      users (
+        name,
+        display_name
+      )
+    `,
+      { count: "exact" }
+    )
+    .eq("post_type", postType);
+
+  if (options.search) {
+    const pattern = `%${options.search}%`;
+    q = q.or(
+      `title.ilike.${pattern},content.ilike.${pattern},tags.ilike.${pattern}`
+    );
+  }
+
+  switch (options.sortBy) {
+    case "oldest":
+      q = q.order("created_at", { ascending: true });
+      break;
+    case "pinned":
+      q = q
+        .order("is_pinned", { ascending: false })
+        .order("created_at", { ascending: false });
+      break;
+    default: // "newest"
+      q = q.order("created_at", { ascending: false });
+  }
+
+  q = q.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await q;
+
+  if (error) {
+    console.error("[Database] Error browsing posts:", error);
+    return { results: [], total: 0 };
+  }
+
+  const results = (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    authorName: row.users?.display_name || row.users?.name,
+    users: undefined,
+  }));
+
+  return { results, total: count || 0 };
+}
+
 export async function getPostById(id: number) {
   const supabase = getSupabase();
   if (!supabase) return undefined;

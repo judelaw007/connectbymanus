@@ -997,6 +997,26 @@ export const appRouter = router({
         return await db.getPostsByType(input.postType, input.limit);
       }),
 
+    // Browse posts with pagination, sorting, and search
+    browse: publicProcedure
+      .input(
+        z.object({
+          postType: z.enum(["event", "announcement", "article", "newsletter"]),
+          limit: z.number().min(1).max(100).default(20),
+          offset: z.number().min(0).default(0),
+          sortBy: z.enum(["newest", "oldest", "pinned"]).default("newest"),
+          search: z.string().max(200).optional(),
+        })
+      )
+      .query(async ({ input }) => {
+        return await db.browsePostsByType(input.postType, {
+          limit: input.limit,
+          offset: input.offset,
+          sortBy: input.sortBy,
+          search: input.search || undefined,
+        });
+      }),
+
     // Get post by ID
     getById: publicProcedure
       .input(z.object({ id: z.number() }))

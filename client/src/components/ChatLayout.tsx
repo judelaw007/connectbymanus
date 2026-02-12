@@ -35,6 +35,7 @@ import UserSupportChat from "@/components/UserSupportChat";
 import { MessageList } from "@/components/MessageList";
 import { MessageInput } from "@/components/MessageInput";
 import SearchDialog from "@/components/SearchDialog";
+import CategoryLibrary from "@/components/CategoryLibrary";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useSocket } from "@/contexts/SocketContext";
@@ -64,6 +65,9 @@ export default function ChatLayout({
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [libraryPostType, setLibraryPostType] = useState<
+    "event" | "announcement" | "article" | "newsletter" | null
+  >(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<
     number | null
   >(null);
@@ -661,109 +665,63 @@ export default function ChatLayout({
               <div>
                 <h3 className="font-semibold mb-3">Categories</h3>
                 <div className="space-y-4">
-                  {/* Articles */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2 text-muted-foreground">
-                      Articles ({articles?.length || 0})
-                    </h4>
-                    <div className="space-y-1 text-sm">
-                      {articles?.slice(0, 3).map(article => (
+                  {(
+                    [
+                      {
+                        type: "article" as const,
+                        label: "Articles",
+                        items: articles,
+                      },
+                      {
+                        type: "event" as const,
+                        label: "Events",
+                        items: events,
+                      },
+                      {
+                        type: "announcement" as const,
+                        label: "Announcements",
+                        items: announcements,
+                      },
+                      {
+                        type: "newsletter" as const,
+                        label: "Newsletters",
+                        items: newsletters,
+                      },
+                    ] as const
+                  ).map(cat => (
+                    <div key={cat.type}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-muted-foreground">
+                          {cat.label} ({cat.items?.length || 0})
+                        </h4>
                         <button
-                          key={article.id}
-                          onClick={() => {
-                            if (article.messageId) {
-                              setSelectedChannelId(1); // General channel
-                              setTimeout(
-                                () => scrollToMessage(article.messageId!),
-                                300
-                              );
-                            }
-                          }}
-                          className="block w-full text-left hover:text-primary truncate"
+                          onClick={() => setLibraryPostType(cat.type)}
+                          className="text-xs text-primary hover:underline"
                         >
-                          {article.title}
+                          View All
                         </button>
-                      ))}
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        {cat.items?.slice(0, 3).map((item: any) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              if (item.messageId) {
+                                setSelectedChannelId(1);
+                                setTimeout(
+                                  () => scrollToMessage(item.messageId!),
+                                  300
+                                );
+                              }
+                            }}
+                            className="block w-full text-left hover:text-primary truncate"
+                          >
+                            {item.title}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Events */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2 text-muted-foreground">
-                      Events ({events?.length || 0})
-                    </h4>
-                    <div className="space-y-1 text-sm">
-                      {events?.slice(0, 3).map(event => (
-                        <button
-                          key={event.id}
-                          onClick={() => {
-                            if (event.messageId) {
-                              setSelectedChannelId(1);
-                              setTimeout(
-                                () => scrollToMessage(event.messageId!),
-                                300
-                              );
-                            }
-                          }}
-                          className="block w-full text-left hover:text-primary truncate"
-                        >
-                          {event.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Announcements */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2 text-muted-foreground">
-                      Announcements ({announcements?.length || 0})
-                    </h4>
-                    <div className="space-y-1 text-sm">
-                      {announcements?.slice(0, 3).map(announcement => (
-                        <button
-                          key={announcement.id}
-                          onClick={() => {
-                            if (announcement.messageId) {
-                              setSelectedChannelId(1);
-                              setTimeout(
-                                () => scrollToMessage(announcement.messageId!),
-                                300
-                              );
-                            }
-                          }}
-                          className="block w-full text-left hover:text-primary truncate"
-                        >
-                          {announcement.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Newsletters */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2 text-muted-foreground">
-                      Newsletters ({newsletters?.length || 0})
-                    </h4>
-                    <div className="space-y-1 text-sm">
-                      {newsletters?.slice(0, 3).map(newsletter => (
-                        <button
-                          key={newsletter.id}
-                          onClick={() => {
-                            if (newsletter.messageId) {
-                              setSelectedChannelId(1);
-                              setTimeout(
-                                () => scrollToMessage(newsletter.messageId!),
-                                300
-                              );
-                            }
-                          }}
-                          className="block w-full text-left hover:text-primary truncate"
-                        >
-                          {newsletter.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -795,6 +753,15 @@ export default function ChatLayout({
           setHighlightedMessageId(messageId);
         }}
       />
+      {libraryPostType && (
+        <CategoryLibrary
+          open={!!libraryPostType}
+          onOpenChange={open => {
+            if (!open) setLibraryPostType(null);
+          }}
+          postType={libraryPostType}
+        />
+      )}
     </div>
   );
 }
