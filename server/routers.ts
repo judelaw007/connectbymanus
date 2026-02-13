@@ -140,6 +140,116 @@ export const appRouter = router({
         };
       }),
 
+    // SSO login via LearnWorlds access token (from mojitax.co.uk redirect)
+    ssoLogin: publicProcedure
+      .input(
+        z.object({
+          accessToken: z.string().min(1),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        // Verify Learnworlds is configured
+        const lwStatus = learnworldsService.getLearnworldsStatus();
+        if (!lwStatus.isConfigured) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "Member authentication is not available. Please contact support.",
+          });
+        }
+
+        // Try to identify the user from the SSO token
+        const lwUser = await learnworldsService.getUserInfoFromSsoToken(
+          input.accessToken
+        );
+        if (!lwUser) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message:
+              "Could not verify your identity from the login token. Please try logging in with your email instead.",
+          });
+        }
+
+        if (lwUser.is_suspended) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "Your MojiTax account is suspended. Please contact support.",
+          });
+        }
+
+        const email = lwUser.email.toLowerCase().trim();
+        const userName =
+          `${lwUser.first_name || ""} ${lwUser.last_name || ""}`.trim() || null;
+
+        // Get or create the member user
+        const user = await db.upsertMemberUser({
+          email,
+          name: userName,
+        });
+
+        // Auto-enroll user in Learnworlds-linked channels
+        try {
+          const userCourses = await learnworldsService.getUserCourses(email);
+          const channelsWithLinks = await db.getChannelsWithLinks();
+
+          for (const { channelId, links } of channelsWithLinks) {
+            const shouldEnroll = links.some(
+              link =>
+                link.entityType === "course" &&
+                userCourses.includes(link.entityId)
+            );
+
+            if (shouldEnroll) {
+              const isMember = await db.isUserInChannel(channelId, user.id);
+              if (!isMember) {
+                await db.addChannelMember({
+                  channelId,
+                  userId: user.id,
+                });
+                console.log(
+                  `[SSO AutoEnroll] User ${user.id} enrolled in channel ${channelId}`
+                );
+              }
+            }
+          }
+        } catch (err: any) {
+          console.error("[SSO AutoEnroll] Error:", err.message);
+        }
+
+        // Create session token
+        const secretKey =
+          ENV.cookieSecret || "dev-secret-change-in-production-" + ENV.appId;
+        const secret = new TextEncoder().encode(secretKey);
+        const appId = ENV.appId || "mojitax-connect";
+        const memberName = userName || user.email || "Member";
+        const token = await new SignJWT({
+          openId: user.openId,
+          appId: appId,
+          name: memberName,
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("365d")
+          .sign(secret);
+
+        // Set session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, {
+          ...cookieOptions,
+          maxAge: ONE_YEAR_MS,
+        });
+
+        return {
+          success: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+        };
+      }),
+
     // Update member display name (self-service)
     updateDisplayName: protectedProcedure
       .input(
