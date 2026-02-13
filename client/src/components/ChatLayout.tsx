@@ -504,6 +504,8 @@ export default function ChatLayout({
                         <button
                           onClick={() => {
                             setSelectedChannelId(channel.id);
+                            setShowSupportInbox(false);
+                            setShowUserSupportChat(false);
                             setIsSidebarOpen(false);
                           }}
                           className={`channel-item flex-1 ${
@@ -538,99 +540,113 @@ export default function ChatLayout({
               </div>
 
               {/* My Groups - Collapsible */}
-              {user && myChannels && myChannels.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => setMyGroupsExpanded(!myGroupsExpanded)}
-                    className="flex items-center justify-between w-full text-xs font-semibold uppercase opacity-60 mb-2 hover:opacity-100 transition-opacity"
-                  >
-                    <span>My Groups</span>
-                    {myGroupsExpanded ? (
-                      <ChevronDown className="h-3 w-3" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3" />
-                    )}
-                  </button>
-                  {myGroupsExpanded && (
-                    <div className="space-y-1">
-                      {myChannels.map(channel => (
-                        <div
-                          key={channel.id}
-                          className="flex items-center gap-1 group"
-                        >
-                          <button
-                            onClick={() => {
-                              setSelectedChannelId(channel.id);
-                              setIsSidebarOpen(false);
-                            }}
-                            className={`channel-item flex-1 ${
-                              selectedChannelId === channel.id ? "active" : ""
-                            }`}
-                          >
-                            {channel.isPrivate ? (
-                              <Lock className="h-4 w-4" />
-                            ) : (
-                              <Users className="h-4 w-4" />
-                            )}
-                            <span className="text-sm truncate">
-                              {channel.name}
-                            </span>
-                            {(localUnreadCounts.get(channel.id) || 0) > 0 && (
-                              <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] text-center">
-                                {localUnreadCounts.get(channel.id)}
-                              </Badge>
-                            )}
-                          </button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-white/60 hover:text-white hover:bg-white/10 shrink-0"
-                                onClick={e => e.stopPropagation()}
-                              >
-                                <MoreVertical className="h-3 w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" side="right">
-                              <DropdownMenuItem
+              {user &&
+                myChannels &&
+                myChannels.filter((ch: any) => ch.type === "study_group")
+                  .length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => setMyGroupsExpanded(!myGroupsExpanded)}
+                      className="flex items-center justify-between w-full text-xs font-semibold uppercase opacity-60 mb-2 hover:opacity-100 transition-opacity"
+                    >
+                      <span>My Groups</span>
+                      {myGroupsExpanded ? (
+                        <ChevronDown className="h-3 w-3" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3" />
+                      )}
+                    </button>
+                    {myGroupsExpanded && (
+                      <div className="space-y-1">
+                        {myChannels
+                          .filter((ch: any) => ch.type === "study_group")
+                          .map(channel => (
+                            <div
+                              key={channel.id}
+                              className="flex items-center gap-1 group"
+                            >
+                              <button
                                 onClick={() => {
-                                  setMembersGroupId(channel.id);
-                                  setMembersGroupName(channel.name);
-                                  setMembersGroupRole(
-                                    (channel as any).memberRole || null
-                                  );
+                                  setSelectedChannelId(channel.id);
+                                  setShowSupportInbox(false);
+                                  setShowUserSupportChat(false);
+                                  setIsSidebarOpen(false);
                                 }}
+                                className={`channel-item flex-1 ${
+                                  selectedChannelId === channel.id
+                                    ? "active"
+                                    : ""
+                                }`}
                               >
-                                <Eye className="h-4 w-4" />
-                                View Members
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {(channel as any).memberRole === "owner" ? (
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onClick={() => setCloseGroupId(channel.id)}
-                                >
-                                  <Archive className="h-4 w-4" />
-                                  Close Group
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onClick={() => setLeaveGroupId(channel.id)}
-                                >
-                                  <DoorOpen className="h-4 w-4" />
-                                  Leave Group
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                                {channel.isPrivate ? (
+                                  <Lock className="h-4 w-4" />
+                                ) : (
+                                  <Users className="h-4 w-4" />
+                                )}
+                                <span className="text-sm truncate">
+                                  {channel.name}
+                                </span>
+                                {(localUnreadCounts.get(channel.id) || 0) >
+                                  0 && (
+                                  <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] text-center">
+                                    {localUnreadCounts.get(channel.id)}
+                                  </Badge>
+                                )}
+                              </button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-white/60 hover:text-white hover:bg-white/10 shrink-0"
+                                    onClick={e => e.stopPropagation()}
+                                  >
+                                    <MoreVertical className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" side="right">
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setMembersGroupId(channel.id);
+                                      setMembersGroupName(channel.name);
+                                      setMembersGroupRole(
+                                        (channel as any).memberRole || null
+                                      );
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    View Members
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  {(channel as any).memberRole === "owner" ? (
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={() =>
+                                        setCloseGroupId(channel.id)
+                                      }
+                                    >
+                                      <Archive className="h-4 w-4" />
+                                      Close Group
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={() =>
+                                        setLeaveGroupId(channel.id)
+                                      }
+                                    >
+                                      <DoorOpen className="h-4 w-4" />
+                                      Leave Group
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
           </ScrollArea>
 
