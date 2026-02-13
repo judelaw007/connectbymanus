@@ -1,64 +1,50 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { trpc } from "@/lib/trpc";
+import { supabase } from "@/lib/supabase";
 import ChatLayout from "@/components/ChatLayout";
 
 export default function Home() {
   const { loading, isAuthenticated } = useAuth();
-  const [ssoLoading, setSsoLoading] = useState(false);
-  const [ssoError, setSsoError] = useState<string | null>(null);
-  const ssoAttempted = useRef(false);
+  const [authRedirecting, setAuthRedirecting] = useState(false);
+  const authHandled = useRef(false);
 
-  const ssoLoginMutation = trpc.memberAuth.ssoLogin.useMutation({
-    onSuccess: () => {
-      // Remove the token from the URL and reload to pick up the session
-      window.history.replaceState({}, "", "/");
-      window.location.reload();
-    },
-    onError: err => {
-      setSsoError(err.message);
-      setSsoLoading(false);
-      // Clean up URL params
-      window.history.replaceState({}, "", "/");
-    },
-  });
-
+  // Handle Supabase auth tokens arriving at the root URL.
+  // This happens when the Supabase Site URL redirects here instead of
+  // /auth/admin/callback (e.g. misconfigured redirect URL).
   useEffect(() => {
-    if (ssoAttempted.current || isAuthenticated || loading) return;
+    if (authHandled.current) return;
 
-    const params = new URLSearchParams(window.location.search);
-    const accessToken = params.get("access_token");
+    const hasAuthInQuery = window.location.search.includes("access_token");
+    const hasAuthInHash = window.location.hash.includes("access_token");
 
-    if (accessToken) {
-      ssoAttempted.current = true;
-      setSsoLoading(true);
-      ssoLoginMutation.mutate({ accessToken });
+    if ((hasAuthInQuery || hasAuthInHash) && supabase) {
+      authHandled.current = true;
+      setAuthRedirecting(true);
+
+      // Let Supabase client process the tokens from the URL, then redirect
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          // Supabase session established — go to admin dashboard
+          window.location.href = "/admin";
+        } else {
+          // Tokens didn't produce a valid session — go to admin callback
+          // which has its own error handling
+          const fragment = hasAuthInHash ? window.location.hash : "";
+          const query = hasAuthInQuery ? window.location.search : "";
+          window.location.href = `/auth/admin/callback${query}${fragment}`;
+        }
+      });
     }
-  }, [loading, isAuthenticated]);
+  }, []);
 
-  if (loading || ssoLoading) {
+  if (loading || authRedirecting) {
     return (
       <div className="h-screen flex items-center justify-center flex-col gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        {ssoLoading && (
-          <p className="text-sm text-muted-foreground">
-            Signing you in from MojiTax...
-          </p>
+        {authRedirecting && (
+          <p className="text-sm text-muted-foreground">Completing sign in...</p>
         )}
-      </div>
-    );
-  }
-
-  if (ssoError) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-md px-4">
-          <p className="text-destructive font-medium">{ssoError}</p>
-          <a href="/login" className="text-primary hover:underline text-sm">
-            Try logging in with your email instead
-          </a>
-        </div>
       </div>
     );
   }
