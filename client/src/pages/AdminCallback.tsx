@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Loader2, AlertCircle } from "lucide-react";
 import { getAdminSession } from "@/lib/supabase";
+import { trpc } from "@/lib/trpc";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -9,15 +10,28 @@ export default function AdminCallback() {
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
 
+  const adminGoogleLoginMutation = trpc.auth.adminGoogleLogin.useMutation({
+    onSuccess: () => {
+      setLocation("/admin");
+    },
+    onError: err => {
+      setError(err.message || "Authentication failed. Please try again.");
+    },
+  });
+
   useEffect(() => {
     async function handleCallback() {
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for Supabase JS to process the auth tokens from the URL
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         const session = await getAdminSession();
 
         if (session) {
-          setLocation("/admin");
+          // Exchange the Supabase access token for an app JWT cookie
+          adminGoogleLoginMutation.mutate({
+            supabaseAccessToken: session.access_token,
+          });
         } else {
           setError("Access denied. Only @mojitax.com accounts are allowed.");
         }
@@ -28,7 +42,7 @@ export default function AdminCallback() {
     }
 
     handleCallback();
-  }, [setLocation]);
+  }, []);
 
   if (error) {
     return (

@@ -10,7 +10,7 @@ import * as messageService from "./messages";
 import * as chatbot from "./chatbot";
 import * as emailService from "./services/email";
 import * as learnworldsService from "./services/learnworlds";
-import { SignJWT } from "jose";
+import { SignJWT, decodeJwt } from "jose";
 import { ENV } from "./_core/env";
 import { timingSafeEqual, createHash } from "crypto";
 import {
@@ -464,6 +464,90 @@ export const appRouter = router({
           .sign(secret);
 
         // Set HTTP-only session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, {
+          ...cookieOptions,
+          maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+        });
+
+        return {
+          success: true,
+          user: {
+            id: adminUser.id,
+            name: adminUser.displayName || adminUser.name,
+            role: adminUser.role,
+          },
+        };
+      }),
+
+    // Admin Google OAuth login — exchanges Supabase access token for JWT cookie
+    adminGoogleLogin: publicProcedure
+      .input(z.object({ supabaseAccessToken: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        // Decode the Supabase JWT to get user info
+        let email: string;
+        let supabaseUserId: string;
+        try {
+          const decoded = decodeJwt(input.supabaseAccessToken);
+          email = decoded.email as string;
+          supabaseUserId = decoded.sub as string;
+          if (!email || !supabaseUserId) {
+            throw new Error("Missing email or sub in token");
+          }
+        } catch {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid authentication token.",
+          });
+        }
+
+        // Enforce @mojitax.com domain
+        const emailDomain = email.split("@")[1]?.toLowerCase();
+        if (emailDomain !== "mojitax.com") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Access denied. Only @mojitax.com accounts are allowed.",
+          });
+        }
+
+        // Find existing admin by email, or create one
+        const admins = await db.getAdminUsers();
+        let adminUser = admins.find(
+          a => a.email?.toLowerCase() === email.toLowerCase()
+        );
+
+        const openId = adminUser?.openId ?? `supabase:${supabaseUserId}`;
+        await db.upsertUser({
+          openId,
+          email: email.toLowerCase(),
+          name: adminUser?.name || email.split("@")[0],
+          role: "admin",
+          loginMethod: "google",
+          lastSignedIn: new Date(),
+        });
+
+        adminUser = await db.getUserByOpenId(openId);
+        if (!adminUser) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create admin session.",
+          });
+        }
+
+        // Create JWT session cookie (same as password login)
+        const secretKey =
+          ENV.cookieSecret || "dev-secret-change-in-production-" + ENV.appId;
+        const secret = new TextEncoder().encode(secretKey);
+        const appId = ENV.appId || "mojitax-connect";
+        const token = await new SignJWT({
+          openId,
+          appId,
+          name: adminUser.displayName || adminUser.name || "Admin",
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("30d")
+          .sign(secret);
+
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, token, {
           ...cookieOptions,
