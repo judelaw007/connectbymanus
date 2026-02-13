@@ -22,7 +22,7 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 - **`client/`** — React 19 frontend built with Vite. Uses Wouter for routing, shadcn/ui (Radix UI + TailwindCSS v4) for components, React Query for server state.
 - **`server/`** — Express backend with tRPC for type-safe API (mounted at `/api/trpc`) and Socket.io for real-time messaging/presence. Entry point: `server/_core/index.ts`.
 - **`shared/`** — Types, constants, and error classes shared between client and server.
-- **`supabase/migrations/`** — SQL migration files for the Supabase (PostgreSQL) database (currently 14 migrations, 001–014).
+- **`supabase/migrations/`** — SQL migration files for the Supabase (PostgreSQL) database (16 migrations, 001–016).
 
 **Path aliases:** `@/*` → `client/src/*`, `@shared/*` → `shared/*`
 
@@ -69,16 +69,17 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 
 **`client/src/pages/`** — Route-level page components:
 
-| File                 | Route             | Purpose                                                              |
-| -------------------- | ----------------- | -------------------------------------------------------------------- |
-| `Home.tsx`           | `/`               | Main dashboard; shows ChatLayout for authenticated users             |
-| `MemberLogin.tsx`    | `/login`          | Member login (Learnworlds email verification)                        |
-| `AdminLogin.tsx`     | `/admin/login`    | Admin login (OAuth)                                                  |
-| `AdminCallback.tsx`  | `/admin/callback` | OAuth callback → redirects to /admin                                 |
-| `Admin.tsx`          | `/admin`          | Admin dashboard (tabs: Moji Settings, Email Logs, Platform Settings) |
-| `TermsOfService.tsx` | `/terms`          | Legal page                                                           |
-| `PrivacyPolicy.tsx`  | `/privacy`        | Legal page                                                           |
-| `NotFound.tsx`       | `*`               | 404 page                                                             |
+| File                 | Route                  | Purpose                                                                                                                                                        |
+| -------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Home.tsx`           | `/`                    | Main dashboard; shows ChatLayout for authenticated users, public view otherwise                                                                                |
+| `MemberLogin.tsx`    | `/login`               | Member login (Learnworlds email verification)                                                                                                                  |
+| `AdminLogin.tsx`     | `/auth/admin`          | Admin login (password + optional Google OAuth)                                                                                                                 |
+| `AdminCallback.tsx`  | `/auth/admin/callback` | OAuth callback → redirects to /admin                                                                                                                           |
+| `Admin.tsx`          | `/admin`               | Admin dashboard (9 sections: Overview, Users, Email Logs, Moji Settings, Chat Analytics, User Moderation, Group Moderation, Platform Settings, Event Invitees) |
+| `EventInterest.tsx`  | `/events/:id/interest` | Event RSVP/interest registration form                                                                                                                          |
+| `TermsOfService.tsx` | `/terms`               | Legal page                                                                                                                                                     |
+| `PrivacyPolicy.tsx`  | `/privacy`             | Legal page                                                                                                                                                     |
+| `NotFound.tsx`       | `*`                    | 404 page                                                                                                                                                       |
 
 **`client/src/components/`** — Feature components:
 
@@ -86,7 +87,7 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 | ------------------------ | ----------------------------------------------------------------------------- |
 | `ChatLayout.tsx`         | **Main chat UI** — channel list, message display, input (three-column layout) |
 | `MessageList.tsx`        | Paginated message thread rendering                                            |
-| `MessageInput.tsx`       | Text input with rich formatting                                               |
+| `MessageInput.tsx`       | Text input with rich formatting and @mention autocomplete                     |
 | `AIChatBox.tsx`          | Reusable AI chat widget (used in ComponentShowcase; @moji uses MessageInput)  |
 | `CreatePostModal.tsx`    | Modal for creating posts (Events, Announcements, Articles, Newsletters)       |
 | `CreateGroupModal.tsx`   | Modal for creating study groups                                               |
@@ -97,9 +98,15 @@ Full-stack TypeScript monorepo (ESM throughout — `"type": "module"`):
 | `AdminAuthGuard.tsx`     | Route guard — redirects non-admins                                            |
 | `DashboardLayout.tsx`    | Admin dashboard wrapper layout                                                |
 | `EmailLogs.tsx`          | Admin email log viewer                                                        |
-| `MojiSettings.tsx`       | Admin @moji configuration                                                     |
-| `PlatformSettings.tsx`   | Global platform settings UI                                                   |
+| `MojiSettings.tsx`       | Admin @moji configuration and knowledge base management                       |
+| `PlatformSettings.tsx`   | Global platform settings UI (including admin availability hours)              |
 | `UserManagement.tsx`     | Admin user list + detail + moderation (suspend/unsuspend)                     |
+| `GroupModeration.tsx`    | Admin group suspension/unsuspension                                           |
+| `EventInvitees.tsx`      | Admin view of event RSVPs and interest registrations                          |
+| `SearchDialog.tsx`       | Global search across messages and posts                                       |
+| `CategoryLibrary.tsx`    | Browse dialog for Articles/Events/Announcements/Newsletters                   |
+| `RichTextEditor.tsx`     | Rich text editor for post creation                                            |
+| `GroupMembersModal.tsx`  | View/manage group member list                                                 |
 | `ErrorBoundary.tsx`      | React error boundary                                                          |
 
 **`client/src/components/ui/`** — 60+ shadcn/ui primitives (button, card, dialog, form, table, etc.). Do not modify directly; regenerate via shadcn CLI.
@@ -133,7 +140,7 @@ Procedures are defined in `server/_core/trpc.ts`. Context creation (user resolut
 
 ### Authentication
 
-Two auth paths: members authenticate via email verification codes (tRPC `memberAuth` router), admins authenticate via OAuth (`server/_core/oauth.ts`). Sessions are stored as JWT in an HTTP-only cookie (`app_session_id`).
+Two auth paths: members authenticate via email verification codes (tRPC `memberAuth` router), admins authenticate via password (timing-safe SHA256) or optional Google OAuth (`server/_core/oauth.ts`). Sessions are stored as JWT in an HTTP-only cookie (`app_session_id`).
 
 ### Real-time
 
@@ -151,14 +158,15 @@ See `.env.example` for the full list. Key groups:
 
 - **Supabase** (live, linked in Replit): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 - **Learnworlds**: `LEARNWORLDS_CLIENT_ID`, `LEARNWORLDS_CLIENT_SECRET`, `LEARNWORLDS_SCHOOL_ID`
-- **Email**: `SENDGRID_API_KEY`, `EMAIL_FROM`, `TEST_MODE`, `TEST_EMAIL_RECIPIENT`
-- **Auth**: `JWT_SECRET`, `SESSION_SECRET`, `OWNER_OPEN_ID`
+- **Email**: `SENDGRID_API_KEY`, `EMAIL_FROM`
+- **Auth**: `JWT_SECRET`, `SESSION_SECRET`, `ADMIN_PASSWORD`, `OWNER_OPEN_ID`
 - **LLM**: `OPENAI_API_KEY` (for @moji chatbot)
 - **App**: `NODE_ENV`, `PORT` (default 5000)
+- **Test mode** (optional): `TEST_MODE` (default `false`), `TEST_EMAIL_RECIPIENT` — only set `TEST_MODE=true` for staging/testing
 
-All 13 secrets configured in Replit: `EMAIL_FROM`, `JWT_SECRET`, `LEARNWORLDS_CLIENT_ID`, `LEARNWORLDS_CLIENT_SECRET`, `LEARNWORLDS_SCHOOL_ID`, `OPENAI_API_KEY`, `OWNER_OPEN_ID`, `SENDGRID_API_KEY`, `SESSION_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `TEST_EMAIL_RECIPIENT`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL`.
+All 14 secrets configured in Replit: `ADMIN_PASSWORD`, `EMAIL_FROM`, `JWT_SECRET`, `LEARNWORLDS_CLIENT_ID`, `LEARNWORLDS_CLIENT_SECRET`, `LEARNWORLDS_SCHOOL_ID`, `OPENAI_API_KEY`, `OWNER_OPEN_ID`, `SENDGRID_API_KEY`, `SESSION_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `TEST_EMAIL_RECIPIENT`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL`.
 
-When `TEST_MODE=true`, all emails redirect to `TEST_EMAIL_RECIPIENT` with `[TEST]` subject prefix.
+**Production email:** `TEST_MODE` is set to `false` — emails go directly to real users. Set `TEST_MODE=true` only for staging/testing (redirects all emails to `TEST_EMAIL_RECIPIENT` with `[TEST]` subject prefix).
 
 **Note:** Tests (`npm run test`) require these env vars to be set. In Replit, they are available at runtime. Locally without Supabase credentials, DB-dependent tests will fail with "Database not available".
 
@@ -166,9 +174,18 @@ When `TEST_MODE=true`, all emails redirect to `TEST_EMAIL_RECIPIENT` with `[TEST
 
 Prettier only (no ESLint). Key settings: double quotes, semicolons, 2-space indent, ES5 trailing commas, LF line endings, `arrowParens: "avoid"`.
 
-## Project Tracking
+## Project Status
 
-- **`PLAN.md`** — The canonical project plan. Read this first to know what to build and in what order.
+The platform is **production-ready**. All CRITICAL, HIGH, and MEDIUM priority items are complete. See `PLAN.md` for the full development history.
+
+### Documentation
+
+- **`USER_GUIDE.md`** — End-user documentation for MojiTax members
+- **`ADMIN_GUIDE.md`** — Admin operations guide (setup, dashboard, moderation, troubleshooting)
+- **`PLAN.md`** — Development plan and history (all sprints complete)
+
+### Developer tooling
+
 - **`.claude/settings.json`** — Hook configuration that auto-loads context on session start, auto-logs progress on stop, and auto-formats files after edits.
 - **`.claude/progress.log`** — Auto-generated session activity log (not committed to git).
 - If you change architectural files (`server/_core/`, `routers.ts`, `db.ts`, `App.tsx`, `package.json`), update this file to reflect structural changes.

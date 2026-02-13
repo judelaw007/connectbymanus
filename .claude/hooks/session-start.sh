@@ -12,16 +12,14 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 PLAN_FILE="$PROJECT_DIR/PLAN.md"
 PROGRESS_LOG="$PROJECT_DIR/.claude/progress.log"
 
-# ── Read current sprint from PLAN.md ──
-CURRENT_SPRINT=""
-SPRINT_ITEMS=""
-BLOCKERS=""
+# ── Read current status from PLAN.md ──
+CURRENT_STATUS=""
+FUTURE_ITEMS=""
 if [[ -f "$PLAN_FILE" ]]; then
-  CURRENT_SPRINT=$(sed -n '/^## Current Sprint/,/^## /{/^## Current Sprint/d;/^## /d;p;}' "$PLAN_FILE" | head -5)
-  SPRINT_ITEMS=$(sed -n '/^## Priorities/,/^## /{/^## /d;p;}' "$PLAN_FILE" | head -30)
-  BLOCKERS=$(sed -n '/^## Blockers/,/^## /{/^## /d;p;}' "$PLAN_FILE" | head -10)
+  CURRENT_STATUS=$(sed -n '/^## Current Status/,/^## /{/^## Current Status/d;/^## /d;p;}' "$PLAN_FILE" | head -10)
+  FUTURE_ITEMS=$(sed -n '/^### Future enhancements/,/^## /{/^### /d;/^## /d;p;}' "$PLAN_FILE" | head -10)
 else
-  CURRENT_SPRINT="WARNING: No PLAN.md found at $PLAN_FILE"
+  CURRENT_STATUS="WARNING: No PLAN.md found at $PLAN_FILE"
 fi
 
 # ── Read recent progress (last 30 lines) ──
@@ -38,41 +36,27 @@ if [[ -f "$PLAN_FILE" ]]; then
   DONE_ITEMS=$(grep -c '^\- \[x\]' "$PLAN_FILE" 2>/dev/null || echo "0")
 fi
 
-# ── Find critical open issues ──
-CRITICAL_OPEN=""
-if [[ -f "$PLAN_FILE" ]]; then
-  CRITICAL_OPEN=$(sed -n '/^### CRITICAL/,/^### /{/^### /d;p;}' "$PLAN_FILE" | grep '^\- \[ \]' | head -5)
-fi
-
 # ── Build the output ──
 cat <<CONTEXT
 ===== MOJITAX CONNECT PROJECT STATUS =====
 
 Session type: $SOURCE
 Progress: $DONE_ITEMS / $TOTAL_ITEMS plan items completed
+Platform status: PRODUCTION READY
 
---- CURRENT SPRINT ---
-$CURRENT_SPRINT
+--- CURRENT STATUS ---
+$CURRENT_STATUS
 
---- PRIORITY ITEMS ---
-$SPRINT_ITEMS
-
---- BLOCKERS ---
-${BLOCKERS:-None identified}
-
---- CRITICAL OPEN ISSUES ---
-${CRITICAL_OPEN:-None — all critical items resolved}
+--- FUTURE ENHANCEMENTS (post-launch) ---
+${FUTURE_ITEMS:-None pending}
 
 --- RECENT SESSION ACTIVITY ---
 ${RECENT_PROGRESS:-No previous session activity recorded}
 
 ===== INSTRUCTIONS =====
-You are working on MojiTax Connect. Before doing ANY work:
-1. Present this status summary to the user
-2. Highlight any CRITICAL open issues prominently
-3. Suggest the top 2-3 priority items from the plan
-4. ASK: "What would you like to focus on this session?"
-5. Do NOT start coding until the user confirms what to work on
+You are working on MojiTax Connect. The platform is production-ready.
+Key documentation: CLAUDE.md (architecture), USER_GUIDE.md, ADMIN_GUIDE.md, PLAN.md (history).
+ASK: "What would you like to work on?"
 ===========================================
 CONTEXT
 
