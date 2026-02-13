@@ -347,7 +347,7 @@ export default function ChatLayout({
 
           <div className="flex items-center gap-2">
             <img
-              src="/mojitax-logo.svg"
+              src="/mojitax-logo.png"
               alt="MojiTax"
               className="h-8 w-auto brightness-0 invert"
             />
@@ -749,7 +749,7 @@ export default function ChatLayout({
             <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
               <div className="max-w-md">
                 <img
-                  src="/mojitax-logo.svg"
+                  src="/mojitax-logo.png"
                   alt="MojiTax"
                   className="h-24 w-auto mx-auto mb-4 opacity-60"
                 />

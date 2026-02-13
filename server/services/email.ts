@@ -204,7 +204,7 @@ export async function sendEmail(
 
 // ============= Shared Email Layout =============
 
-const LOGO_URL = "https://connect.mojitax.co.uk/mojitax-logo.svg";
+const LOGO_URL = "https://connect.mojitax.co.uk/mojitax-logo.png";
 
 function emailHeader(): string {
   return `<div style="text-align: center; padding: 20px 0 10px 0;">

@@ -106,7 +106,7 @@ export default function MemberLogin() {
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto">
             <img
-              src="/mojitax-logo.svg"
+              src="/mojitax-logo.png"
               alt="MojiTax"
               className="h-24 w-auto mx-auto"
             />
