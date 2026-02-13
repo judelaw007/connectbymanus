@@ -227,6 +227,73 @@ function renderMessageContent(content: string): ReactNode {
   return parts.length > 0 ? parts : content;
 }
 
+function formatBoldText(text: string): ReactNode[] {
+  return text.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+    i % 2 === 1 ? (
+      <span key={i} className="font-semibold text-gray-900 dark:text-gray-100">
+        {part}
+      </span>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
+
+function renderSystemMessage(content: string): ReactNode {
+  const paragraphs = content.split(/\n\n+/);
+
+  return (
+    <div className="space-y-3">
+      {paragraphs.map((para, i) => {
+        const lines = para.split("\n").filter(l => l.trim());
+        const isBulletBlock = lines.every(l => l.trim().startsWith("•"));
+
+        if (isBulletBlock) {
+          return (
+            <ul key={i} className="space-y-2 pl-1">
+              {lines.map((line, j) => {
+                const text = line.trim().slice(1).trim();
+                const [label, ...rest] = text.split(" - ");
+                return (
+                  <li key={j} className="flex items-start gap-2.5">
+                    <span className="text-blue-500 text-lg leading-5 flex-shrink-0">&#x2022;</span>
+                    <span className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                      {rest.length > 0 ? (
+                        <>
+                          {formatBoldText(label)}
+                          <span className="text-gray-500 dark:text-gray-400"> — {rest.join(" - ")}</span>
+                        </>
+                      ) : (
+                        formatBoldText(text)
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+
+        const text = lines.join(" ");
+        const hasTitle = text.includes("**MojiTax");
+
+        return (
+          <p
+            key={i}
+            className={
+              hasTitle
+                ? "text-base font-bold text-gray-900 dark:text-gray-100"
+                : "text-gray-600 dark:text-gray-400 leading-relaxed"
+            }
+          >
+            {formatBoldText(text)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function MessageItem({ message, isPublicView = false }: MessageItemProps) {
   const isBot = message.messageType === "bot";
   const isSystem = message.messageType === "system";
@@ -281,9 +348,9 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
 
   if (isSystem) {
     return (
-      <div className="flex justify-center">
-        <div className="bg-muted text-muted-foreground text-sm px-4 py-2 rounded-full">
-          {message.content}
+      <div className="flex justify-center w-full px-4">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800 text-sm px-6 py-5 rounded-xl max-w-xl w-full shadow-sm">
+          {renderSystemMessage(message.content)}
         </div>
       </div>
     );

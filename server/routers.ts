@@ -99,11 +99,11 @@ export const appRouter = router({
           });
         }
 
-        if (lwUser.is_active === false) {
+        if (lwUser.is_suspended) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message:
-              "Your MojiTax account is inactive. Please contact support.",
+              "Your MojiTax account is suspended. Please contact support.",
           });
         }
 
@@ -279,7 +279,7 @@ export const appRouter = router({
         return {
           learnworldsConfigured: true,
           exists: !!lwUser,
-          isActive: lwUser?.is_active || false,
+          isActive: lwUser ? !lwUser.is_suspended : false,
           name: lwUser
             ? `${lwUser.first_name || ""} ${lwUser.last_name || ""}`.trim()
             : null,

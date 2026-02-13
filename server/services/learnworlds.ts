@@ -12,7 +12,7 @@ interface LearnworldsUser {
   email: string;
   first_name?: string;
   last_name?: string;
-  is_active?: boolean;
+  is_suspended?: boolean;
   created?: string;
   tags?: string[];
 }
@@ -260,12 +260,7 @@ export async function getUserByEmail(
     );
 
     if (user && user.email) {
-      // If the API doesn't return is_active, treat user as active
-      // since their existence in Learnworlds confirms valid membership.
-      if (user.is_active === undefined) {
-        user.is_active = true;
-      }
-      console.log(`[Learnworlds] Found user: ${user.email} (id: ${user.id})`);
+      console.log(`[Learnworlds] Found user: ${user.email} (id: ${user.id}, suspended: ${user.is_suspended ?? false})`);
       return user;
     }
 
@@ -288,7 +283,7 @@ export async function getUserByEmail(
 export async function userExists(email: string): Promise<boolean> {
   try {
     const user = await getUserByEmail(email);
-    return user !== null && user.is_active !== false;
+    return user !== null && !user.is_suspended;
   } catch (error) {
     // If API fails, we can't verify - don't allow login
     return false;
