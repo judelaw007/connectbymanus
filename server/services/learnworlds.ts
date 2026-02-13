@@ -260,7 +260,9 @@ export async function getUserByEmail(
     );
 
     if (user && user.email) {
-      console.log(`[Learnworlds] Found user: ${user.email} (id: ${user.id}, suspended: ${user.is_suspended ?? false})`);
+      console.log(
+        `[Learnworlds] Found user: ${user.email} (id: ${user.id}, suspended: ${user.is_suspended ?? false})`
+      );
       return user;
     }
 
@@ -288,6 +290,91 @@ export async function userExists(email: string): Promise<boolean> {
     // If API fails, we can't verify - don't allow login
     return false;
   }
+}
+
+/**
+ * Get user info from a LearnWorlds SSO access token.
+ * Tries two strategies:
+ *  1. Decode the token as a JWT to extract email/user ID.
+ *  2. Call the LearnWorlds API with the token to get user info.
+ * Then verifies the user via the admin API and returns the result.
+ */
+export async function getUserInfoFromSsoToken(
+  ssoAccessToken: string
+): Promise<LearnworldsUser | null> {
+  const status = getLearnworldsStatus();
+  if (!status.isConfigured) {
+    console.warn("[Learnworlds SSO] API not configured");
+    return null;
+  }
+
+  let email: string | null = null;
+
+  // Strategy 1: Try to decode the token as a JWT (without verification)
+  try {
+    const parts = ssoAccessToken.split(".");
+    if (parts.length === 3) {
+      const payload = JSON.parse(
+        Buffer.from(parts[1], "base64url").toString("utf-8")
+      );
+      email =
+        payload.email ||
+        payload.sub ||
+        payload.user_email ||
+        payload.username ||
+        null;
+      console.log(
+        "[Learnworlds SSO] Decoded JWT payload keys:",
+        Object.keys(payload)
+      );
+      if (email) {
+        console.log(`[Learnworlds SSO] Extracted email from JWT: ${email}`);
+      }
+    }
+  } catch {
+    // Not a JWT — that's fine, try the next strategy
+  }
+
+  // Strategy 2: Call the LearnWorlds API with the SSO token
+  if (!email) {
+    const baseUrl = getApiBaseUrl();
+    if (baseUrl) {
+      try {
+        const response = await fetch(`${baseUrl}/user`, {
+          headers: {
+            Authorization: `Bearer ${ssoAccessToken}`,
+            "Content-Type": "application/json",
+            "Lw-Client": ENV.learnworldsClientId,
+          },
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          email = userData.email || userData.data?.email || null;
+          console.log(
+            `[Learnworlds SSO] Got user info from API: ${email || "no email"}`
+          );
+        } else {
+          console.log(
+            `[Learnworlds SSO] API /user returned ${response.status}`
+          );
+        }
+      } catch (err: any) {
+        console.log(`[Learnworlds SSO] API /user call failed: ${err.message}`);
+      }
+    }
+  }
+
+  if (!email) {
+    console.warn(
+      "[Learnworlds SSO] Could not extract user identity from token"
+    );
+    return null;
+  }
+
+  // Verify user exists via admin API
+  const user = await getUserByEmail(email);
+  return user;
 }
 
 /**
