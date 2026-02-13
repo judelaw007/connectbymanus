@@ -255,32 +255,17 @@ export async function getUserByEmail(
   try {
     // LearnWorlds uses email as a path parameter to get a single user
     const encodedEmail = encodeURIComponent(email);
-    const rawUser = await learnworldsRequest<Record<string, unknown>>(
+    const user = await learnworldsRequest<LearnworldsUser>(
       `/users/${encodedEmail}`
     );
 
-    // Debug: log the actual API response keys so we can see what fields exist
-    if (rawUser) {
-      console.log(
-        `[Learnworlds] Raw user response keys: ${Object.keys(rawUser).join(", ")}`
-      );
-      console.log(
-        `[Learnworlds] is_active value: ${JSON.stringify((rawUser as any).is_active)}, type: ${typeof (rawUser as any).is_active}`
-      );
-    }
-
-    const user = rawUser as unknown as LearnworldsUser;
-
     if (user && user.email) {
-      // If the API doesn't return is_active (undefined), treat the user as active
-      // since their existence in Learnworlds confirms they are a valid member.
-      // Only block if is_active is explicitly false.
+      // If the API doesn't return is_active, treat user as active
+      // since their existence in Learnworlds confirms valid membership.
       if (user.is_active === undefined) {
         user.is_active = true;
       }
-      console.log(
-        `[Learnworlds] Found user: ${user.email} (id: ${user.id}, active: ${user.is_active})`
-      );
+      console.log(`[Learnworlds] Found user: ${user.email} (id: ${user.id})`);
       return user;
     }
 
