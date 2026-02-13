@@ -60,7 +60,7 @@ export default function MojiSettings() {
   const handleDownloadTemplate = () => {
     const csvContent = `"question","answer","category","tags"
 "What is ADIT?","ADIT stands for Advanced Diploma in International Taxation, offered by the Chartered Institute of Taxation (CIOT). It is the leading international tax qualification.","Exams","ADIT,qualification,CIOT"
-"What services does MojiTax offer?","MojiTax provides ADIT exam preparation courses, study materials, and a community platform for tax professionals. Visit mojitax.learnworlds.com for details.","Services","MojiTax,courses,services"
+"What services does MojiTax offer?","MojiTax provides ADIT exam preparation courses, study materials, and a community platform for tax professionals. Visit mojitax.co.uk for details.","Services","MojiTax,courses,services"
 "How do I contact support?","You can chat with @moji for quick help, or use the 'Chat with Team MojiTax' feature to create a support ticket for human assistance.","Platform Help","support,help,contact"`;
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);

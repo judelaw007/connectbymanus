@@ -127,7 +127,7 @@ export default function MemberLogin() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Your Learnworlds Email</Label>
+                <Label htmlFor="email">Your MojiTax Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -143,8 +143,7 @@ export default function MemberLogin() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Use the email address registered with your MojiTax Learnworlds
-                  account.
+                  Use the email address registered with your MojiTax account.
                 </p>
               </div>
 
@@ -276,12 +275,12 @@ export default function MemberLogin() {
           <div className="mt-6 pt-4 border-t text-center text-xs text-muted-foreground">
             <p>Not a member yet?</p>
             <a
-              href="https://mojitax.learnworlds.com"
+              href="https://mojitax.co.uk"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              Join MojiTax on Learnworlds
+              Join MojiTax
             </a>
           </div>
         </CardContent>

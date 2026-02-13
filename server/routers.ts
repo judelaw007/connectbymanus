@@ -95,7 +95,7 @@ export const appRouter = router({
           throw new TRPCError({
             code: "NOT_FOUND",
             message:
-              "This email is not registered as a MojiTax member. Please use your Learnworlds account email.",
+              "This email is not registered as a MojiTax member. Please use the email registered with your MojiTax account.",
           });
         }
 
