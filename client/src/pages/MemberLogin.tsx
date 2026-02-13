@@ -10,8 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  MessageSquare,
-  Users,
   AlertCircle,
   Loader2,
   Mail,
@@ -106,14 +104,15 @@ export default function MemberLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary/90 to-accent p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-            <Users className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto">
+            <img
+              src="/mojitax-logo.svg"
+              alt="MojiTax"
+              className="h-24 w-auto mx-auto"
+            />
           </div>
           <div>
-            <CardTitle className="text-2xl flex items-center justify-center gap-2">
-              <MessageSquare className="h-6 w-6" />
-              MojiTax Connect
-            </CardTitle>
+            <CardTitle className="text-2xl">MojiTax Connect</CardTitle>
             <CardDescription className="mt-2">Member Sign In</CardDescription>
           </div>
         </CardHeader>

@@ -202,6 +202,28 @@ export async function sendEmail(
   }
 }
 
+// ============= Shared Email Layout =============
+
+const LOGO_URL = "https://connect.mojitax.co.uk/mojitax-logo.svg";
+
+function emailHeader(): string {
+  return `<div style="text-align: center; padding: 20px 0 10px 0;">
+      <a href="https://connect.mojitax.co.uk" style="text-decoration: none;">
+        <img src="${LOGO_URL}" alt="MojiTax" style="height: 60px; width: auto;" />
+      </a>
+    </div>`;
+}
+
+function emailFooter(): string {
+  return `<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+      <div style="text-align: center; padding: 10px 0;">
+        <a href="https://connect.mojitax.co.uk" style="text-decoration: none;">
+          <img src="${LOGO_URL}" alt="MojiTax" style="height: 36px; width: auto; opacity: 0.6;" />
+        </a>
+        <p style="color: #9ca3af; font-size: 12px; margin: 8px 0 0 0;">MojiTax Connect - connect.mojitax.co.uk</p>
+      </div>`;
+}
+
 // ============= Email Templates =============
 
 /**
@@ -214,6 +236,7 @@ export async function sendVerificationCode(
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">Your Verification Code</h2>
       <p>Hi ${name || "there"},</p>
       <p>Use the following code to sign in to MojiTax Connect:</p>
@@ -222,8 +245,7 @@ export async function sendVerificationCode(
       </div>
       <p style="color: #6b7280; font-size: 14px;">This code expires in 10 minutes.</p>
       <p style="color: #6b7280; font-size: 14px;">If you didn't request this code, you can safely ignore this email.</p>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -246,6 +268,7 @@ export async function sendAnnouncementEmail(
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">New Announcement</h2>
       <p>Hi ${name || "there"},</p>
       <p>A new announcement has been posted on MojiTax Connect:</p>
@@ -255,8 +278,7 @@ export async function sendAnnouncementEmail(
         ${announcement.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 15px;">Posted by ${announcement.authorName}</p>` : ""}
       </div>
       <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">View on Connect</a>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -299,6 +321,7 @@ export async function sendEventEmail(
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">You're Invited!</h2>
       <p>Hi ${name || "there"},</p>
       <p>You're invited to an upcoming MojiTax event:</p>
@@ -311,8 +334,7 @@ export async function sendEventEmail(
       </div>
       <p style="color: #374151; margin-bottom: 15px;">Interested in attending? Click below to let us know and we'll send you the full event details and reminders.</p>
       <a href="${interestUrl}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Indicate Interest</a>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -352,6 +374,7 @@ export async function sendEventConfirmation(
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">Event Confirmed!</h2>
       <p>Hi ${name || "there"},</p>
       <p>Great news! Your interest in the following event has been confirmed:</p>
@@ -363,8 +386,7 @@ export async function sendEventConfirmation(
         ${event.additionalInfo ? `<div style="color: #374151; margin-top: 10px; padding-top: 10px; border-top: 1px solid #d1fae5;">${event.additionalInfo}</div>` : ""}
       </div>
       ${event.eventLink ? `<a href="${event.eventLink}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Join Event</a>` : ""}
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -403,6 +425,7 @@ export async function sendEventReminder(
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">Event Reminder</h2>
       <p>Hi ${name || "there"},</p>
       <p>This is a reminder about an upcoming event you expressed interest in:</p>
@@ -413,8 +436,7 @@ export async function sendEventReminder(
         ${event.reminderMessage ? `<div style="color: #374151; margin-top: 15px;">${event.reminderMessage}</div>` : ""}
       </div>
       ${event.eventLink ? `<a href="${event.eventLink}" style="display: inline-block; background: #eab308; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Join Event</a>` : ""}
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -437,6 +459,7 @@ export async function sendNewsletterEmail(
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">MojiTax Newsletter</h2>
       <p>Hi ${name || "there"},</p>
       <p>A new newsletter has been published on MojiTax Connect:</p>
@@ -446,8 +469,7 @@ export async function sendNewsletterEmail(
         ${newsletter.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 15px;">Published by ${newsletter.authorName}</p>` : ""}
       </div>
       <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #8b5cf6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">Read on Connect</a>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -480,6 +502,7 @@ export async function sendArticleEmail(
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">New Article Published</h2>
       <p>Hi ${name || "there"},</p>
       <p>A new article has been posted on MojiTax Connect:</p>
@@ -490,8 +513,7 @@ export async function sendArticleEmail(
         ${article.authorName ? `<p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Written by ${article.authorName}</p>` : ""}
       </div>
       <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Read Full Article on Connect</a>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -519,6 +541,7 @@ export async function sendReplyNotification(
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">New Reply to Your Message</h2>
       <p>Hi ${name || "there"},</p>
       <p><strong>${reply.replierName}</strong> replied to your message in <strong>${reply.channelName}</strong>:</p>
@@ -531,8 +554,7 @@ export async function sendReplyNotification(
         <p style="color: #1e3a5f; margin: 5px 0 0 0;">${reply.replyContent}</p>
       </div>
       <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">View Conversation</a>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -559,6 +581,7 @@ export async function sendMentionNotification(
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">You Were Mentioned</h2>
       <p>Hi ${name || "there"},</p>
       <p><strong>${mention.mentionerName}</strong> mentioned you in <strong>${mention.channelName}</strong>:</p>
@@ -566,8 +589,7 @@ export async function sendMentionNotification(
         <p style="color: #92400e; margin: 0;">${mention.messageContent}</p>
       </div>
       <a href="https://connect.mojitax.co.uk" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">View Message</a>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 
@@ -595,6 +617,7 @@ export async function sendSupportUpdate(
 ): Promise<EmailResult> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${emailHeader()}
       <h2 style="color: #1a1a1a;">Support Ticket Update</h2>
       <p>Hi ${name || "there"},</p>
       <p>Your support ticket has been updated:</p>
@@ -605,8 +628,7 @@ export async function sendSupportUpdate(
         ${update.latestMessage ? `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;"><p style="color: #6b7280; font-size: 14px; margin: 0 0 5px 0;">Latest response:</p><p style="color: #374151; margin: 0;">${update.latestMessage}</p></div>` : ""}
       </div>
       <a href="https://connect.mojitax.co.uk/support" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">View Ticket</a>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">MojiTax Connect - connect.mojitax.co.uk</p>
+      ${emailFooter()}
     </div>
   `;
 

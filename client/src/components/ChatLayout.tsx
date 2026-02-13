@@ -5,7 +5,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  MessageSquare,
   Users,
   Hash,
   Lock,
@@ -347,8 +346,12 @@ export default function ChatLayout({
           </Button>
 
           <div className="flex items-center gap-2">
-            <MessageSquare className="h-6 w-6" />
-            <h1 className="text-xl font-bold">MojiTax Connect</h1>
+            <img
+              src="/mojitax-logo.svg"
+              alt="MojiTax"
+              className="h-8 w-auto brightness-0 invert"
+            />
+            <h1 className="text-xl font-bold">Connect</h1>
             {isAdminMode && (
               <Badge className="bg-yellow-500 text-black hover:bg-yellow-600">
                 ADMIN MODE
@@ -745,7 +748,11 @@ export default function ChatLayout({
           ) : (
             <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
               <div className="max-w-md">
-                <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <img
+                  src="/mojitax-logo.svg"
+                  alt="MojiTax"
+                  className="h-24 w-auto mx-auto mb-4 opacity-60"
+                />
                 <h2 className="text-2xl font-semibold mb-2">
                   Welcome to MojiTax Connect
                 </h2>
