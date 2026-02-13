@@ -832,17 +832,23 @@ export default function ChatLayout({
               <div>
                 <h3 className="font-semibold mb-3">Quick Links</h3>
                 <div className="space-y-2 text-sm">
-                  <a href="#" className="block text-primary hover:underline">
+                  <a
+                    href="/guidelines"
+                    className="block text-primary hover:underline"
+                  >
                     Community Guidelines
                   </a>
-                  <a href="#" className="block text-primary hover:underline">
-                    Tax Resources Library
+                  <a
+                    href="/terms"
+                    className="block text-primary hover:underline"
+                  >
+                    Terms of Service
                   </a>
-                  <a href="#" className="block text-primary hover:underline">
-                    Webinar Calendar
-                  </a>
-                  <a href="#" className="block text-primary hover:underline">
-                    Membership Info
+                  <a
+                    href="/privacy"
+                    className="block text-primary hover:underline"
+                  >
+                    Privacy Policy
                   </a>
                 </div>
               </div>
