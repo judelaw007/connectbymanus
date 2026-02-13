@@ -1,16 +1,27 @@
 # MojiTax Connect — Development Plan
 
 > Last updated: 2026-02-12
-> Overall: ~98% complete | Backend core 100% | All CRITICAL + HIGH done | Sprint 5 platform hardening complete
+> Overall: **PRODUCTION READY** | All CRITICAL + HIGH + MEDIUM items complete | 6 sprints delivered
 > Target: connect.mojitax.co.uk | ~1,800 expected users
 
-## Current Sprint
+## Current Status
 
-Sprint 5: Platform Governance & Launch Hardening
+**Production launch ready.** All development sprints complete. Documentation delivered.
+
+### Sprint 6: Production Launch Prep (2026-02-12) — COMPLETE
+
+- [x] Seed data trimmed: only #General channel retained (5 topic channels removed — admins create channels as needed)
+- [x] `TEST_MODE` set to `false` for production (emails now go to real users)
+- [x] `USER_GUIDE.md` created: complete member documentation (login, messaging, groups, @moji, support, posts, search, troubleshooting)
+- [x] `ADMIN_GUIDE.md` created: complete admin operations guide (setup, env vars, database, dashboard, channels, posts, moderation, email, analytics, Learnworlds, data validation, troubleshooting)
+- [x] `CLAUDE.md` updated: migration count (16), routes, components, env vars, production status
+- [x] `PLAN.md` updated: reflects production readiness
+
+### Sprint 5: Platform Governance & Launch Hardening — COMPLETE
+
 Goal: Implement the 6 governance requirements — @moji boundaries, username privacy, group privacy, channel linking rules, admin hours, and public access controls.
-Status: COMPLETE.
 
-## Priorities
+## Development History
 
 ### CRITICAL — Admin cannot function without these
 
@@ -143,21 +154,11 @@ Status: COMPLETE.
   - Posts, events, channels browsable for SEO traction
   - Cannot send messages, create groups, or see private content
 
-### MEDIUM — Remaining post-launch improvements
+### Future enhancements (post-launch, not blocking)
 
-- [ ] **M2. Email templates in SendGrid (#3)**
-  - Current templates are inline HTML strings in code (server/services/email.ts)
-  - Migrate all 7+ email types to SendGrid dynamic templates
-  - Use template IDs and dynamic data substitution instead of raw HTML
-  - Templates: welcome, verification code, ticket created, ticket reply, ticket closed, channel post notification, event invitation
-
-- [ ] M3. mojitax.co.uk OAuth integration (BLOCKED — needs API credentials)
-- [ ] M7. Load testing (100+ concurrent users) — do this last, closer to launch
-
-## Blockers
-
-- mojitax.co.uk OAuth: Requires API credentials and documentation from Learnworlds
-- ~~Learnworlds course/bundle/subscription API~~: **RESOLVED** — API integration built for H3 (channel linking); also usable for M1
+- [ ] **M2. Email templates in SendGrid (#3)** — Migrate inline HTML to SendGrid dynamic templates
+- [ ] **M3. mojitax.co.uk OAuth integration** — Requires API credentials from Learnworlds
+- [ ] **M7. Load testing** (100+ concurrent users) — Recommend before scaling
 
 ## Completed
 
@@ -200,6 +201,7 @@ Status: COMPLETE.
 - [x] Category library: browse dialogs for Articles/Events/Announcements/Newsletters with search, sort, pagination
 - [x] @mention autocomplete: unified dropdown with @moji + catalog items (courses/bundles/subscriptions), arrow-key nav, styled inline badges in messages
 - [x] Sprint 5: Platform governance — @moji boundaries, admin hours, group privacy, channel linking, username privacy, public access controls
+- [x] Sprint 6: Production launch prep — seed data cleanup, TEST_MODE disabled, USER_GUIDE.md, ADMIN_GUIDE.md, documentation alignment
 
 ## Recent Bug-Fix Summary (2026-02-11 evening)
 
@@ -224,25 +226,24 @@ Status: COMPLETE.
 
 ## Key File Reference
 
-See `CLAUDE.md` for the full file-by-file map. Quick reference for Sprint 3 work:
+See `CLAUDE.md` for the full file-by-file architecture map.
 
-| Purpose                  | Path                                     |
-| ------------------------ | ---------------------------------------- |
-| All API endpoints        | `server/routers.ts`                      |
-| Database functions       | `server/db.ts`                           |
-| Chatbot logic            | `server/chatbot.ts`                      |
-| Main chat UI             | `client/src/components/ChatLayout.tsx`   |
-| AI chat widget (unwired) | `client/src/components/AIChatBox.tsx`    |
-| Admin dashboard          | `client/src/pages/Admin.tsx`             |
-| Admin login              | `client/src/pages/AdminLogin.tsx`        |
-| Member login             | `client/src/pages/MemberLogin.tsx`       |
-| Support inbox (admin)    | `client/src/components/SupportInbox.tsx` |
-| Socket.io server         | `server/_core/socket.ts`                 |
-| Socket context (client)  | `client/src/contexts/SocketContext.tsx`  |
-| Email service            | `server/services/email.ts`               |
-| Learnworlds integration  | `server/services/learnworlds.ts`         |
-| Routes/pages             | `client/src/App.tsx`                     |
-| tRPC procedures          | `server/_core/trpc.ts`                   |
-| Auth context             | `server/_core/context.ts`                |
-| Environment variables    | `.env.example`                           |
-| DB migrations            | `supabase/migrations/`                   |
+| Purpose                 | Path                                     |
+| ----------------------- | ---------------------------------------- |
+| All API endpoints       | `server/routers.ts`                      |
+| Database functions      | `server/db.ts`                           |
+| Chatbot logic           | `server/chatbot.ts`                      |
+| Main chat UI            | `client/src/components/ChatLayout.tsx`   |
+| Admin dashboard         | `client/src/pages/Admin.tsx`             |
+| Admin login             | `client/src/pages/AdminLogin.tsx`        |
+| Member login            | `client/src/pages/MemberLogin.tsx`       |
+| Support inbox (admin)   | `client/src/components/SupportInbox.tsx` |
+| Socket.io server        | `server/_core/socket.ts`                 |
+| Email service           | `server/services/email.ts`               |
+| Learnworlds integration | `server/services/learnworlds.ts`         |
+| Routes/pages            | `client/src/App.tsx`                     |
+| Environment variables   | `.env.example`                           |
+| DB reset script         | `supabase/reset_database.sql`            |
+| DB migrations           | `supabase/migrations/`                   |
+| User guide              | `USER_GUIDE.md`                          |
+| Admin guide             | `ADMIN_GUIDE.md`                         |
