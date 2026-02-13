@@ -99,7 +99,7 @@ export const appRouter = router({
           });
         }
 
-        if (!lwUser.is_active) {
+        if (lwUser.is_active === false) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message:

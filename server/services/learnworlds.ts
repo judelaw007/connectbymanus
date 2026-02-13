@@ -12,8 +12,8 @@ interface LearnworldsUser {
   email: string;
   first_name?: string;
   last_name?: string;
-  is_active: boolean;
-  created: string;
+  is_active?: boolean;
+  created?: string;
   tags?: string[];
 }
 
@@ -255,12 +255,32 @@ export async function getUserByEmail(
   try {
     // LearnWorlds uses email as a path parameter to get a single user
     const encodedEmail = encodeURIComponent(email);
-    const user = await learnworldsRequest<LearnworldsUser>(
+    const rawUser = await learnworldsRequest<Record<string, unknown>>(
       `/users/${encodedEmail}`
     );
 
+    // Debug: log the actual API response keys so we can see what fields exist
+    if (rawUser) {
+      console.log(
+        `[Learnworlds] Raw user response keys: ${Object.keys(rawUser).join(", ")}`
+      );
+      console.log(
+        `[Learnworlds] is_active value: ${JSON.stringify((rawUser as any).is_active)}, type: ${typeof (rawUser as any).is_active}`
+      );
+    }
+
+    const user = rawUser as unknown as LearnworldsUser;
+
     if (user && user.email) {
-      console.log(`[Learnworlds] Found user: ${user.email} (id: ${user.id})`);
+      // If the API doesn't return is_active (undefined), treat the user as active
+      // since their existence in Learnworlds confirms they are a valid member.
+      // Only block if is_active is explicitly false.
+      if (user.is_active === undefined) {
+        user.is_active = true;
+      }
+      console.log(
+        `[Learnworlds] Found user: ${user.email} (id: ${user.id}, active: ${user.is_active})`
+      );
       return user;
     }
 
@@ -283,7 +303,7 @@ export async function getUserByEmail(
 export async function userExists(email: string): Promise<boolean> {
   try {
     const user = await getUserByEmail(email);
-    return user !== null && user.is_active;
+    return user !== null && user.is_active !== false;
   } catch (error) {
     // If API fails, we can't verify - don't allow login
     return false;
