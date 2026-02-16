@@ -1,0 +1,207 @@
+Test ID,Category,Test Case,Pre-conditions,Steps,Expected Result,Status (Pass/Fail/N/A),Notes,Tester,Date Tested
+,,,,,,,,
+=== ADMIN LOGIN & AUTHENTICATION ===,,,,,,,,
+ADM-AUTH-01,Admin Login,Login with correct password,Admin password configured,"1. Navigate to /auth/admin
+2. Enter admin password
+3. Click Sign In",Login succeeds; redirected to /admin dashboard,,,,
+ADM-AUTH-02,Admin Login,Login with incorrect password,None,"1. Navigate to /auth/admin
+2. Enter wrong password
+3. Click Sign In","Error: ""Invalid admin password.""",,,
+ADM-AUTH-03,Admin Login,Login with empty password,None,"1. Navigate to /auth/admin
+2. Leave password blank
+3. Click Sign In","Error: ""Please enter a password.""",,,
+ADM-AUTH-04,Admin Login,Google OAuth login with @mojitax.com email,Google OAuth configured,"1. Navigate to /auth/admin
+2. Click ""Sign in with Google""
+3. Authenticate with @mojitax.com account",Login succeeds; redirected to /admin,,,,
+ADM-AUTH-05,Admin Login,Google OAuth with non-mojitax email,Google OAuth configured,"1. Navigate to /auth/admin
+2. Click ""Sign in with Google""
+3. Authenticate with non-@mojitax.com account","Error: ""Access denied. Only @mojitax.com accounts are allowed.""",,,
+ADM-AUTH-06,Admin Login,Auto-redirect if already logged in,Already logged in as admin,"1. Navigate to /auth/admin",Automatically redirected to /admin,,,,
+ADM-AUTH-07,Admin Login,Admin logout,Logged in as admin,"1. Click logout button",Session cookie cleared; redirected to /auth/admin,,,,
+,,,,,,,,
+=== ADMIN DASHBOARD OVERVIEW ===,,,,,,,,
+ADM-DASH-01,Dashboard,View dashboard overview,Logged in as admin,"1. Navigate to /admin","Dashboard loads with 4 stat cards: Total Users, Active Channels, Messages Today, Emails Sent This Week",,,,
+ADM-DASH-02,Dashboard,Stats cards show live data,Logged in as admin,"1. View stat cards on overview page",Each card shows real counts from the database,,,,
+ADM-DASH-03,Dashboard,Sidebar navigation,Logged in as admin,"1. Click each sidebar section: Overview, Users, Email Logs, Moji Settings, Chat Analytics, User Moderation, Group Moderation, Platform Settings, Event Invitees",Each section loads its respective content,,,,
+ADM-DASH-04,Dashboard,Quick Action - Go to Chat Mode,Logged in as admin,"1. Click ""Go to Chat Mode"" button on overview page",Switches to full ChatLayout in admin mode; admin badge visible,,,,
+ADM-DASH-05,Dashboard,Toggle Dashboard/Chat mode,Logged in as admin,"1. Use the toggle switch in the header to switch between Dashboard and Chat modes",View toggles between admin dashboard and chat interface,,,,
+ADM-DASH-06,Dashboard,Unread badge on Chat Mode button,Logged in as admin; unread messages exist,"1. View ""Go to Chat Mode"" button",Red badge shows total unread message count,,,,
+,,,,,,,,
+=== USER MANAGEMENT ===,,,,,,,,
+ADM-UM-01,User Management,View user list,Logged in as admin,"1. Click ""Users"" in sidebar",Paginated user list loads with search bar and filters,,,,
+ADM-UM-02,User Management,Search users by name,Logged in as admin,"1. Type a user's display name in search box",User list filters to matching results,,,,
+ADM-UM-03,User Management,Search users by email,Logged in as admin,"1. Type a user's email in search box",User list filters to matching results,,,,
+ADM-UM-04,User Management,Filter by role,Logged in as admin,"1. Use role filter dropdown
+2. Select 'admin' or 'user'",List shows only users with selected role,,,,
+ADM-UM-05,User Management,Sort users,Logged in as admin,"1. Change sort option (by created_at, last_signed_in, name)",User list reorders accordingly,,,,
+ADM-UM-06,User Management,View user detail,Logged in as admin,"1. Click on a user row",Detailed profile view showing channels joined, message count, support tickets,,,,
+ADM-UM-07,User Management,Suspend a user,Logged in as admin; target user is not admin,"1. Click on user
+2. Click ""Suspend""
+3. Enter reason
+4. Optionally set until-date
+5. Confirm","User marked as suspended; user can no longer send messages, create tickets, or log in",,,,
+ADM-UM-08,User Management,Unsuspend a user,Logged in as admin; target user is suspended,"1. Click on suspended user
+2. Click ""Unsuspend""
+3. Confirm",User restored to normal status; can use platform again,,,,
+ADM-UM-09,User Management,Promote user to admin,Logged in as admin,"1. Click on a regular user
+2. Click ""Promote to Admin""
+3. Confirm",User role changed to admin; can access /admin,,,,
+ADM-UM-10,User Management,Demote admin to user,Logged in as admin; target is another admin,"1. Click on admin user
+2. Click ""Demote to User""
+3. Confirm",User role changed back to user; loses admin access,,,,
+ADM-UM-11,User Management,Cannot suspend another admin,Logged in as admin,"1. Click on another admin user
+2. Attempt to suspend","Error: ""Cannot suspend admin users""",,,,
+ADM-UM-12,User Management,Pagination works,Logged in as admin; more than one page of users,"1. Click ""Next"" page button
+2. Click ""Previous"" page button",Page changes; different users shown on each page,,,,
+,,,,,,,,
+=== USER MODERATION ===,,,,,,,,
+ADM-MOD-01,User Moderation,View moderation interface,Logged in as admin,"1. Click ""User Moderation"" in sidebar",User list loads in moderation mode with suspend/unsuspend actions,,,,
+ADM-MOD-02,User Moderation,Suspend user from moderation view,Logged in as admin,"1. Find user
+2. Click suspend
+3. Enter reason
+4. Confirm",User suspended; reflected in user list,,,,
+ADM-MOD-03,User Moderation,Unsuspend user from moderation view,Logged in as admin; user is suspended,"1. Find suspended user
+2. Click unsuspend
+3. Confirm",User unsuspended,,,,
+,,,,,,,,
+=== GROUP MODERATION ===,,,,,,,,
+ADM-GM-01,Group Moderation,View all study groups,Logged in as admin,"1. Click ""Group Moderation"" in sidebar","Table showing all groups with name, status, member count, created date",,,,
+ADM-GM-02,Group Moderation,Filter by status,Logged in as admin,"1. Use status filter (all/active/suspended/closed)",List filters to selected status,,,,
+ADM-GM-03,Group Moderation,Search groups by name,Logged in as admin,"1. Type group name in search",Filtered results shown,,,,
+ADM-GM-04,Group Moderation,Suspend a group,Logged in as admin,"1. Find active group
+2. Click ""Suspend""
+3. Enter reason
+4. Confirm",Group suspended; members cannot send messages; error shown when accessing group,,,,
+ADM-GM-05,Group Moderation,Unsuspend a group,Logged in as admin; group is suspended,"1. Find suspended group
+2. Click ""Unsuspend""
+3. Confirm",Group restored to active status; members can use it again,,,,
+ADM-GM-06,Group Moderation,Archive a group,Logged in as admin,"1. Find group
+2. Click ""Archive""
+3. Confirm","Group archived; members lose access",,,,
+ADM-GM-07,Group Moderation,View group members,Logged in as admin,"1. Click ""View Members"" for a group",Modal showing member list with roles (owner/member),,,,
+,,,,,,,,
+=== EMAIL LOGS ===,,,,,,,,
+ADM-EL-01,Email Logs,View email log list,Logged in as admin,"1. Click ""Email Logs"" in sidebar","Table showing all emails with recipient, subject, type, status, date",,,,
+ADM-EL-02,Email Logs,Verify template types display correctly,Logged in as admin; various emails sent,"1. Check email log entries","Each log shows correct template_type (verification_code, announcement, event, etc.)",,,,
+ADM-EL-03,Email Logs,Verify failed emails logged,Logged in as admin; email failure occurred,"1. Check email logs for failed entries",Failed emails show status as ""failed"" with error details,,,,
+,,,,,,,,
+=== MOJI SETTINGS (KNOWLEDGE BASE) ===,,,,,,,,
+ADM-KB-01,Moji Settings,View knowledge base entries,Logged in as admin,"1. Click ""Moji Settings"" in sidebar","Table with question, answer, category, tags columns",,,,
+ADM-KB-02,Moji Settings,Add new KB entry,Logged in as admin,"1. Click ""Add Entry""
+2. Enter question and answer
+3. Optionally add category and tags
+4. Save",Entry created; appears in table,,,,
+ADM-KB-03,Moji Settings,Edit existing KB entry,Logged in as admin; KB entry exists,"1. Click edit on an entry
+2. Modify question/answer
+3. Save",Entry updated with new content,,,,
+ADM-KB-04,Moji Settings,Delete KB entry,Logged in as admin; KB entry exists,"1. Click delete on an entry
+2. Confirm deletion",Entry removed from table,,,,
+ADM-KB-05,Moji Settings,Search KB entries,Logged in as admin; KB entries exist,"1. Type in search box",Results filtered by question/answer/tags,,,,
+ADM-KB-06,Moji Settings,Download CSV template,Logged in as admin,"1. Click ""Download CSV Template""",CSV file downloads with sample KB entries,,,,
+ADM-KB-07,Moji Settings,Bulk upload from CSV,Logged in as admin; valid CSV prepared,"1. Click ""Bulk Upload""
+2. Select CSV file
+3. Confirm upload",Multiple KB entries created from CSV data,,,,
+,,,,,,,,
+=== CHAT ANALYTICS ===,,,,,,,,
+ADM-CA-01,Chat Analytics,View support analytics,Logged in as admin,"1. Click ""Chat Analytics"" in sidebar","Summary stats displayed with filter options",,,,
+ADM-CA-02,Chat Analytics,Filter by resolution type,Logged in as admin; support tickets exist,"1. Select resolution type filter (bot-answered, human-answered, no-answer, escalated)",Ticket list filters to selected type,,,,
+ADM-CA-03,Chat Analytics,Filter by date range,Logged in as admin,"1. Set start and end dates",Only tickets within range shown,,,,
+ADM-CA-04,Chat Analytics,Update ticket categorization,Logged in as admin; ticket exists,"1. Open a ticket
+2. Update resolution type, enquiry type, or tags
+3. Save",Ticket metadata updated,,,,
+ADM-CA-05,Chat Analytics,Export filtered data to CSV,Logged in as admin; tickets exist,"1. Apply desired filters
+2. Click ""Export CSV""",CSV file downloaded with all matching ticket data,,,,
+,,,,,,,,
+=== PLATFORM SETTINGS ===,,,,,,,,
+ADM-PS-01,Platform Settings,View platform settings,Logged in as admin,"1. Click ""Platform Settings"" in sidebar",Current settings displayed (platform name, admin email, notification toggles),,,,
+ADM-PS-02,Platform Settings,Update platform name,Logged in as admin,"1. Edit platform name
+2. Save",Platform name updated and persisted,,,,
+ADM-PS-03,Platform Settings,Update admin email,Logged in as admin,"1. Edit admin email
+2. Save",Admin email updated,,,,
+ADM-PS-04,Platform Settings,Toggle email notifications,Logged in as admin,"1. Toggle email notifications switch",Setting saved; emails enabled/disabled accordingly,,,,
+ADM-PS-05,Platform Settings,Configure admin availability hours,Logged in as admin,"1. Set timezone, start time, end time, days of week, avg response time
+2. Save","Settings saved; member-facing availability indicator updated",,,,
+ADM-PS-06,Platform Settings,Update admin display name,Logged in as admin,"1. Edit admin display name
+2. Save",Display name changed; reflected in chat messages,,,,
+,,,,,,,,
+=== EVENT INVITEES ===,,,,,,,,
+ADM-EI-01,Event Invitees,View RSVPs for events,Logged in as admin; event post with RSVPs exists,"1. Click ""Event Invitees"" in sidebar
+2. Select an event","List of invitees with name, email, phone, company, status",,,,
+ADM-EI-02,Event Invitees,Send confirmation email to interested invitees,Logged in as admin; invitees with ""interested"" status,"1. Click ""Send Confirmation""","Confirmation emails sent to all interested invitees; status updated to ""confirmed""",,,,
+ADM-EI-03,Event Invitees,Send reminder email to invitees,Logged in as admin; confirmed/interested invitees exist,"1. Click ""Send Reminder""","Reminder emails sent; reminderSentAt timestamp updated",,,,
+,,,,,,,,
+=== ADMIN CHAT MODE ===,,,,,,,,
+ADM-CH-01,Admin Chat,Switch to chat mode,Logged in as admin,"1. Toggle to Chat Mode from dashboard",Full ChatLayout loads with admin privileges; admin badge shown,,,,
+ADM-CH-02,Admin Chat,Send message in topic channel,Logged in as admin; in chat mode,"1. Select a topic channel
+2. Type and send a message","Message sent with admin indicator; visible to all channel members",,,,
+ADM-CH-03,Admin Chat,Cannot post in non-member study group,Logged in as admin; not a member of target group,"1. Attempt to select/post in a private study group you are not a member of","Error: study groups are private; only members can send messages",,,,
+ADM-CH-04,Admin Chat,Pin a message,Logged in as admin; in chat mode,"1. Right-click or long-press a message
+2. Click ""Pin""",Message pinned; pinned indicator shown,,,,
+ADM-CH-05,Admin Chat,Unpin a message,Logged in as admin; pinned message exists,"1. Right-click or long-press a pinned message
+2. Click ""Unpin""",Message unpinned; pinned indicator removed,,,,
+ADM-CH-06,Admin Chat,Pin a post,Logged in as admin; post exists in channel,"1. Right-click or long-press a post
+2. Click ""Pin""",Post pinned to channel,,,,
+,,,,,,,,
+=== CHANNEL CREATION (ADMIN) ===,,,,,,,,
+ADM-CHN-01,Channel Creation,Open Create Channel modal,Logged in as admin; in chat mode,"1. Click ""Create Channel"" button","Modal opens with name, description fields, Learnworlds integration section",,,,
+ADM-CHN-02,Channel Creation,Learnworlds catalog loads,Logged in as admin,"1. Open Create Channel modal
+2. Observe Learnworlds section","Courses, bundles, subscriptions load in collapsible sections with checkboxes",,,,
+ADM-CHN-03,Channel Creation,Select Learnworlds entities,Logged in as admin,"1. Check multiple courses/bundles/subscriptions","Selected items shown as chips; count badge on section headers",,,,
+ADM-CHN-04,Channel Creation,Create channel with Learnworlds links,Logged in as admin,"1. Enter channel name and description
+2. Select Learnworlds entities
+3. Click Create","Channel created; enrolled Learnworlds users auto-added on login",,,,
+ADM-CHN-05,Channel Creation,Attempt creation without Learnworlds links,Logged in as admin,"1. Enter channel name and description
+2. Do not select any Learnworlds entities
+3. Click Create","Error: ""Topic channels must be linked to a course, bundle, or subscription""",,,,
+,,,,,,,,
+=== POST CREATION (ADMIN) ===,,,,,,,,
+ADM-POST-01,Post Creation,Open Create Post modal,Logged in as admin; in chat mode,"1. Click ""Create Post"" button","Modal opens with 4 post type options: Event, Announcement, Article, Newsletter",,,,
+ADM-POST-02,Post Creation,Create Announcement post,Logged in as admin,"1. Select Announcement type
+2. Select destination channel
+3. Enter title and content
+4. Set priority (low/medium/high/urgent)
+5. Click Publish",Announcement posted to channel; email sent to channel members,,,,
+ADM-POST-03,Post Creation,Create Event post,Logged in as admin,"1. Select Event type
+2. Select destination channel
+3. Enter title, content, event date, location
+4. Set auto-reminder schedule
+5. Click Publish",Event posted to channel; email sent with ""Indicate Interest"" link,,,,
+ADM-POST-04,Post Creation,Create Article post,Logged in as admin,"1. Select Article type
+2. Select destination channel
+3. Enter title, content, author, tags, optional featured image URL
+4. Click Publish",Article posted to channel; email with summary sent,,,,
+ADM-POST-05,Post Creation,Create Newsletter post,Logged in as admin,"1. Select Newsletter type
+2. Select destination channel
+3. Enter title and rich text content
+4. Click Publish",Newsletter posted to channel; email sent with full content,,,,
+ADM-POST-06,Post Creation,Test email send,Logged in as admin,"1. Select any post type
+2. Select ""Test Email (preview only)"" as destination
+3. Fill in required fields
+4. Click Send Test","Test email sent to specified address only; no channel post created; warning banner shown",,,,
+ADM-POST-07,Post Creation,Rich text editor works,Logged in as admin,"1. Open Create Post modal
+2. Click into content area
+3. Use toolbar: bold, headings, bullet points",Formatting applied correctly in editor,,,,
+ADM-POST-08,Post Creation,Event reminder scheduling,Logged in as admin,"1. Create Event post
+2. Set reminder: 1h/2h/4h/24h/48h/3d/1w before event",Reminder option saved with the event,,,,
+,,,,,,,,
+=== SUPPORT INBOX (ADMIN) ===,,,,,,,,
+ADM-SUP-01,Support Inbox,View support inbox,Logged in as admin,"1. Click support inbox in sidebar","Ticket list loads with search bar; red badge shows count of open tickets",,,,
+ADM-SUP-02,Support Inbox,Search tickets,Logged in as admin; tickets exist,"1. Type subject or user name in search",Filtered ticket list,,,,
+ADM-SUP-03,Support Inbox,View ticket detail,Logged in as admin; ticket exists,"1. Click on a ticket","Detail view: subject, status badge, priority badge, user name, creation date, full message history",,,,
+ADM-SUP-04,Support Inbox,Reply to ticket,Logged in as admin; open ticket exists,"1. Open ticket
+2. Type reply
+3. Send","Message sent as admin; email notification sent to user; message appears in thread",,,,
+ADM-SUP-05,Support Inbox,Assign ticket to self,Logged in as admin; open unassigned ticket,"1. Open ticket
+2. Click ""Assign to Me""","Status changes to ""in-progress""; assigned admin ID set; user notified",,,,
+ADM-SUP-06,Support Inbox,Close ticket,Logged in as admin; open ticket exists,"1. Open ticket
+2. Click ""Close Ticket""","Status changes to ""closed""; user notified via Socket.io and email",,,,
+ADM-SUP-07,Support Inbox,Real-time new ticket notification,Logged in as admin; another user creates a ticket,"1. Keep inbox open
+2. Have a member create a support ticket",New ticket appears in real-time without page refresh,,,,
+ADM-SUP-08,Support Inbox,Support badge count updates,Logged in as admin,"1. Observe sidebar support badge
+2. Close a ticket",Badge count decrements in real-time,,,,
+,,,,,,,,
+=== DEBUG & SYSTEM (ADMIN) ===,,,,,,,,
+ADM-DBG-01,Debug,Test database connection,Logged in as admin,"1. Call debug.testDb (via admin panel or API)",Returns success confirming DB connection,,,,
+ADM-DBG-02,Debug,Check email status,Logged in as admin,"1. Call debug.emailStatus","Returns {isConfigured, isTestMode, testRecipient, fromAddress}",,,,
+ADM-DBG-03,Debug,Check Learnworlds status,Logged in as admin,"1. Call debug.learnworldsStatus",Returns Learnworlds API configuration status,,,,
+ADM-DBG-04,Debug,Send test email,Logged in as admin,"1. Call debug.testEmail with a valid email address",Test email sent to specified address,,,,

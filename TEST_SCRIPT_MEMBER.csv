@@ -1,0 +1,216 @@
+Test ID,Category,Test Case,Pre-conditions,Steps,Expected Result,Status (Pass/Fail/N/A),Notes,Tester,Date Tested
+,,,,,,,,
+=== MEMBER LOGIN & AUTHENTICATION ===,,,,,,,,
+MEM-AUTH-01,Member Login,Request verification code with valid email,Email registered in Learnworlds,"1. Navigate to /login
+2. Enter registered Learnworlds email
+3. Click ""Send Verification Code""","Step transitions to code input; success message ""Verification code sent to your email""; 6-digit code emailed",,,,
+MEM-AUTH-02,Member Login,Request code with unregistered email,Email NOT in Learnworlds,"1. Navigate to /login
+2. Enter unregistered email
+3. Click Send","Error: ""This email is not registered as a MojiTax member""",,,,
+MEM-AUTH-03,Member Login,Request code for suspended account,Account suspended by admin,"1. Navigate to /login
+2. Enter suspended account email
+3. Click Send","Error: ""Your MojiTax account is suspended. Please contact support.""",,,,
+MEM-AUTH-04,Member Login,Enter correct verification code,Code received via email,"1. Enter the 6-digit code from email
+2. Submit","Success: ""Login successful! Redirecting...""; redirected to /; JWT session cookie set",,,,
+MEM-AUTH-05,Member Login,Enter wrong verification code,Code requested,"1. Enter an incorrect 6-digit code
+2. Submit","Error: ""Invalid or expired verification code. Please request a new code.""",,,,
+MEM-AUTH-06,Member Login,Code expires after 10 minutes,Code requested more than 10 min ago,"1. Wait 10+ minutes after requesting code
+2. Enter the code
+3. Submit","Error: code expired; prompted to request new code",,,,
+MEM-AUTH-07,Member Login,Resend verification code,On code entry step,"1. Click ""Resend code""",New code sent to same email; previous code invalidated,,,,
+MEM-AUTH-08,Member Login,Use different email,On code entry step,"1. Click ""Use different email""",Returns to email input step,,,,
+MEM-AUTH-09,Member Login,Code input accepts only 6 digits,On code entry step,"1. Try typing letters or special characters
+2. Try pasting more than 6 digits",Only numeric input accepted; max 6 characters,,,,
+MEM-AUTH-10,Member Login,SSO login from Learnworlds,Valid Learnworlds access token,"1. Click Connect link from Learnworlds platform","User created/updated in DB; JWT cookie set; auto-enrolled in linked channels; redirected to /",,,,
+MEM-AUTH-11,Member Login,Member logout,Logged in as member,"1. Click logout button",Session cookie cleared; redirected to home page,,,,
+,,,,,,,,
+=== DISPLAY NAME SETUP ===,,,,,,,,
+MEM-DN-01,Display Name,Set display name on first login,New member; no display name set,"1. Log in for the first time
+2. Observe blue banner: ""Set your display name""","Blue banner appears at top with input field and Save button",,,,
+MEM-DN-02,Display Name,Save valid display name,Banner visible,"1. Enter display name (2-30 chars, letters/numbers/spaces/hyphens/underscores)
+2. Click Save","Display name saved; banner dismissed; page reloads with name visible",,,,
+MEM-DN-03,Display Name,Invalid display name rejected,Banner visible,"1. Enter name with special characters (e.g. @#$%)
+2. Click Save",Validation error shown,,,,
+MEM-DN-04,Display Name,Skip display name setup,Banner visible,"1. Click ""Skip""",Banner dismissed; no display name set (can set later),,,,
+,,,,,,,,
+=== PUBLIC VIEW (UNAUTHENTICATED) ===,,,,,,,,
+MEM-PUB-01,Public View,View platform without login,Not logged in,"1. Navigate to /","ChatLayout in public view: topic channels visible in sidebar; ""Sign In to Participate"" prompt",,,,
+MEM-PUB-02,Public View,Read messages without login,Not logged in,"1. Click a topic channel","Messages visible but input area shows ""Sign in with your MojiTax account to join the conversation""",,,,
+MEM-PUB-03,Public View,Online users count only (names hidden),Not logged in,"1. View right sidebar","Shows ""X members online"" count but individual names are hidden",,,,
+MEM-PUB-04,Public View,Sign In redirect,Not logged in,"1. Click ""Sign In"" button",Redirected to /login page,,,,
+,,,,,,,,
+=== CHANNEL NAVIGATION & MESSAGING ===,,,,,,,,
+MEM-MSG-01,Messaging,View topic channels in sidebar,Logged in as member,"1. Look at left sidebar","Collapsible ""Topic Channels"" section lists all public channels",,,,
+MEM-MSG-02,Messaging,Select a channel,Logged in as member,"1. Click on a channel name in sidebar","Messages load (newest 50); message input shown at bottom; channel highlighted in sidebar",,,,
+MEM-MSG-03,Messaging,Send a text message,Logged in as member; channel selected,"1. Type a message in input
+2. Press Enter or click Send","Message appears in channel immediately; visible to other users in real-time",,,,
+MEM-MSG-04,Messaging,Newline in message (Shift+Enter),Logged in as member,"1. Type some text
+2. Press Shift+Enter
+3. Type more text
+4. Press Enter to send",Message sent with line break preserved,,,,
+MEM-MSG-05,Messaging,Receive message in real-time,Logged in as member; another user sends a message,"1. Have another user send a message in the same channel
+2. Observe your screen",New message appears instantly without page refresh,,,,
+MEM-MSG-06,Messaging,Unread message badge,Logged in as member,"1. Be on Channel A
+2. Have someone send a message in Channel B
+3. Look at sidebar",Channel B shows red unread count badge,,,,
+MEM-MSG-07,Messaging,Clear unread on channel select,Logged in as member; channel has unread badge,"1. Click on channel with unread badge",Unread badge clears; messages marked as read,,,,
+MEM-MSG-08,Messaging,Scroll to load older messages,Logged in as member; channel has 50+ messages,"1. Scroll up in message list",Older messages load (pagination),,,,
+MEM-MSG-09,Messaging,Suspended user cannot send messages,Logged in as suspended member,"1. Attempt to type and send a message","Error: ""Your account has been suspended. You cannot send messages.""",,,,
+MEM-MSG-10,Messaging,Messages in suspended group blocked,Logged in as member; group is suspended,"1. Navigate to suspended group
+2. Attempt to send message","Error: ""This group has been suspended by an administrator.""",,,,
+,,,,,,,,
+=== ONLINE PRESENCE ===,,,,,,,,
+MEM-PRES-01,Presence,View online users,Logged in as member; other users online,"1. Look at right sidebar (or members panel)","List of online users with green status indicators",,,,
+MEM-PRES-02,Presence,User comes online,Logged in as member,"1. Have another user log in
+2. Observe online users list",New user appears in online list in real-time,,,,
+MEM-PRES-03,Presence,User goes offline,Logged in as member,"1. Have another user close their browser
+2. Observe online users list",User disappears from online list,,,,
+MEM-PRES-04,Presence,Global Markets Clock,Logged in as member,"1. Look at header area","Clock shows current time in Sydney, Tokyo, London, New York",,,,
+,,,,,,,,
+=== TYPING INDICATORS ===,,,,,,,,
+MEM-TYPE-01,Typing,Typing indicator appears,Logged in as member; same channel as another user,"1. Have another user start typing in the channel","Typing indicator shown: ""[User] is typing...""",,,,
+MEM-TYPE-02,Typing,Typing indicator disappears,Another user was typing,"1. Have the other user stop typing
+2. Wait 2 seconds",Typing indicator disappears,,,,
+MEM-TYPE-03,Typing,Own typing visible to others,Logged in as member; another user in same channel,"1. Start typing in a channel
+2. Check other user's screen",Other user sees your typing indicator,,,,
+,,,,,,,,
+=== @MENTION AUTOCOMPLETE ===,,,,,,,,
+MEM-MEN-01,Mentions,Trigger mention dropdown,Logged in as member; in a channel,"1. Type ""@"" in message input","Dropdown appears showing @moji and channel members with display names",,,,
+MEM-MEN-02,Mentions,Filter mentions by typing,Logged in as member,"1. Type ""@mo""",Dropdown filters to matching names (e.g. @moji),,,,
+MEM-MEN-03,Mentions,Select @moji from dropdown,Logged in as member,"1. Type ""@""
+2. Click or select @moji","@moji inserted into message; on send, bot response triggered",,,,
+MEM-MEN-04,Mentions,Select a user mention,Logged in as member,"1. Type ""@""
+2. Select a user from dropdown","User mention inserted into message",,,,
+MEM-MEN-05,Mentions,Keyboard navigation in dropdown,Logged in as member; dropdown open,"1. Use Arrow Up/Down to navigate
+2. Press Enter or Tab to select
+3. Press Escape to dismiss","Navigation, selection, and dismissal work correctly",,,,
+MEM-MEN-06,Mentions,Users without display names hidden,Logged in as member,"1. Trigger @mention dropdown
+2. Check list","Only users with display names appear (privacy protection)",,,,
+,,,,,,,,
+=== @MOJI AI CHATBOT (IN-CHANNEL) ===,,,,,,,,
+MEM-BOT-01,@moji Chatbot,Send @moji message in channel,Logged in as member,"1. Type ""@moji what is capital gains tax?"" in a channel
+2. Send","Bot response appears as a bot message with distinct styling",,,,
+MEM-BOT-02,@moji Chatbot,Thinking indicator while bot responds,Logged in as member; @moji message sent,"1. Send @moji message
+2. Observe chat","Thinking/loading indicator shown while bot generates response",,,,
+MEM-BOT-03,@moji Chatbot,Knowledge base match (high confidence),Logged in as member; KB has matching entry,"1. Ask @moji a question matching a KB entry","Bot provides confident answer sourced from knowledge base",,,,
+MEM-BOT-04,@moji Chatbot,No KB match (low confidence),Logged in as member,"1. Ask @moji an obscure or unsupported question","Bot gives low-confidence response with suggestion to talk to a human",,,,
+MEM-BOT-05,@moji Chatbot,Escalation trigger,Logged in as member,"1. Type ""@moji I want to talk to a human""
+2. Send","Bot responds with escalation message; support ticket auto-created",,,,
+MEM-BOT-06,@moji Chatbot,No response without @moji tag,Logged in as member,"1. Send a regular message without @moji","Bot does not respond; message appears as normal user message",,,,
+,,,,,,,,
+=== STUDY GROUPS ===,,,,,,,,
+MEM-GRP-01,Study Groups,Create a public group,Logged in as member,"1. Click ""Create Group""
+2. Enter name and description
+3. Select ""Public""
+4. Click Create","Group created; creator added as owner; group appears in sidebar",,,,
+MEM-GRP-02,Study Groups,Create a private group,Logged in as member,"1. Click ""Create Group""
+2. Enter name and description
+3. Select ""Private""
+4. Click Create","Group created; modal shows invite code with copy button",,,,
+MEM-GRP-03,Study Groups,Copy invite code,Logged in as member; private group created,"1. Click ""Copy"" next to invite code",Code copied to clipboard; toast confirmation,,,,
+MEM-GRP-04,Study Groups,Join group via invite code,Logged in as member; have valid invite code,"1. Enter invite code in join group field
+2. Submit","User added as member; group appears in ""My Groups"" sidebar section",,,,
+MEM-GRP-05,Study Groups,View My Groups in sidebar,Logged in as member; member of at least one group,"1. Look at sidebar","Collapsible ""My Groups"" section shows all joined groups",,,,
+MEM-GRP-06,Study Groups,Send message in group,Logged in as member; member of a group,"1. Select group from sidebar
+2. Type and send message","Message appears in group; visible to all group members",,,,
+MEM-GRP-07,Study Groups,View group members,Logged in as member; in a group,"1. Open group context menu
+2. Click ""View Members""","Modal shows member list with roles (owner/member)",,,,
+MEM-GRP-08,Study Groups,Leave group (non-owner),Logged in as member; member but not owner,"1. Open group context menu
+2. Click ""Leave Group""
+3. Confirm in dialog","User removed from group; group disappears from sidebar",,,,
+MEM-GRP-09,Study Groups,Owner cannot leave group,Logged in as group owner,"1. Open group context menu
+2. Attempt to leave","Error: ""Owner cannot leave. Transfer ownership or archive the group.""",,,,
+MEM-GRP-10,Study Groups,Owner closes/archives group,Logged in as group owner,"1. Open group context menu
+2. Click ""Close Group""
+3. Confirm","Group archived; all members lose access",,,,
+MEM-GRP-11,Study Groups,Owner removes a member,Logged in as group owner,"1. Click ""View Members""
+2. Click remove icon next to a member
+3. Confirm","Member removed from group",,,,
+MEM-GRP-12,Study Groups,Owner invites member by email,Logged in as group owner,"1. Click ""View Members""
+2. Enter email of user to invite
+3. Submit","User found and added to group",,,,
+,,,,,,,,
+=== SUPPORT CHAT (MEMBER) ===,,,,,,,,
+MEM-SUP-01,Support,Open support chat,Logged in as member,"1. Click ""Chat with Team MojiTax"" in sidebar","Support welcome screen with @moji greeting and ""Start New Conversation"" button",,,,
+MEM-SUP-02,Support,Start new conversation with @moji,Logged in as member,"1. Click ""Start New Conversation""","@moji chat begins; greeting: ""Hi! I'm @moji...""",,,,
+MEM-SUP-03,Support,Chat with @moji in support,Logged in as member; conversation started,"1. Type a question
+2. Send","AI response generated; conversation history maintained",,,,
+MEM-SUP-04,Support,@moji suggests escalation,Logged in as member,"1. Ask questions until @moji flags shouldEscalate","Yellow card: ""Would you like to speak with a human team member?""",,,,
+MEM-SUP-05,Support,Escalate to human support,Logged in as member; escalation card shown,"1. Click ""Connect with Team MojiTax""","Support ticket created with @moji conversation as context; view transitions to ticket thread",,,,
+MEM-SUP-06,Support,Talk to human instead (skip bot),Logged in as member; after first @moji message,"1. Click ""Talk to a human instead"" link",Same escalation flow; ticket created directly,,,,
+MEM-SUP-07,Support,View previous conversations,Logged in as member; previous tickets exist,"1. Look at conversation list","Cards showing ticket subject, status (Open/In Progress/Closed), last message date",,,,
+MEM-SUP-08,Support,Open existing ticket,Logged in as member; ticket exists,"1. Click on a previous conversation","Full message thread loads; user and admin messages visually distinct",,,,
+MEM-SUP-09,Support,Reply to open ticket,Logged in as member; open ticket selected,"1. Type reply
+2. Send","Message sent; real-time update; message appears in thread",,,,
+MEM-SUP-10,Support,Closed ticket - no reply allowed,Logged in as member; closed ticket selected,"1. Open a closed ticket","Reply input hidden; message ""This conversation has been closed"" shown with ""Start a new conversation"" link",,,,
+MEM-SUP-11,Support,Admin availability indicator,Logged in as member,"1. Open support chat
+2. Check availability display","Shows ""Online - ~Xmin response"" (during hours) or ""Offline - HH:MM-HH:MM (timezone)"" (outside hours)",,,,
+MEM-SUP-12,Support,Suspended user cannot create tickets,Logged in as suspended member,"1. Attempt to start a support conversation","Error: ""Your account has been suspended""",,,,
+MEM-SUP-13,Support,Receive admin reply in real-time,Logged in as member; ticket open,"1. Have admin reply to your ticket
+2. Observe support chat","New admin message appears instantly without refresh",,,,
+,,,,,,,,
+=== SEARCH ===,,,,,,,,
+MEM-SRC-01,Search,Open search dialog,Logged in as member,"1. Click search icon in header","Search dialog opens; cursor auto-focused on input",,,,
+MEM-SRC-02,Search,Search with fewer than 2 characters,Logged in as member; search open,"1. Type 1 character","Message: ""Type at least 2 characters to search""",,,,
+MEM-SRC-03,Search,Search messages,Logged in as member; messages exist,"1. Type 2+ characters that match message content
+2. Check Messages tab","Results show matching messages with user name, channel name, date, highlighted search terms",,,,
+MEM-SRC-04,Search,Search posts,Logged in as member; posts exist,"1. Type 2+ characters matching post content
+2. Check Posts tab","Results show matching posts with type icon/badge, title, content preview, author",,,,
+MEM-SRC-05,Search,Click message result to navigate,Logged in as member; search results shown,"1. Click on a message result","Dialog closes; navigates to that channel; message highlighted/scrolled into view",,,,
+MEM-SRC-06,Search,Result count in tab badges,Logged in as member,"1. Perform a search","Tabs show ""Messages (N)"" and ""Posts (N)"" with counts",,,,
+MEM-SRC-07,Search,Private channel messages filtered,Logged in as member; not a member of some private channels,"1. Search for content in a private channel you are not a member of",Private channel messages do NOT appear in your results,,,,
+MEM-SRC-08,Search,Debounced search (300ms),Logged in as member,"1. Type quickly in search box","Search does not fire on every keystroke; results appear after 300ms pause",,,,
+,,,,,,,,
+=== BROWSING POSTS (CATEGORY LIBRARY) ===,,,,,,,,
+MEM-LIB-01,Category Library,View all Articles,Logged in as member; articles exist,"1. Click ""View All"" on Articles section in sidebar","CategoryLibrary dialog opens with post type title and total count",,,,
+MEM-LIB-02,Category Library,View all Events,Logged in as member; events exist,"1. Click ""View All"" on Events section","Events listed with date, location, title",,,,
+MEM-LIB-03,Category Library,View all Announcements,Logged in as member; announcements exist,"1. Click ""View All"" on Announcements","Announcements listed with priority indicator",,,,
+MEM-LIB-04,Category Library,View all Newsletters,Logged in as member; newsletters exist,"1. Click ""View All"" on Newsletters","Newsletters listed with title and date",,,,
+MEM-LIB-05,Category Library,Search within category,Logged in as member; category dialog open,"1. Type in search field within dialog","Results filtered by search term (debounced 300ms)",,,,
+MEM-LIB-06,Category Library,Sort by newest/oldest/pinned,Logged in as member; dialog open,"1. Change sort option","Posts reorder accordingly",,,,
+MEM-LIB-07,Category Library,Pagination,Logged in as member; more than 10 posts,"1. Click Next/Previous page buttons","Page changes; page X of Y shown; 10 items per page",,,,
+MEM-LIB-08,Category Library,Latest posts in sidebar,Logged in as member,"1. Look at right sidebar","Shows latest 3 items per category (Articles, Events, etc.)",,,,
+,,,,,,,,
+=== EVENT RSVP / INTEREST ===,,,,,,,,
+MEM-EVT-01,Event RSVP,View public event page,Event post exists,"1. Navigate to /events/:id/interest","Public event page with details (title, date, location, content) and interest form",,,,
+MEM-EVT-02,Event RSVP,Submit interest form,Event page loaded,"1. Enter name (required)
+2. Enter email (required)
+3. Optionally enter phone, company, notes
+4. Submit","Success: ""Thank You!"" confirmation displayed; RSVP recorded",,,,
+MEM-EVT-03,Event RSVP,Duplicate interest submission,Already submitted for this event,"1. Submit interest with same email for same event","Error: ""You have already indicated interest in this event""",,,,
+MEM-EVT-04,Event RSVP,Invalid event ID,None,"1. Navigate to /events/invalid-id/interest","""Event not found"" message displayed",,,,
+,,,,,,,,
+=== EMAIL NOTIFICATIONS (MEMBER RECEIVES) ===,,,,,,,,
+MEM-EML-01,Email,Verification code email,Login requested,"1. Request verification code
+2. Check email inbox","Email received with 6-digit code, MojiTax branding, 10-min expiry note",,,,
+MEM-EML-02,Email,Announcement email,Admin publishes announcement,"1. Admin publishes announcement to your channel
+2. Check email inbox","Email received with announcement title, content, ""View on Connect"" button",,,,
+MEM-EML-03,Email,Event email,Admin publishes event,"1. Admin publishes event to your channel
+2. Check email inbox","Email received with event details and ""Indicate Interest"" button",,,,
+MEM-EML-04,Email,Article email,Admin publishes article,"1. Admin publishes article to your channel
+2. Check email inbox","Email received with article summary, tags, ""Read Full Article"" button",,,,
+MEM-EML-05,Email,Newsletter email,Admin publishes newsletter,"1. Admin publishes newsletter to your channel
+2. Check email inbox","Email received with newsletter content, ""Read on Connect"" button",,,,
+MEM-EML-06,Email,Support update email,Admin replies to or closes ticket,"1. Admin replies to your support ticket
+2. Check email inbox","Email received with ticket subject, status, latest message",,,,
+MEM-EML-07,Email,Event confirmation email,Admin sends confirmation,1. Admin sends confirmation for event you RSVPd to,"Email received with event details and confirmation",,,,
+MEM-EML-08,Email,Event reminder email,Admin sends reminder,"1. Admin sends reminder for upcoming event","Reminder email received with event details",,,,
+,,,,,,,,
+=== UI / THEME / RESPONSIVE ===,,,,,,,,
+MEM-UI-01,UI,Dark/light theme toggle,Logged in as member,"1. Click theme toggle button",Theme switches between dark and light; persisted across refresh,,,,
+MEM-UI-02,UI,Mobile sidebar toggle,Logged in as member; on mobile/narrow screen,"1. Click hamburger menu button","Sidebar slides in; click again or click outside to close",,,,
+MEM-UI-03,UI,Three-column layout (desktop),Logged in as member; wide screen,"1. View on wide (XL) screen","Three columns visible: sidebar, main chat, right sidebar (online users / posts)",,,,
+MEM-UI-04,UI,Right sidebar hidden on small screens,Logged in as member; narrow screen,"1. View on smaller screen","Right sidebar hidden; main chat and left sidebar take full width",,,,
+,,,,,,,,
+=== LEGAL PAGES ===,,,,,,,,
+MEM-LEGAL-01,Legal,Terms of Service page,None,"1. Navigate to /terms","Terms of Service content renders correctly",,,,
+MEM-LEGAL-02,Legal,Privacy Policy page,None,"1. Navigate to /privacy","Privacy Policy content renders correctly",,,,
+MEM-LEGAL-03,Legal,404 page for unknown routes,None,"1. Navigate to /nonexistent-page","NotFound page renders with navigation options",,,,
+,,,,,,,,
+=== MULTI-DEVICE / SESSION ===,,,,,,,,
+MEM-SESS-01,Session,Multiple tabs,Logged in as member,"1. Open platform in two browser tabs
+2. Send message in Tab 1
+3. Check Tab 2","Message appears in both tabs; user shown as single online user (not duplicated)",,,,
+MEM-SESS-02,Session,Session persistence,Logged in as member,"1. Close browser
+2. Re-open browser and navigate to /","Still logged in (JWT cookie persists); no re-login required",,,,
+MEM-SESS-03,Session,Auto-enrollment on login,Member has Learnworlds courses,"1. Log in as member with Learnworlds-enrolled courses","Automatically added to channels linked to your Learnworlds courses",,,,
