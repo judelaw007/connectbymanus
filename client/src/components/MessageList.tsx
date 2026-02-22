@@ -239,6 +239,17 @@ function formatBoldText(text: string): ReactNode[] {
   );
 }
 
+// Strip any leftover markdown from bot responses and render as clean plain text
+function formatBotMessage(content: string): ReactNode {
+  // Remove markdown bold/italic asterisks
+  let cleaned = content.replace(/\*{1,3}(.*?)\*{1,3}/g, "$1");
+  // Remove markdown headings
+  cleaned = cleaned.replace(/^#{1,6}\s+/gm, "");
+  // Remove markdown links, keep the text
+  cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  return cleaned;
+}
+
 function renderSystemMessage(content: string): ReactNode {
   const paragraphs = content.split(/\n\n+/);
 
@@ -389,7 +400,9 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
         </div>
 
         <div className="text-sm mt-1 whitespace-pre-wrap break-words">
-          {renderMessageContent(message.content)}
+          {isBot
+            ? formatBotMessage(message.content)
+            : renderMessageContent(message.content)}
         </div>
       </div>
     </div>

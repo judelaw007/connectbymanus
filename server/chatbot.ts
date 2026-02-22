@@ -90,7 +90,7 @@ export async function generateChatbotResponse(
     // @moji only speaks from its knowledge base.
     if (kbMatches.length === 0) {
       const noMatchResponse =
-        "I don't have information about that in my knowledge base yet. Let me connect you with Team MojiTax who can provide expert guidance on this topic.\n\nYou can use the **Chat with Team MojiTax** feature to create a support ticket, or I can escalate this for you right away. Would you like me to do that?";
+        "I don't have information about that in my knowledge base yet. Let me connect you with Team MojiTax who can provide expert guidance on this topic.\n\nYou can use the Chat with Team MojiTax feature to create a support ticket, or I can escalate this for you right away. Would you like me to do that?";
 
       // Flag for admin to review and potentially add to KB
       db.createFlaggedQuestion({
@@ -115,9 +115,17 @@ export async function generateChatbotResponse(
 ## CRITICAL RULE — KNOWLEDGE BASE ONLY
 You can ONLY answer using the knowledge base entries provided below. You must NEVER add information from your own general knowledge. Do not recommend external websites, organizations, or professionals. Do not provide generic advice. Stick strictly to what the knowledge base says.
 
+## FORMATTING — PLAIN TEXT ONLY
+You MUST respond in plain text. Do NOT use markdown formatting:
+- No **bold** or *italic* (no asterisks)
+- No # headings
+- No [links](url)
+- Use simple dashes (-) for bullet lists
+- Use line breaks to separate paragraphs
+
 ## RESPONSE STYLE
 - Keep responses concise (2-3 paragraphs max)
-- Use bullet points for lists
+- Use simple dashes for lists
 - Be friendly, professional, and encouraging
 - Rephrase knowledge base answers naturally but do not add new information
 - Always end with an offer to help further or to escalate to Team MojiTax
