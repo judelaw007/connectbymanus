@@ -2727,6 +2727,86 @@ export const appRouter = router({
       };
     }),
   }),
+
+  // ============= Chat Moderation (Admin) =============
+  chatModeration: router({
+    // Get all channels with message counts and flagged counts
+    getChannels: adminProcedure.query(async () => {
+      return await db.getChannelsWithMessageCounts();
+    }),
+
+    // Clear all messages in a channel
+    clearChannel: adminProcedure
+      .input(z.object({ channelId: z.number() }))
+      .mutation(async ({ input }) => {
+        const channel = await db.getChannelById(input.channelId);
+        if (!channel) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Channel not found",
+          });
+        }
+        const deleted = await db.clearChannelMessages(input.channelId);
+        return {
+          success: true,
+          deletedCount: deleted,
+          channelName: channel.name,
+        };
+      }),
+
+    // Delete a single message
+    deleteMessage: adminProcedure
+      .input(z.object({ messageId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteMessage(input.messageId);
+        return { success: true };
+      }),
+
+    // Flag a message
+    flagMessage: adminProcedure
+      .input(
+        z.object({
+          messageId: z.number(),
+          reason: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await db.flagMessage(input.messageId, ctx.user.id, input.reason);
+        return { success: true };
+      }),
+
+    // Unflag a message
+    unflagMessage: adminProcedure
+      .input(z.object({ messageId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.unflagMessage(input.messageId);
+        return { success: true };
+      }),
+
+    // Get flagged messages (optionally filtered by channel)
+    getFlagged: adminProcedure
+      .input(z.object({ channelId: z.number().optional() }).optional())
+      .query(async ({ input }) => {
+        return await db.getFlaggedMessages(input?.channelId);
+      }),
+
+    // Get messages for a channel (admin view — bypasses private channel checks)
+    getChannelMessages: adminProcedure
+      .input(
+        z.object({
+          channelId: z.number(),
+          limit: z.number().default(50),
+          offset: z.number().default(0),
+        })
+      )
+      .query(async ({ input }) => {
+        return await db.getChannelMessages(
+          input.channelId,
+          input.limit,
+          input.offset
+        );
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
