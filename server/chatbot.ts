@@ -178,6 +178,17 @@ You are the first point of contact for members. Your job is to:
         "\n\n_If you'd like more detailed assistance, I can connect you with Team MojiTax who can provide expert guidance._";
     }
 
+    // Flag questions @moji struggled with for admin review
+    if (confidence === "low" && kbMatches.length === 0) {
+      db.createFlaggedQuestion({
+        question: userMessage,
+        userId: userId || null,
+        channelId: channelId || null,
+        botResponse: botResponse.substring(0, 500),
+        confidence,
+      }).catch(err => console.error("[Chatbot] Error flagging question:", err));
+    }
+
     return {
       content: finalResponse,
       confidence,
