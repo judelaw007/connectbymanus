@@ -1894,6 +1894,14 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // Bulk delete knowledge base entries (admin only)
+    bulkDelete: adminProcedure
+      .input(z.object({ ids: z.array(z.number()).min(1) }))
+      .mutation(async ({ input }) => {
+        await db.bulkDeleteKnowledgeBaseEntries(input.ids);
+        return { count: input.ids.length, success: true };
+      }),
+
     // Bulk upload from CSV (admin only)
     bulkUpload: adminProcedure
       .input(
