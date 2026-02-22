@@ -73,8 +73,8 @@ export default function MojiSettings() {
 
   const handleDownloadTemplate = () => {
     const csvContent = `"question","answer","category","tags","expires_at"
-"What is ADIT?","ADIT stands for Advanced Diploma in International Taxation, offered by the Chartered Institute of Taxation (CIOT). It is the leading international tax qualification.","Exams","ADIT,qualification,CIOT",""
-"When is the next ADIT exam sitting?","The next ADIT exam sitting is in June 2026. Registration closes 30 April 2026.","Exams","ADIT,exam,dates","2026-06-30"
+"What is ADIT?","ADIT stands for Advanced Diploma in International Taxation, offered by the Chartered Institute of Taxation (CIOT). It is the leading international tax qualification. Learn more at https://www.tax.org.uk/adit","Exams","ADIT,qualification,CIOT",""
+"When is the next ADIT exam sitting?","The next ADIT exam sitting is in June 2026. Registration closes 30 April 2026. Register here: https://www.tax.org.uk/adit/registration","Exams","ADIT,exam,dates","2026-06-30"
 "How do I contact support?","You can chat with @moji for quick help, or use the 'Chat with Team MojiTax' feature to create a support ticket for human assistance.","Platform Help","support,help,contact",""`;
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
