@@ -93,27 +93,53 @@ const STOP_WORDS = new Set([
 ]);
 
 /**
- * Search knowledge base for relevant information.
- * Uses keyword matching with stop-word filtering and a minimum relevance
- * threshold so weak/tangential matches are excluded.
+ * Extract meaningful words from text, stripping punctuation and stop words.
  */
-async function searchKnowledgeBase(
-  query: string
-): Promise<{ question: string; answer: string }[]> {
-  const allKB = await db.getAllKnowledgeBase();
-
-  const queryLower = query.toLowerCase();
-
-  // Keep ALL meaningful words (including short acronyms like CTA, VAT, UK, EU)
-  // Only remove stop words, not short domain terms
-  const keywords = queryLower
+function extractWords(text: string): string[] {
+  return text
+    .toLowerCase()
     .split(/\s+/)
     .map(w => w.replace(/[^a-z0-9]/g, ""))
     .filter(w => w.length > 0 && !STOP_WORDS.has(w));
+}
 
-  if (keywords.length === 0) return [];
+/**
+ * Check if two words share a common prefix of at least `minLen` characters.
+ * Handles word-root matching: "registering" ↔ "register" ↔ "registration"
+ * all share the prefix "regist" (6 chars).
+ */
+function sharesPrefix(a: string, b: string, minLen: number): boolean {
+  const limit = Math.min(a.length, b.length);
+  if (limit < minLen) return false;
+  for (let i = 0; i < limit; i++) {
+    if (a[i] !== b[i]) return i >= minLen;
+  }
+  return limit >= minLen;
+}
 
-  // Also build bigrams for phrase matching (e.g. "study group" as a unit)
+/**
+ * Search knowledge base for relevant information.
+ * Uses keyword + prefix matching with stop-word filtering and a minimum
+ * relevance threshold so weak/tangential matches are excluded.
+ *
+ * Returns { ranked, allKB } so the caller can fall back to the full KB
+ * when the ranked list is empty.
+ */
+async function searchKnowledgeBase(query: string): Promise<{
+  ranked: { question: string; answer: string }[];
+  allKB: { question: string; answer: string }[];
+}> {
+  const allKB = await db.getAllKnowledgeBase();
+  const allEntries = allKB.map(e => ({
+    question: e.question,
+    answer: e.answer,
+  }));
+
+  const keywords = extractWords(query);
+
+  if (keywords.length === 0) return { ranked: [], allKB: allEntries };
+
+  // Build bigrams for phrase matching (e.g. "study group" as a unit)
   const bigrams: string[] = [];
   for (let i = 0; i < keywords.length - 1; i++) {
     bigrams.push(`${keywords[i]} ${keywords[i + 1]}`);
@@ -122,6 +148,8 @@ async function searchKnowledgeBase(
   const scored = allKB.map(entry => {
     const questionLower = entry.question.toLowerCase();
     const answerLower = entry.answer.toLowerCase();
+    const questionWords = extractWords(entry.question);
+    const answerWords = extractWords(entry.answer);
 
     let score = 0;
 
@@ -131,30 +159,39 @@ async function searchKnowledgeBase(
       if (answerLower.includes(bigram)) score += 3;
     });
 
-    // Individual keyword matches
     keywords.forEach(keyword => {
-      if (questionLower.includes(keyword)) score += 3;
-      if (answerLower.includes(keyword)) score += 1;
+      // Exact substring match (strongest)
+      if (questionLower.includes(keyword)) {
+        score += 3;
+      } else if (questionWords.some(w => sharesPrefix(keyword, w, 4))) {
+        // Prefix/root match: "registering" ↔ "register", "courses" ↔ "course"
+        score += 2;
+      }
+
+      if (answerLower.includes(keyword)) {
+        score += 1;
+      } else if (answerWords.some(w => sharesPrefix(keyword, w, 4))) {
+        score += 1;
+      }
     });
 
     return { entry, score };
   });
 
-  // Minimum threshold: at least one keyword must appear in the QUESTION
-  // (score >= 3) to count as a relevant match. This prevents weak answer-only
-  // matches from polluting the context.
-  const MIN_SCORE = 3;
+  // Minimum threshold: at least one keyword must appear in the question
+  // (score >= 2 allows prefix matches) to count as relevant.
+  const MIN_SCORE = 2;
 
-  const matches = scored
+  const ranked = scored
     .filter(item => item.score >= MIN_SCORE)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
+    .slice(0, 5)
     .map(item => ({
       question: item.entry.question,
       answer: item.entry.answer,
     }));
 
-  return matches;
+  return { ranked, allKB: allEntries };
 }
 
 /**
@@ -171,7 +208,7 @@ export async function generateChatbotResponse(
 ): Promise<ChatbotResponse> {
   try {
     // Search knowledge base
-    const kbMatches = await searchKnowledgeBase(userMessage);
+    const { ranked: kbMatches, allKB } = await searchKnowledgeBase(userMessage);
 
     // Check for explicit escalation requests
     const escalationKeywords = [
@@ -196,13 +233,16 @@ export async function generateChatbotResponse(
       };
     }
 
-    // No KB matches = no answer. Do not call the LLM at all.
-    // @moji only speaks from its knowledge base.
-    if (kbMatches.length === 0) {
-      const noMatchResponse =
-        "I don't have information about that in my knowledge base yet. Let me connect you with Team MojiTax who can provide expert guidance on this topic.\n\nYou can use the Chat with Team MojiTax feature to create a support ticket, or I can escalate this for you right away. Would you like me to do that?";
+    // Decide which KB entries to send to the LLM.
+    // If keyword search found good matches, use those.
+    // If not, send the ENTIRE knowledge base and let the LLM determine
+    // relevance — this avoids missing answers due to keyword mismatch
+    // (e.g. user says "registering" but KB says "enroll").
+    const kbForLLM = kbMatches.length > 0 ? kbMatches : allKB;
+    const usedRankedMatches = kbMatches.length > 0;
 
-      // Flag for admin to review and potentially add to KB
+    // If the KB is completely empty, escalate immediately
+    if (kbForLLM.length === 0) {
       db.createFlaggedQuestion({
         question: userMessage,
         userId: userId || null,
@@ -212,14 +252,19 @@ export async function generateChatbotResponse(
       }).catch(err => console.error("[Chatbot] Error flagging question:", err));
 
       return {
-        content: noMatchResponse,
+        content:
+          "I don't have information about that in my knowledge base yet. Let me connect you with Team MojiTax who can provide expert guidance on this topic.\n\nYou can use the Chat with Team MojiTax feature to create a support ticket, or I can escalate this for you right away. Would you like me to do that?",
         confidence: "low",
         shouldEscalate: true,
         knowledgeBaseUsed: false,
       };
     }
 
-    // Build context for LLM — only called when we have KB matches
+    // Build context for LLM
+    const kbLabel = usedRankedMatches
+      ? "KNOWLEDGE BASE (most relevant entries)"
+      : "FULL KNOWLEDGE BASE (search through ALL entries to find the answer)";
+
     const systemPrompt = `You are @moji, the AI assistant for MojiTax Connect — a community platform for tax professionals studying for ADIT (Advanced Diploma in International Taxation) and other tax qualifications offered by MojiTax.
 
 ## CRITICAL RULE — KNOWLEDGE BASE ONLY
@@ -227,7 +272,7 @@ You can ONLY answer using the knowledge base entries provided below.
 - You must NEVER add information from your own general knowledge.
 - You must NEVER claim MojiTax does or does not offer something unless the knowledge base explicitly says so.
 - You must NEVER make negative claims (e.g. "we don't offer X") unless the knowledge base explicitly states that.
-- If the knowledge base entries below do not directly address what the user asked, say: "I don't have specific information about that topic yet. Let me connect you with Team MojiTax who can help."
+- If the knowledge base entries below do not directly address what the user asked, say: "I don't have specific information about that topic yet, but I'd recommend reaching out to Team MojiTax through the Chat with Team MojiTax feature for detailed guidance."
 - Do not recommend external websites, organizations, or professionals.
 - Do not infer, extrapolate, or fill gaps. Only relay what the knowledge base says.
 
@@ -252,10 +297,10 @@ You MUST respond in plain text. Do NOT use markdown formatting:
 - When the knowledge base answer includes links, always include them in your response
 - Always end with an offer to help further or to escalate to Team MojiTax
 
-## KNOWLEDGE BASE (use ONLY this information to answer):
-${kbMatches.map((match, i) => `${i + 1}. Q: ${match.question}\n   A: ${match.answer}`).join("\n\n")}
+## ${kbLabel}:
+${kbForLLM.map((match, i) => `${i + 1}. Q: ${match.question}\n   A: ${match.answer}`).join("\n\n")}
 
-IMPORTANT: If none of the above entries directly answer the user's specific question, tell them you don't have that information and offer to connect them with Team MojiTax. Never guess or fabricate an answer.`;
+IMPORTANT: Search through ALL the entries above carefully. If any entry is relevant to the user's question, use it to answer. If none of them directly address the question, tell the user you don't have that specific information yet and suggest they reach out to Team MojiTax through the Chat with Team MojiTax feature. Never guess or fabricate an answer.`;
 
     // Build conversation history for context
     const messages: Array<{
@@ -275,16 +320,31 @@ IMPORTANT: If none of the above entries directly answer the user's specific ques
         ? messageContent
         : "I'm sorry, I couldn't generate a response. Please try again or contact Team MojiTax for assistance.";
 
-    // Determine confidence based on knowledge base match count
-    const confidence: "high" | "medium" | "low" =
-      kbMatches.length >= 2 ? "high" : "medium";
+    // Flag question for admin review when no keyword matches were found
+    // (the LLM used the full KB as a fallback)
+    if (!usedRankedMatches) {
+      db.createFlaggedQuestion({
+        question: userMessage,
+        userId: userId || null,
+        channelId: channelId || null,
+        botResponse,
+        confidence: "low",
+      }).catch(err => console.error("[Chatbot] Error flagging question:", err));
+    }
+
+    // Determine confidence based on knowledge base match quality
+    const confidence: "high" | "medium" | "low" = usedRankedMatches
+      ? kbMatches.length >= 2
+        ? "high"
+        : "medium"
+      : "low";
 
     return {
       content: botResponse,
       confidence,
       shouldEscalate: false,
       knowledgeBaseUsed: true,
-      sources: kbMatches.map(m => m.question),
+      sources: usedRankedMatches ? kbMatches.map(m => m.question) : [],
     };
   } catch (error) {
     console.error("[Chatbot] Error generating response:", error);
