@@ -40,11 +40,13 @@ import {
   Save,
   CalendarCheck,
   UsersRound,
+  MessageSquareWarning,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import ChatLayout from "@/components/ChatLayout";
 import ChatAnalytics from "@/components/ChatAnalytics";
 import GroupModeration from "@/components/GroupModeration";
+import ChatModeration from "@/components/ChatModeration";
 import { trpc } from "@/lib/trpc";
 import { signOutAdmin } from "@/lib/supabase";
 
@@ -57,6 +59,7 @@ type DashboardSection =
   | "group-moderation"
   | "platform-settings"
   | "chat-analytics"
+  | "chat-moderation"
   | "event-invitees";
 
 export default function Admin() {
@@ -281,6 +284,9 @@ export default function Admin() {
       case "group-moderation":
         return <GroupModeration />;
 
+      case "chat-moderation":
+        return <ChatModeration />;
+
       case "platform-settings":
         return <PlatformSettings />;
 
@@ -393,6 +399,16 @@ export default function Admin() {
             >
               <UsersRound className="h-4 w-4 mr-2" />
               Group Moderation
+            </Button>
+            <Button
+              variant={
+                activeSection === "chat-moderation" ? "secondary" : "ghost"
+              }
+              className="w-full justify-start"
+              onClick={() => setActiveSection("chat-moderation")}
+            >
+              <MessageSquareWarning className="h-4 w-4 mr-2" />
+              Chat Moderation
             </Button>
             <Button
               variant={

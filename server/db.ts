@@ -63,6 +63,10 @@ export interface Message {
     | "user"
     | "bot";
   isPinned: boolean;
+  isFlagged: boolean;
+  flaggedReason: string | null;
+  flaggedAt: Date | null;
+  flaggedBy: number | null;
   replyToId: number | null;
   postId: number | null;
   createdAt: Date;
@@ -2918,4 +2922,163 @@ export async function isGroupSuspended(channelId: number): Promise<boolean> {
     .single();
 
   return data?.is_suspended === true;
+}
+
+// ============= Chat Moderation Functions =============
+
+export async function clearChannelMessages(channelId: number): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  // Get count before deleting
+  const { count } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("channel_id", channelId);
+
+  const { error } = await supabase
+    .from("messages")
+    .delete()
+    .eq("channel_id", channelId);
+
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function deleteMessage(messageId: number): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("messages")
+    .delete()
+    .eq("id", messageId);
+
+  if (error) throw error;
+}
+
+export async function flagMessage(
+  messageId: number,
+  flaggedBy: number,
+  reason?: string
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("messages")
+    .update({
+      is_flagged: true,
+      flagged_reason: reason || null,
+      flagged_at: new Date().toISOString(),
+      flagged_by: flaggedBy,
+    })
+    .eq("id", messageId);
+
+  if (error) throw error;
+}
+
+export async function unflagMessage(messageId: number): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("messages")
+    .update({
+      is_flagged: false,
+      flagged_reason: null,
+      flagged_at: null,
+      flagged_by: null,
+    })
+    .eq("id", messageId);
+
+  if (error) throw error;
+}
+
+export async function getFlaggedMessages(channelId?: number) {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  let query = supabase
+    .from("messages")
+    .select(
+      `
+      *,
+      users (
+        name,
+        display_name,
+        role
+      )
+    `
+    )
+    .eq("is_flagged", true)
+    .order("flagged_at", { ascending: false });
+
+  if (channelId) {
+    query = query.eq("channel_id", channelId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[Database] Error getting flagged messages:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    ...snakeToCamel(row),
+    userName: row.users?.display_name || row.users?.name,
+    userRole: row.users?.role,
+    users: undefined,
+  }));
+}
+
+export async function getChannelMessageCount(
+  channelId: number
+): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+
+  const { count } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("channel_id", channelId);
+
+  return count || 0;
+}
+
+export async function getChannelsWithMessageCounts() {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("channels")
+    .select("*")
+    .eq("is_closed", false)
+    .order("created_at");
+
+  if (error) {
+    console.error("[Database] Error getting channels:", error);
+    return [];
+  }
+
+  // Get message counts for each channel
+  const channels = (data || []).map(snakeToCamel);
+  const counts = await Promise.all(
+    channels.map(async (ch: any) => {
+      const count = await getChannelMessageCount(ch.id);
+      const flaggedResult = await supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("channel_id", ch.id)
+        .eq("is_flagged", true);
+      return {
+        ...ch,
+        messageCount: count,
+        flaggedCount: flaggedResult.count || 0,
+      };
+    })
+  );
+
+  return counts;
 }
