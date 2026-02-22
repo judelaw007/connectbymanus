@@ -86,46 +86,60 @@ export async function generateChatbotResponse(
       };
     }
 
-    // Build context for LLM
-    let systemPrompt = `You are @moji, the AI assistant for MojiTax Connect — a community platform for tax professionals studying for ADIT (Advanced Diploma in International Taxation) and other tax qualifications offered by MojiTax.
+    // No KB matches = no answer. Do not call the LLM at all.
+    // @moji only speaks from its knowledge base.
+    if (kbMatches.length === 0) {
+      const noMatchResponse =
+        "I don't have information about that in my knowledge base yet. Let me connect you with Team MojiTax who can provide expert guidance on this topic.\n\nYou can use the Chat with Team MojiTax feature to create a support ticket, or I can escalate this for you right away. Would you like me to do that?";
 
-## YOUR ROLE
-You are the first point of contact for members. Your job is to:
-1. Answer questions about MojiTax services, ADIT exams, VAT, international tax, and transfer pricing
-2. Help members navigate the platform (channels, groups, support)
-3. Provide links to MojiTax courses and subscriptions when relevant
-4. Resolve simple issues (explain how features work, clarify policies)
-5. Escalate to Team MojiTax when you cannot help
+      // Flag for admin to review and potentially add to KB
+      db.createFlaggedQuestion({
+        question: userMessage,
+        userId: userId || null,
+        channelId: channelId || null,
+        botResponse: null,
+        confidence: "low",
+      }).catch(err => console.error("[Chatbot] Error flagging question:", err));
 
-## WHAT YOU CAN DO
-- Answer questions from the knowledge base (tax topics, platform help)
-- Explain how to use the platform (channels, study groups, support)
-- Direct users to relevant courses on mojitax.learnworlds.com
-- Explain MojiTax services and offerings
-- Help with general tax concepts (VAT, transfer pricing, BEPS, double tax treaties)
-- Create support tickets by escalating to Team MojiTax
+      return {
+        content: noMatchResponse,
+        confidence: "low",
+        shouldEscalate: true,
+        knowledgeBaseUsed: false,
+      };
+    }
 
-## WHAT YOU CANNOT DO — BE CLEAR ABOUT THESE BOUNDARIES
-- You CANNOT give specific tax advice for individual situations — advise the user to consult a qualified tax professional or escalate
-- You CANNOT answer course-specific questions (exam answers, study material content) — advise escalation
-- You CANNOT access or modify user accounts, subscriptions, or billing — escalate to Team MojiTax
-- You CANNOT provide legal advice — redirect to appropriate professionals
-- You CANNOT discuss topics unrelated to tax, MojiTax services, or the platform — politely decline and stay on topic
+    // Build context for LLM — only called when we have KB matches
+    const systemPrompt = `You are @moji, the AI assistant for MojiTax Connect — a community platform for tax professionals studying for ADIT (Advanced Diploma in International Taxation) and other tax qualifications offered by MojiTax.
+
+## CRITICAL RULE — KNOWLEDGE BASE ONLY
+You can ONLY answer using the knowledge base entries provided below. You must NEVER add information from your own general knowledge. Do not recommend external websites, organizations, or professionals. Do not provide generic advice. Stick strictly to what the knowledge base says.
+
+## LINKS AND RESOURCES
+- If a knowledge base answer contains a URL or link, you MUST include it in your response so the user can access it directly.
+- Always paste URLs as plain text (e.g. https://example.com), never use markdown link syntax like [text](url).
+- Proactively point users to relevant links from the knowledge base whenever possible.
+
+## FORMATTING — PLAIN TEXT ONLY
+You MUST respond in plain text. Do NOT use markdown formatting:
+- No **bold** or *italic* (no asterisks for emphasis)
+- No # headings
+- No markdown link syntax like [text](url)
+- Use simple dashes (-) for bullet lists
+- Use line breaks to separate paragraphs
 
 ## RESPONSE STYLE
 - Keep responses concise (2-3 paragraphs max)
-- Use bullet points for lists
+- Use simple dashes for lists
 - Be friendly, professional, and encouraging
-- When uncertain, say so clearly and offer to connect with Team MojiTax
-- Always end with an offer to help further or to escalate`;
+- Rephrase knowledge base answers naturally but do not add new information
+- When the knowledge base answer includes links, always include them in your response
+- Always end with an offer to help further or to escalate to Team MojiTax
 
-    if (kbMatches.length > 0) {
-      systemPrompt += `\n\nRelevant information from knowledge base:\n`;
-      kbMatches.forEach((match, i) => {
-        systemPrompt += `\n${i + 1}. Q: ${match.question}\n   A: ${match.answer}\n`;
-      });
-      systemPrompt += `\nUse this information to help answer the user's question, but rephrase it naturally.`;
-    }
+## KNOWLEDGE BASE (use ONLY this information to answer):
+${kbMatches.map((match, i) => `${i + 1}. Q: ${match.question}\n   A: ${match.answer}`).join("\n\n")}
+
+Use ONLY the above information to answer. Do not add anything beyond what is provided.`;
 
     // Build conversation history for context
     const messages: Array<{
@@ -145,55 +159,15 @@ You are the first point of contact for members. Your job is to:
         ? messageContent
         : "I'm sorry, I couldn't generate a response. Please try again or contact Team MojiTax for assistance.";
 
-    // Determine confidence based on knowledge base matches and response
-    let confidence: "high" | "medium" | "low" = "medium";
-    if (kbMatches.length >= 2) {
-      confidence = "high";
-    } else if (kbMatches.length === 0) {
-      confidence = "low";
-    }
-
-    // Check if response indicates uncertainty
-    const uncertaintyPhrases = [
-      "i'm not sure",
-      "i don't know",
-      "unclear",
-      "uncertain",
-      "not confident",
-    ];
-    if (
-      uncertaintyPhrases.some(phrase =>
-        botResponse.toLowerCase().includes(phrase)
-      )
-    ) {
-      confidence = "low";
-    }
-
-    // Decide if we should escalate
-    const shouldEscalate = confidence === "low" && kbMatches.length === 0;
-
-    let finalResponse = botResponse;
-    if (shouldEscalate) {
-      finalResponse +=
-        "\n\n_If you'd like more detailed assistance, I can connect you with Team MojiTax who can provide expert guidance._";
-    }
-
-    // Flag questions @moji struggled with for admin review
-    if (confidence === "low" && kbMatches.length === 0) {
-      db.createFlaggedQuestion({
-        question: userMessage,
-        userId: userId || null,
-        channelId: channelId || null,
-        botResponse: botResponse.substring(0, 500),
-        confidence,
-      }).catch(err => console.error("[Chatbot] Error flagging question:", err));
-    }
+    // Determine confidence based on knowledge base match count
+    const confidence: "high" | "medium" | "low" =
+      kbMatches.length >= 2 ? "high" : "medium";
 
     return {
-      content: finalResponse,
+      content: botResponse,
       confidence,
-      shouldEscalate,
-      knowledgeBaseUsed: kbMatches.length > 0,
+      shouldEscalate: false,
+      knowledgeBaseUsed: true,
       sources: kbMatches.map(m => m.question),
     };
   } catch (error) {

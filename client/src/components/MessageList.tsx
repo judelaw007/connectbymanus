@@ -239,6 +239,46 @@ function formatBoldText(text: string): ReactNode[] {
   );
 }
 
+// Strip leftover markdown from bot responses and make URLs clickable
+function formatBotMessage(content: string): ReactNode {
+  // Remove markdown bold/italic asterisks
+  let cleaned = content.replace(/\*{1,3}(.*?)\*{1,3}/g, "$1");
+  // Remove markdown headings
+  cleaned = cleaned.replace(/^#{1,6}\s+/gm, "");
+  // Convert markdown links [text](url) to just the url
+  cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$2");
+
+  // Split on URLs and make them clickable
+  const urlRegex = /(https?:\/\/[^\s),]+)/g;
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = urlRegex.exec(cleaned)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(cleaned.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <a
+        key={match.index}
+        href={match[0]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300"
+      >
+        {match[0]}
+      </a>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < cleaned.length) {
+    parts.push(cleaned.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : cleaned;
+}
+
 function renderSystemMessage(content: string): ReactNode {
   const paragraphs = content.split(/\n\n+/);
 
@@ -389,7 +429,9 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
         </div>
 
         <div className="text-sm mt-1 whitespace-pre-wrap break-words">
-          {renderMessageContent(message.content)}
+          {isBot
+            ? formatBotMessage(message.content)
+            : renderMessageContent(message.content)}
         </div>
       </div>
     </div>

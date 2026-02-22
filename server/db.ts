@@ -1765,6 +1765,18 @@ export async function deleteKnowledgeBaseEntry(id: number) {
   if (error) throw error;
 }
 
+export async function bulkDeleteKnowledgeBaseEntries(ids: number[]) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("moji_knowledge_base")
+    .update({ is_active: false })
+    .in("id", ids);
+
+  if (error) throw error;
+}
+
 // ============= Flagged Questions Functions =============
 
 export async function createFlaggedQuestion(entry: InsertMojiFlaggedQuestion) {

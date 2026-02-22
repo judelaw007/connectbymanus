@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Upload,
@@ -34,6 +35,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -56,6 +59,9 @@ export default function MojiSettings() {
     tags: "",
     expiresAt: "",
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const PAGE_SIZE = 10;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: knowledgeBase, refetch } =
@@ -65,6 +71,7 @@ export default function MojiSettings() {
   const createMutation = trpc.mojiKnowledge.create.useMutation();
   const updateMutation = trpc.mojiKnowledge.update.useMutation();
   const deleteMutation = trpc.mojiKnowledge.delete.useMutation();
+  const bulkDeleteMutation = trpc.mojiKnowledge.bulkDelete.useMutation();
   const bulkUploadMutation = trpc.mojiKnowledge.bulkUpload.useMutation();
   const addToKBMutation =
     trpc.mojiFlaggedQuestions.addToKnowledgeBase.useMutation();
@@ -73,8 +80,8 @@ export default function MojiSettings() {
 
   const handleDownloadTemplate = () => {
     const csvContent = `"question","answer","category","tags","expires_at"
-"What is ADIT?","ADIT stands for Advanced Diploma in International Taxation, offered by the Chartered Institute of Taxation (CIOT). It is the leading international tax qualification.","Exams","ADIT,qualification,CIOT",""
-"When is the next ADIT exam sitting?","The next ADIT exam sitting is in June 2026. Registration closes 30 April 2026.","Exams","ADIT,exam,dates","2026-06-30"
+"What is ADIT?","ADIT stands for Advanced Diploma in International Taxation, offered by the Chartered Institute of Taxation (CIOT). It is the leading international tax qualification. Learn more at https://www.tax.org.uk/adit","Exams","ADIT,qualification,CIOT",""
+"When is the next ADIT exam sitting?","The next ADIT exam sitting is in June 2026. Registration closes 30 April 2026. Register here: https://www.tax.org.uk/adit/registration","Exams","ADIT,exam,dates","2026-06-30"
 "How do I contact support?","You can chat with @moji for quick help, or use the 'Chat with Team MojiTax' feature to create a support ticket for human assistance.","Platform Help","support,help,contact",""`;
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -90,13 +97,72 @@ export default function MojiSettings() {
     return new Date(expiresAt) < new Date();
   };
 
-  const filteredKnowledge = knowledgeBase?.filter(
-    entry =>
-      entry.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (entry.tags &&
-        entry.tags.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredKnowledge = useMemo(
+    () =>
+      knowledgeBase?.filter(
+        entry =>
+          entry.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          entry.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (entry.tags &&
+            entry.tags.toLowerCase().includes(searchQuery.toLowerCase()))
+      ) || [],
+    [knowledgeBase, searchQuery]
   );
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredKnowledge.length / PAGE_SIZE)
+  );
+  const paginatedKnowledge = filteredKnowledge.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+  const pageEntryIds = paginatedKnowledge.map((e: any) => e.id as number);
+  const allOnPageSelected =
+    pageEntryIds.length > 0 && pageEntryIds.every(id => selectedIds.has(id));
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        pageEntryIds.forEach(id => next.delete(id));
+      } else {
+        pageEntryIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedIds.size} selected entries?`
+      )
+    )
+      return;
+
+    try {
+      await bulkDeleteMutation.mutateAsync({ ids: Array.from(selectedIds) });
+      toast.success(`Deleted ${selectedIds.size} knowledge base entries`);
+      setSelectedIds(new Set());
+      refetch();
+    } catch (error) {
+      toast.error("Failed to delete entries");
+    }
+  };
 
   const parseCSVLine = (line: string): string[] => {
     const fields: string[] = [];
@@ -467,15 +533,34 @@ export default function MojiSettings() {
             </p>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search knowledge base..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          {/* Search + Bulk Actions */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search knowledge base..."
+                value={searchQuery}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                  setSelectedIds(new Set());
+                }}
+                className="pl-10"
+              />
+            </div>
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {bulkDeleteMutation.isPending
+                  ? "Deleting..."
+                  : `Delete ${selectedIds.size} selected`}
+              </Button>
+            )}
           </div>
 
           {/* Knowledge Base Table */}
@@ -483,6 +568,13 @@ export default function MojiSettings() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allOnPageSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all on page"
+                    />
+                  </TableHead>
                   <TableHead className="w-[25%]">Question</TableHead>
                   <TableHead className="w-[35%]">Answer</TableHead>
                   <TableHead>Category</TableHead>
@@ -491,12 +583,19 @@ export default function MojiSettings() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredKnowledge && filteredKnowledge.length > 0 ? (
-                  filteredKnowledge.map((entry: any) => (
+                {paginatedKnowledge.length > 0 ? (
+                  paginatedKnowledge.map((entry: any) => (
                     <TableRow
                       key={entry.id}
                       className={isExpired(entry.expiresAt) ? "opacity-50" : ""}
                     >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(entry.id)}
+                          onCheckedChange={() => toggleSelectOne(entry.id)}
+                          aria-label={`Select "${entry.question}"`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         {entry.question}
                       </TableCell>
@@ -558,7 +657,7 @@ export default function MojiSettings() {
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center text-muted-foreground py-8"
                     >
                       {searchQuery
@@ -570,6 +669,46 @@ export default function MojiSettings() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {filteredKnowledge.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+                {Math.min(currentPage * PAGE_SIZE, filteredKnowledge.length)} of{" "}
+                {filteredKnowledge.length} entries
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => {
+                    setCurrentPage(p => p - 1);
+                    setSelectedIds(new Set());
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => {
+                    setCurrentPage(p => p + 1);
+                    setSelectedIds(new Set());
+                  }}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
