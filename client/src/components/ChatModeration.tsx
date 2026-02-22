@@ -91,6 +91,7 @@ function ChannelMessagesView({
     data: channelMessages,
     isLoading: messagesLoading,
     isFetching,
+    error: messagesError,
   } = trpc.chatModeration.getChannelMessages.useQuery({
     channelId: channel.id,
     limit: 100,
@@ -190,7 +191,11 @@ function ChannelMessagesView({
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {messagesError ? (
+            <div className="py-12 text-center text-destructive">
+              Error loading messages: {messagesError.message}
+            </div>
+          ) : loading ? (
             <div className="py-12 text-center text-muted-foreground">
               Loading messages...
             </div>
