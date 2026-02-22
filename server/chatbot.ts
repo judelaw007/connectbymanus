@@ -117,9 +117,10 @@ You can ONLY answer using the knowledge base entries provided below. You must NE
 
 ## FORMATTING — PLAIN TEXT ONLY
 You MUST respond in plain text. Do NOT use markdown formatting:
-- No **bold** or *italic* (no asterisks)
+- No **bold** or *italic* (no asterisks for emphasis)
 - No # headings
-- No [links](url)
+- No markdown link syntax like [text](url)
+- If you need to share a URL, paste it as a plain URL (e.g. https://example.com)
 - Use simple dashes (-) for bullet lists
 - Use line breaks to separate paragraphs
 

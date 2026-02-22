@@ -245,8 +245,8 @@ function formatBotMessage(content: string): ReactNode {
   let cleaned = content.replace(/\*{1,3}(.*?)\*{1,3}/g, "$1");
   // Remove markdown headings
   cleaned = cleaned.replace(/^#{1,6}\s+/gm, "");
-  // Remove markdown links, keep the text
-  cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  // Convert markdown links to "text (url)" so URLs are still visible
+  cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)");
   return cleaned;
 }
 
