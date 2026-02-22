@@ -1835,6 +1835,11 @@ export const appRouter = router({
         return await db.searchKnowledgeBase(input.query);
       }),
 
+    // Get all knowledge base entries including expired (admin view)
+    getAllWithExpired: adminProcedure.query(async () => {
+      return await db.getAllKnowledgeBase(true);
+    }),
+
     // Create knowledge base entry (admin only)
     create: adminProcedure
       .input(
@@ -1843,6 +1848,7 @@ export const appRouter = router({
           answer: z.string().min(1),
           category: z.string().optional(),
           tags: z.string().optional(),
+          expiresAt: z.string().optional(),
         })
       )
       .mutation(async ({ input }) => {
@@ -1851,6 +1857,7 @@ export const appRouter = router({
           answer: input.answer,
           category: input.category || null,
           tags: input.tags || null,
+          expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
         });
         return { id, success: true };
       }),
@@ -1864,11 +1871,18 @@ export const appRouter = router({
           answer: z.string().optional(),
           category: z.string().optional(),
           tags: z.string().optional(),
+          expiresAt: z.string().nullable().optional(),
         })
       )
       .mutation(async ({ input }) => {
         const { id, ...updates } = input;
-        await db.updateKnowledgeBaseEntry(id, updates);
+        const dbUpdates: any = { ...updates };
+        if (updates.expiresAt !== undefined) {
+          dbUpdates.expiresAt = updates.expiresAt
+            ? new Date(updates.expiresAt)
+            : null;
+        }
+        await db.updateKnowledgeBaseEntry(id, dbUpdates);
         return { success: true };
       }),
 
@@ -1890,6 +1904,7 @@ export const appRouter = router({
               answer: z.string(),
               category: z.string().optional(),
               tags: z.string().optional(),
+              expiresAt: z.string().optional(),
             })
           ),
         })
@@ -1902,10 +1917,73 @@ export const appRouter = router({
             answer: entry.answer,
             category: entry.category || null,
             tags: entry.tags || null,
+            expiresAt: entry.expiresAt ? new Date(entry.expiresAt) : null,
           });
           ids.push(id);
         }
         return { count: ids.length, success: true };
+      }),
+  }),
+
+  mojiFlaggedQuestions: router({
+    // Get all flagged questions (admin only)
+    getAll: adminProcedure
+      .input(z.object({ status: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        return await db.getAllFlaggedQuestions(input?.status);
+      }),
+
+    // Add flagged question to knowledge base (admin only)
+    addToKnowledgeBase: adminProcedure
+      .input(
+        z.object({
+          flaggedId: z.number(),
+          question: z.string().min(1),
+          answer: z.string().min(1),
+          category: z.string().optional(),
+          tags: z.string().optional(),
+          expiresAt: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { flaggedId, ...kbEntry } = input;
+        const id = await db.createKnowledgeBaseEntry({
+          question: kbEntry.question,
+          answer: kbEntry.answer,
+          category: kbEntry.category || null,
+          tags: kbEntry.tags || null,
+          expiresAt: kbEntry.expiresAt ? new Date(kbEntry.expiresAt) : null,
+        });
+        await db.updateFlaggedQuestion(flaggedId, {
+          status: "added",
+          resolvedAt: new Date(),
+        });
+        return { id, success: true };
+      }),
+
+    // Dismiss a flagged question (admin only)
+    dismiss: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          adminNotes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.updateFlaggedQuestion(input.id, {
+          status: "dismissed",
+          adminNotes: input.adminNotes || null,
+          resolvedAt: new Date(),
+        });
+        return { success: true };
+      }),
+
+    // Delete a flagged question (admin only)
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteFlaggedQuestion(input.id);
+        return { success: true };
       }),
   }),
 

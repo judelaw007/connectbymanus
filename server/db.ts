@@ -150,9 +150,23 @@ export interface MojiKnowledgeBase {
   answer: string;
   category: string | null;
   tags: string | null;
+  expiresAt: Date | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface MojiFlaggedQuestion {
+  id: number;
+  question: string;
+  userId: number | null;
+  channelId: number | null;
+  botResponse: string | null;
+  confidence: string;
+  status: "pending" | "added" | "dismissed";
+  adminNotes: string | null;
+  resolvedAt: Date | null;
+  createdAt: Date;
 }
 
 export interface EmailLog {
@@ -227,6 +241,9 @@ export type InsertNotification = Partial<Notification> & {
 export type InsertMojiKnowledgeBase = Partial<MojiKnowledgeBase> & {
   question: string;
   answer: string;
+};
+export type InsertMojiFlaggedQuestion = Partial<MojiFlaggedQuestion> & {
+  question: string;
 };
 export type InsertEmailLog = Partial<EmailLog> & {
   recipientEmail: string;
@@ -1660,14 +1677,22 @@ export async function markNotificationAsRead(id: number) {
 
 // ============= Knowledge Base Functions =============
 
-export async function getAllKnowledgeBase() {
+export async function getAllKnowledgeBase(includeExpired = false) {
   const supabase = getSupabase();
   if (!supabase) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("moji_knowledge_base")
     .select("*")
     .eq("is_active", true);
+
+  if (!includeExpired) {
+    query = query.or(
+      `expires_at.is.null,expires_at.gt.${new Date().toISOString()}`
+    );
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("[Database] Error getting knowledge base:", error);
@@ -1681,12 +1706,14 @@ export async function searchKnowledgeBase(searchTerm: string) {
   const supabase = getSupabase();
   if (!supabase) return [];
 
+  const escaped = escapeSearchInput(searchTerm);
   const { data, error } = await supabase
     .from("moji_knowledge_base")
     .select("*")
     .eq("is_active", true)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .or(
-      `question.ilike.%${escapeSearchInput(searchTerm)}%,answer.ilike.%${escapeSearchInput(searchTerm)}%,tags.ilike.%${escapeSearchInput(searchTerm)}%`
+      `question.ilike.%${escaped}%,answer.ilike.%${escaped}%,tags.ilike.%${escaped}%`
     );
 
   if (error) {
@@ -1733,6 +1760,72 @@ export async function deleteKnowledgeBaseEntry(id: number) {
   const { error } = await supabase
     .from("moji_knowledge_base")
     .update({ is_active: false })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+// ============= Flagged Questions Functions =============
+
+export async function createFlaggedQuestion(entry: InsertMojiFlaggedQuestion) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { data, error } = await supabase
+    .from("moji_flagged_questions")
+    .insert(camelToSnake(entry))
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+export async function getAllFlaggedQuestions(status?: string) {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  let query = supabase
+    .from("moji_flagged_questions")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (status) {
+    query = query.eq("status", status);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[Database] Error getting flagged questions:", error);
+    return [];
+  }
+
+  return (data || []).map(snakeToCamel);
+}
+
+export async function updateFlaggedQuestion(
+  id: number,
+  updates: Partial<MojiFlaggedQuestion>
+) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("moji_flagged_questions")
+    .update(camelToSnake(updates))
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function deleteFlaggedQuestion(id: number) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Database not available");
+
+  const { error } = await supabase
+    .from("moji_flagged_questions")
+    .delete()
     .eq("id", id);
 
   if (error) throw error;

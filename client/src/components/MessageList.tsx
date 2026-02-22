@@ -256,12 +256,17 @@ function renderSystemMessage(content: string): ReactNode {
                 const [label, ...rest] = text.split(" - ");
                 return (
                   <li key={j} className="flex items-start gap-2.5">
-                    <span className="text-blue-500 text-lg leading-5 flex-shrink-0">&#x2022;</span>
+                    <span className="text-blue-500 text-lg leading-5 flex-shrink-0">
+                      &#x2022;
+                    </span>
                     <span className="text-gray-700 dark:text-gray-300 leading-relaxed">
                       {rest.length > 0 ? (
                         <>
                           {formatBoldText(label)}
-                          <span className="text-gray-500 dark:text-gray-400"> — {rest.join(" - ")}</span>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            {" "}
+                            — {rest.join(" - ")}
+                          </span>
                         </>
                       ) : (
                         formatBoldText(text)
