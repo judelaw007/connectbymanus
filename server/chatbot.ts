@@ -10,33 +10,143 @@ interface ChatbotResponse {
   sources?: string[];
 }
 
+// Common stop words to exclude from keyword matching
+const STOP_WORDS = new Set([
+  "the",
+  "a",
+  "an",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "can",
+  "shall",
+  "to",
+  "of",
+  "in",
+  "for",
+  "on",
+  "with",
+  "at",
+  "by",
+  "from",
+  "as",
+  "into",
+  "through",
+  "about",
+  "and",
+  "but",
+  "or",
+  "not",
+  "no",
+  "if",
+  "so",
+  "it",
+  "its",
+  "my",
+  "your",
+  "we",
+  "our",
+  "you",
+  "me",
+  "i",
+  "he",
+  "she",
+  "they",
+  "them",
+  "this",
+  "that",
+  "what",
+  "which",
+  "who",
+  "how",
+  "when",
+  "where",
+  "why",
+  "all",
+  "each",
+  "any",
+  "some",
+  "also",
+  "just",
+  "than",
+  "then",
+  "very",
+  "too",
+  "moji",
+  "@moji",
+]);
+
 /**
- * Search knowledge base for relevant information
+ * Search knowledge base for relevant information.
+ * Uses keyword matching with stop-word filtering and a minimum relevance
+ * threshold so weak/tangential matches are excluded.
  */
 async function searchKnowledgeBase(
   query: string
 ): Promise<{ question: string; answer: string }[]> {
   const allKB = await db.getAllKnowledgeBase();
 
-  // Simple keyword matching - can be enhanced with vector search later
   const queryLower = query.toLowerCase();
-  const keywords = queryLower.split(/\s+/).filter(w => w.length > 3);
 
-  const matches = allKB
-    .map(entry => {
-      const questionLower = entry.question.toLowerCase();
-      const answerLower = entry.answer.toLowerCase();
+  // Keep ALL meaningful words (including short acronyms like CTA, VAT, UK, EU)
+  // Only remove stop words, not short domain terms
+  const keywords = queryLower
+    .split(/\s+/)
+    .map(w => w.replace(/[^a-z0-9]/g, ""))
+    .filter(w => w.length > 0 && !STOP_WORDS.has(w));
 
-      // Calculate relevance score
-      let score = 0;
-      keywords.forEach(keyword => {
-        if (questionLower.includes(keyword)) score += 3;
-        if (answerLower.includes(keyword)) score += 1;
-      });
+  if (keywords.length === 0) return [];
 
-      return { entry, score };
-    })
-    .filter(item => item.score > 0)
+  // Also build bigrams for phrase matching (e.g. "study group" as a unit)
+  const bigrams: string[] = [];
+  for (let i = 0; i < keywords.length - 1; i++) {
+    bigrams.push(`${keywords[i]} ${keywords[i + 1]}`);
+  }
+
+  const scored = allKB.map(entry => {
+    const questionLower = entry.question.toLowerCase();
+    const answerLower = entry.answer.toLowerCase();
+
+    let score = 0;
+
+    // Bigram matches are strong signals
+    bigrams.forEach(bigram => {
+      if (questionLower.includes(bigram)) score += 6;
+      if (answerLower.includes(bigram)) score += 3;
+    });
+
+    // Individual keyword matches
+    keywords.forEach(keyword => {
+      if (questionLower.includes(keyword)) score += 3;
+      if (answerLower.includes(keyword)) score += 1;
+    });
+
+    return { entry, score };
+  });
+
+  // Minimum threshold: at least one keyword must appear in the QUESTION
+  // (score >= 3) to count as a relevant match. This prevents weak answer-only
+  // matches from polluting the context.
+  const MIN_SCORE = 3;
+
+  const matches = scored
+    .filter(item => item.score >= MIN_SCORE)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
     .map(item => ({
@@ -113,7 +223,13 @@ export async function generateChatbotResponse(
     const systemPrompt = `You are @moji, the AI assistant for MojiTax Connect — a community platform for tax professionals studying for ADIT (Advanced Diploma in International Taxation) and other tax qualifications offered by MojiTax.
 
 ## CRITICAL RULE — KNOWLEDGE BASE ONLY
-You can ONLY answer using the knowledge base entries provided below. You must NEVER add information from your own general knowledge. Do not recommend external websites, organizations, or professionals. Do not provide generic advice. Stick strictly to what the knowledge base says.
+You can ONLY answer using the knowledge base entries provided below.
+- You must NEVER add information from your own general knowledge.
+- You must NEVER claim MojiTax does or does not offer something unless the knowledge base explicitly says so.
+- You must NEVER make negative claims (e.g. "we don't offer X") unless the knowledge base explicitly states that.
+- If the knowledge base entries below do not directly address what the user asked, say: "I don't have specific information about that topic yet. Let me connect you with Team MojiTax who can help."
+- Do not recommend external websites, organizations, or professionals.
+- Do not infer, extrapolate, or fill gaps. Only relay what the knowledge base says.
 
 ## LINKS AND RESOURCES
 - If a knowledge base answer contains a URL or link, you MUST include it in your response so the user can access it directly.
@@ -139,7 +255,7 @@ You MUST respond in plain text. Do NOT use markdown formatting:
 ## KNOWLEDGE BASE (use ONLY this information to answer):
 ${kbMatches.map((match, i) => `${i + 1}. Q: ${match.question}\n   A: ${match.answer}`).join("\n\n")}
 
-Use ONLY the above information to answer. Do not add anything beyond what is provided.`;
+IMPORTANT: If none of the above entries directly answer the user's specific question, tell them you don't have that information and offer to connect them with Team MojiTax. Never guess or fabricate an answer.`;
 
     // Build conversation history for context
     const messages: Array<{
