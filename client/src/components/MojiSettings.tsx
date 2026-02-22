@@ -79,6 +79,36 @@ export default function MojiSettings() {
         entry.tags.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const parseCSVLine = (line: string): string[] => {
+    const fields: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else if (ch === '"') {
+          inQuotes = false;
+        } else {
+          current += ch;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ",") {
+          fields.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+    }
+    fields.push(current.trim());
+    return fields;
+  };
+
   const handleCSVUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -94,10 +124,13 @@ export default function MojiSettings() {
       const entries = lines
         .slice(1)
         .map(line => {
-          const [question, answer, category, tags] = line
-            .split(",")
-            .map(s => s.trim().replace(/^"|"$/g, ""));
-          return { question, answer, category, tags };
+          const fields = parseCSVLine(line);
+          return {
+            question: fields[0] || "",
+            answer: fields[1] || "",
+            category: fields[2] || "",
+            tags: fields[3] || "",
+          };
         })
         .filter(entry => entry.question && entry.answer);
 
