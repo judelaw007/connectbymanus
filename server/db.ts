@@ -1108,7 +1108,7 @@ export async function getChannelMessages(
     .select(
       `
       *,
-      users (
+      users!messages_user_id_fkey (
         name,
         display_name,
         role
@@ -1170,7 +1170,7 @@ export async function getPinnedMessages(channelId: number) {
     .select(
       `
       *,
-      users (
+      users!messages_user_id_fkey (
         name,
         display_name,
         role
@@ -2766,7 +2766,7 @@ export async function searchMessages(
       content,
       message_type,
       created_at,
-      users (
+      users!messages_user_id_fkey (
         name,
         display_name,
         role
@@ -3004,7 +3004,7 @@ export async function getFlaggedMessages(channelId?: number) {
     .select(
       `
       *,
-      users (
+      users!messages_user_id_fkey (
         name,
         display_name,
         role
