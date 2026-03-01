@@ -1137,28 +1137,37 @@ export async function getChannelMessages(
     return [];
   }
 
-  return (data || []).map((row: any) => ({
-    ...snakeToCamel(row),
-    userName: row.users?.display_name || row.users?.name,
-    userRole: row.users?.role,
-    users: undefined,
-    post: row.posts
-      ? {
-          id: row.posts.id,
-          postType: row.posts.post_type,
-          title: row.posts.title,
-          content: row.posts.content,
-          eventDate: row.posts.event_date,
-          eventLocation: row.posts.event_location,
-          tags: row.posts.tags,
-          featuredImage: row.posts.featured_image,
-          priorityLevel: row.posts.priority_level,
-          isPinned: row.posts.is_pinned,
-          articleAuthor: row.posts.article_author,
-        }
-      : null,
-    posts: undefined,
-  }));
+  return (data || []).map((row: any) => {
+    const role = row.users?.role;
+    // Admins always show as "MojiTax Support" in chat
+    // Members show display_name if set, otherwise "Member"
+    const userName =
+      role === "admin"
+        ? "MojiTax Support"
+        : row.users?.display_name || "Member";
+    return {
+      ...snakeToCamel(row),
+      userName,
+      userRole: role,
+      users: undefined,
+      post: row.posts
+        ? {
+            id: row.posts.id,
+            postType: row.posts.post_type,
+            title: row.posts.title,
+            content: row.posts.content,
+            eventDate: row.posts.event_date,
+            eventLocation: row.posts.event_location,
+            tags: row.posts.tags,
+            featuredImage: row.posts.featured_image,
+            priorityLevel: row.posts.priority_level,
+            isPinned: row.posts.is_pinned,
+            articleAuthor: row.posts.article_author,
+          }
+        : null,
+      posts: undefined,
+    };
+  });
 }
 
 export async function getPinnedMessages(channelId: number) {
@@ -1199,28 +1208,35 @@ export async function getPinnedMessages(channelId: number) {
     return [];
   }
 
-  return (data || []).map((row: any) => ({
-    ...snakeToCamel(row),
-    userName: row.users?.display_name || row.users?.name,
-    userRole: row.users?.role,
-    users: undefined,
-    post: row.posts
-      ? {
-          id: row.posts.id,
-          postType: row.posts.post_type,
-          title: row.posts.title,
-          content: row.posts.content,
-          eventDate: row.posts.event_date,
-          eventLocation: row.posts.event_location,
-          tags: row.posts.tags,
-          featuredImage: row.posts.featured_image,
-          priorityLevel: row.posts.priority_level,
-          isPinned: row.posts.is_pinned,
-          articleAuthor: row.posts.article_author,
-        }
-      : null,
-    posts: undefined,
-  }));
+  return (data || []).map((row: any) => {
+    const role = row.users?.role;
+    const userName =
+      role === "admin"
+        ? "MojiTax Support"
+        : row.users?.display_name || "Member";
+    return {
+      ...snakeToCamel(row),
+      userName,
+      userRole: role,
+      users: undefined,
+      post: row.posts
+        ? {
+            id: row.posts.id,
+            postType: row.posts.post_type,
+            title: row.posts.title,
+            content: row.posts.content,
+            eventDate: row.posts.event_date,
+            eventLocation: row.posts.event_location,
+            tags: row.posts.tags,
+            featuredImage: row.posts.featured_image,
+            priorityLevel: row.posts.priority_level,
+            isPinned: row.posts.is_pinned,
+            articleAuthor: row.posts.article_author,
+          }
+        : null,
+      posts: undefined,
+    };
+  });
 }
 
 export async function togglePinMessage(messageId: number, isPinned: boolean) {
@@ -2794,17 +2810,23 @@ export async function searchMessages(
     return { results: [], total: 0 };
   }
 
-  const results = (data || []).map((row: any) => ({
-    id: row.id,
-    channelId: row.channel_id,
-    content: row.content,
-    messageType: row.message_type,
-    createdAt: row.created_at,
-    userName: row.users?.display_name || row.users?.name || "Unknown",
-    channelName: row.channels?.name || "Unknown",
-    channelType: row.channels?.type,
-    isPrivate: row.channels?.is_private,
-  }));
+  const results = (data || []).map((row: any) => {
+    const role = row.users?.role;
+    return {
+      id: row.id,
+      channelId: row.channel_id,
+      content: row.content,
+      messageType: row.message_type,
+      createdAt: row.created_at,
+      userName:
+        role === "admin"
+          ? "MojiTax Support"
+          : row.users?.display_name || "Member",
+      channelName: row.channels?.name || "Unknown",
+      channelType: row.channels?.type,
+      isPrivate: row.channels?.is_private,
+    };
+  });
 
   return { results, total: count || 0 };
 }

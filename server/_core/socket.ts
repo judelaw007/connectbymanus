@@ -53,8 +53,11 @@ export function initializeSocket(httpServer: HTTPServer) {
       // Attach user info to socket
       socket.data.userId = user.id;
       socket.data.userRole = user.role;
+      // Admins show as "MojiTax Support", members show display name or "Member"
       socket.data.userName =
-        user.displayName || user.name || user.email || "User";
+        user.role === "admin"
+          ? "MojiTax Support"
+          : user.displayName || "Member";
       next();
     } catch (error) {
       next(new Error("Authentication failed"));

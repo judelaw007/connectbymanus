@@ -49,12 +49,19 @@ export function MessageList({
   const [mojiThinking, setMojiThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: initialMessages, isLoading } =
-    trpc.messages.getByChannel.useQuery({
-      channelId,
-      limit: 50,
-      offset: 0,
-    });
+  // Use public endpoint for non-authenticated visitors, protected endpoint for logged-in users
+  const { data: publicMessages, isLoading: isPublicLoading } =
+    trpc.messages.getPublicByChannel.useQuery(
+      { channelId, limit: 50, offset: 0 },
+      { enabled: isPublicView }
+    );
+  const { data: authMessages, isLoading: isAuthLoading } =
+    trpc.messages.getByChannel.useQuery(
+      { channelId, limit: 50, offset: 0 },
+      { enabled: !isPublicView }
+    );
+  const initialMessages = isPublicView ? publicMessages : authMessages;
+  const isLoading = isPublicView ? isPublicLoading : isAuthLoading;
 
   // Load initial messages (spread to avoid mutating React Query cache)
   useEffect(() => {
@@ -345,23 +352,21 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
   const isAdmin = message.userRole === "admin";
   const isPost = POST_TYPES.includes(message.messageType as any);
 
-  // For public view, hide real names and show generic "Member" or "Admin"
+  // Display names are resolved server-side:
+  // - Admins → "MojiTax Support"
+  // - Members without display name → "Member"
+  // - Members with display name → their chosen name
+  // Public view: same names but uses server data directly
   const getDisplayName = () => {
     if (isBot) return "@moji";
-    if (isPublicView) {
-      // Show role but not actual name for privacy
-      return isAdmin ? "Admin" : "Member";
-    }
-    return message.userName || "Unknown";
+    return message.userName || "Member";
   };
 
   const getInitials = (name: string | null) => {
     if (isBot) return "🤖";
-    if (isPublicView) {
-      // Generic initials for public view
-      return isAdmin ? "A" : "M";
-    }
-    if (!name) return "?";
+    // All admins share the same avatar initials
+    if (isAdmin) return "MS";
+    if (!name || name === "Member") return "M";
     return name
       .split(" ")
       .map(n => n[0])
@@ -382,9 +387,7 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
       <div className="max-w-lg">
         <PostCard
           post={message.post}
-          authorName={
-            isPublicView ? (isAdmin ? "Admin" : "Member") : message.userName
-          }
+          authorName={message.userName}
           createdAt={message.createdAt}
         />
       </div>
@@ -418,7 +421,7 @@ function MessageItem({ message, isPublicView = false }: MessageItemProps) {
           <span className="font-semibold text-sm">{getDisplayName()}</span>
           {isAdmin && !isBot && (
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-              Admin
+              Support
             </span>
           )}
           <span className="text-xs text-muted-foreground">

@@ -976,6 +976,45 @@ export const appRouter = router({
         );
       }),
 
+    // Get messages for a public channel (no auth required — read-only for visitors)
+    getPublicByChannel: publicProcedure
+      .input(
+        z.object({
+          channelId: z.number(),
+          limit: z.number().default(50),
+          offset: z.number().default(0),
+        })
+      )
+      .query(async ({ input }) => {
+        const channel = await db.getChannelById(input.channelId);
+        if (!channel) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Channel not found",
+          });
+        }
+
+        // Only allow viewing public, non-suspended channels
+        if (channel.isPrivate) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "This channel is private",
+          });
+        }
+        if (channel.isSuspended) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "This channel is currently unavailable",
+          });
+        }
+
+        return await db.getChannelMessages(
+          input.channelId,
+          input.limit,
+          input.offset
+        );
+      }),
+
     // Get pinned messages
     getPinned: protectedProcedure
       .input(z.object({ channelId: z.number() }))
